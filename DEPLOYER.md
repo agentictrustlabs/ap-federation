@@ -14,6 +14,7 @@ runs against it:
 | `apps/projector` | **an operator's machine**, over `FEDERATION_RPC_URL` | ap-federation | 2026-10-13 |
 | `apps/site` — **ap-federation.faithnet.io** (spec 440 §B) | Cloudflare Worker `ap-federation-site`, env `faithnet`, custom domain on `faithnet.io` | ap-federation (`pnpm site:deploy`) | 2026-10-14 |
 | the shared KMS operator record (spec 440 §A) | `federation.yaml#kms` — the AKCS CVM in `RG-AKCS-PILOT-WESTUS`; code `agentictrustlabs/faithkms` | **operated**, not deployed, by the AKCS operator (one holder); recorded here | 2026-10-14 |
+| `apps/door` — **door.ap-federation.faithnet.io** (spec 439 F2, the receiving door in front of imbnet's A2A door) | Cloudflare Worker `ap-federation-door`, env `faithnet`, DO `DoorLedgerDO`; secrets `FEDERATION_RPC_URL`, `DOOR_SECRET` | ap-federation (`pnpm door:deploy`) | 2026-10-14 |
 | `apps/nanda-adapter` (F4) | per town | ap-federation | — |
 
 **The projector is not yet the estate's `.registry` service agent, and spec 439 §4 says it must be.** Today
@@ -46,6 +47,17 @@ The lesson that rule is written from: on 2026-10-13 three Ring-0-era copies of f
 carried `[env.faithnet]` in a sibling repository, so a deploy from either tree landed on the same live
 Worker — and a stale `EXECUTORS` var went back into production that way. **One deployer per environment. If a
 Worker name appears in two repositories, one of them is wrong.**
+
+## The door is a reference, and says so
+
+`apps/door` is the federation's reference receiving door: it stands in FRONT of one estate's A2A door and runs the
+admission engine with the foreign-estate evaluator (spec 410 §4.2) the way the estate's own edge should. A
+production door is the estate's edge (ap-home `apps/edge`), which already runs ingress admission and would gain
+this stage; until it does, this Worker is where a foreign presentation reaches an admission receipt. Two honest
+limits: the receipts live in the door's Durable Object (serving plane, hash-chained, returned by reference) and
+belong in the receiving estate's registry agent's vault and the presenter's own (ADR-0055); and the door forwards
+with evidence in headers that the estate's runtime may read and today ignores — the estate's own mandate, verified
+per step, still decides whether anything runs.
 
 ## Neutral ground is not an estate
 

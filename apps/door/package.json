@@ -1,0 +1,25 @@
+{
+  "name": "@ap-federation/door",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The receiving door (spec 439 F2): challenge → principal-signed request proof → admission engine with the foreign-estate evaluator against roots read live from neutral ground → hash-chained receipt → forward to the estate's A2A door with the evidence. It admits; it never decides what the agent may do.",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "dev": "wrangler dev",
+    "deploy:faithnet": "wrangler deploy --env faithnet"
+  },
+  "dependencies": {
+    "@agenticprimitives/admission": "0.0.0-alpha.13",
+    "@agenticprimitives/estate-projection": "0.0.0-alpha.9",
+    "viem": "2.52.2"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "4.20260605.1",
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.3",
+    "vitest": "^4.1.8",
+    "wrangler": "4.93.0"
+  }
+}

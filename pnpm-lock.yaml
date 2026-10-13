@@ -11,6 +11,12 @@ importers:
       '@agenticprimitives/a2a':
         specifier: 0.0.0-alpha.35
         version: 0.0.0-alpha.35(@agenticprimitives/agent-account@1.0.0-alpha.34(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.34)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.34)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.34))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.34)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/key-custody@1.0.0-alpha.34(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.34))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.34)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.34)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/ontology@1.0.0-alpha.34)(viem@2.52.2(typescript@5.9.3))
+      '@agenticprimitives/admission':
+        specifier: 0.0.0-alpha.13
+        version: 0.0.0-alpha.13(@agenticprimitives/types@1.0.0-alpha.34)
+      '@agenticprimitives/delegation':
+        specifier: 1.0.0-alpha.34
+        version: 1.0.0-alpha.34(@agenticprimitives/agent-account@1.0.0-alpha.34(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.34)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.34)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.34))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.34)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/key-custody@1.0.0-alpha.34(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.34))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.34)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.34)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.34)(viem@2.52.2(typescript@5.9.3))
       '@agenticprimitives/devkit':
         specifier: 0.0.0-alpha.22
         version: 0.0.0-alpha.22(@agenticprimitives/a2a@0.0.0-alpha.35(@agenticprimitives/agent-account@1.0.0-alpha.34(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.34)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.34)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.34))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.34)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/key-custody@1.0.0-alpha.34(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.34))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.34)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.34)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/ontology@1.0.0-alpha.34)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/evaluation@0.0.0-alpha.8)(@agenticprimitives/ontology@1.0.0-alpha.34)(viem@2.52.2(typescript@5.9.3))
@@ -38,6 +44,34 @@ importers:
       yaml:
         specifier: 2.8.1
         version: 2.8.1
+
+  apps/door:
+    dependencies:
+      '@agenticprimitives/admission':
+        specifier: 0.0.0-alpha.13
+        version: 0.0.0-alpha.13(@agenticprimitives/types@1.0.0-alpha.34)
+      '@agenticprimitives/estate-projection':
+        specifier: 0.0.0-alpha.9
+        version: 0.0.0-alpha.9(@agenticprimitives/verifiable-credentials@0.0.0-alpha.31(@agenticprimitives/ontology@1.0.0-alpha.34)(@agenticprimitives/types@1.0.0-alpha.34)(viem@2.52.2(typescript@5.9.3)))(typescript@5.9.3)
+      viem:
+        specifier: 2.52.2
+        version: 2.52.2(typescript@5.9.3)
+    devDependencies:
+      '@cloudflare/workers-types':
+        specifier: 4.20260605.1
+        version: 4.20260605.1
+      '@types/node':
+        specifier: ^22.10.0
+        version: 22.20.5
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
+      vitest:
+        specifier: ^4.1.8
+        version: 4.1.11(@types/node@22.20.5)(vite@8.3.4(@types/node@22.20.5)(esbuild@0.28.2)(tsx@4.23.15)(yaml@2.8.1))
+      wrangler:
+        specifier: 4.93.0
+        version: 4.93.0(@cloudflare/workers-types@4.20260605.1)
 
   apps/projector:
     dependencies:
@@ -96,6 +130,11 @@ packages:
     hasBin: true
     peerDependencies:
       viem: ^2.52.2
+
+  '@agenticprimitives/admission@0.0.0-alpha.13':
+    resolution: {integrity: sha512-5TgFKn8zdMclJRvjAyRW+ywRnSUxgJpAvRrnhCvghMgp621cwCJtFCH7a0OVvNSsUOU5xEpnUyLxANdPL/UUgQ==}
+    peerDependencies:
+      '@agenticprimitives/types': ^1.0.0-alpha.32
 
   '@agenticprimitives/agent-account@1.0.0-alpha.34':
     resolution: {integrity: sha512-AcjfNH2mOxDQ46MIPoNb6uK5l6DiJ/aZtPqqBvSxkM5CWtBONnpHq3eeBUh/NLfMbq9xPPQIA6a/UMvNqKD5Hw==}
@@ -1370,6 +1409,10 @@ snapshots:
       - '@agenticprimitives/connect-auth'
       - '@agenticprimitives/key-custody'
       - '@agenticprimitives/ontology'
+
+  '@agenticprimitives/admission@0.0.0-alpha.13(@agenticprimitives/types@1.0.0-alpha.34)':
+    dependencies:
+      '@agenticprimitives/types': 1.0.0-alpha.34
 
   '@agenticprimitives/agent-account@1.0.0-alpha.34(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.34)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.34)(viem@2.52.2(typescript@5.9.3))':
     dependencies:

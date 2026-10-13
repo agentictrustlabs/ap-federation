@@ -85,6 +85,14 @@ without a payer, or a root chain that is not a live town. The naming decision ch
 universal namespace rooted on faithchain, the way ENS v2 is rooted on L1**, other chains joining without a second
 registry (spec 440 §C; the naming document's N7 is amended).
 
+**F2 — the receiving door, live (2026-10-14).** `apps/door` at **door.ap-federation.faithnet.io** in front of imbnet's
+A2A door: a challenge, a principal-signed request proof verified through `UniversalSignatureValidator` with the
+replay spent before the signature is checked, the admission engine with `foreignEstateEvaluator` against roots read
+from neutral ground at request time, a hash-chained receipt by reference, and the admitted bytes forwarded with
+`x-ap-foreign-standing`. The gate's presenter holds a REAL grant — a narrow `harness.read` wire maya signed to the
+gate's account at her Home, its leaf submitted and anchored at sequence 3 — and `scripts/gate-f2-door.mts` is green:
+11 checks including five refusals (stale, wrong audience, wrong subject, replayed proof, no proof).
+
 **And what F1 did NOT prove:** this is cross-*estate*, on one chain. The estate id is chain-scoped by
 construction, so a second chain changes one line of config and no verifier code — but a design property is
 not a demonstration. Next: F2, the receiving edge through `foreignEstateEvaluator`.
@@ -96,6 +104,7 @@ not a demonstration. Next: F2, the receiving edge through `foreignEstateEvaluato
 | `apps/*` | the product's deployables — each with its own `wrangler.toml` (see `wrangler.example.toml` for the env layout) |
 | `examples/*` | relying-app demonstrations of the product's ceremonies; each builds against published packages or is retired |
 | `federation.yaml` | the register: neutral ground and the estates that project onto it; **the towns** and where their public surfaces are; **the shared KMS operator** (tenants, callers, the four conditions); **the universal namespace** (root chain, roots, resolver) |
+| `apps/door` | **door.ap-federation.faithnet.io** — the receiving door (spec 439 F2): proof → admission with the foreign-estate evaluator → receipt → forward |
 | `apps/site` | **ap-federation.faithnet.io** — towns · KMS · names · neutral ground; public, read-only, keyless (spec 440 §B) |
 | `specs/` | this repository's own specs (`440` — the shared KMS operator, the site, the universal naming service) |
 | `scripts/` | ops scripts and the live gates (`gate-f1-projection.mts`) |
@@ -114,6 +123,8 @@ pnpm doctor                     # ap doctor — the doctrine rules over this tre
 pnpm check:public-links         # no link into a private repository (this repo is public)
 pnpm check:federation           # the register is fit to publish (towns, one tenant per estate, the root chain)
 pnpm site:deploy                # apps/site → ap-federation.faithnet.io
+pnpm door:deploy                # apps/door → door.ap-federation.faithnet.io (then set FEDERATION_RPC_URL + DOOR_SECRET)
+pnpm gate:door                  # F2: the door admits on evidence and refuses what it must
 pnpm gate:site                  # the site answers from the towns' live surfaces (incl. the never-bare twin)
 pnpm doctor:rules               # drift between the projected rules and the pinned source
 pnpm upgrade:canary             # newest canary of every pin, one coherent set, then doctor

@@ -24,7 +24,9 @@
     "check:public-links": "node scripts/check-public-links.mjs",
     "check:federation": "tsx scripts/check-federation.mts",
     "site:deploy": "pnpm --filter @ap-federation/site deploy:faithnet",
-    "gate:site": "tsx scripts/gate-federation-site.mts"
+    "gate:site": "tsx scripts/gate-federation-site.mts",
+    "door:deploy": "pnpm --filter @ap-federation/door deploy:faithnet",
+    "gate:door": "tsx scripts/gate-f2-door.mts"
   },
   "devDependencies": {
     "@agenticprimitives/a2a": "0.0.0-alpha.35",
@@ -36,6 +38,8 @@
     "typescript": "^5.7.3",
     "viem": "2.52.2",
     "vitest": "^4.1.8",
-    "yaml": "2.8.1"
+    "yaml": "2.8.1",
+    "@agenticprimitives/delegation": "1.0.0-alpha.34",
+    "@agenticprimitives/admission": "0.0.0-alpha.13"
   }
 }

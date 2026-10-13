@@ -1,0 +1,52 @@
+# The receiving door (spec 439 F2): the federation's reference door in front of ONE receiving estate's A2A door.
+# It authenticates the presenter by a principal-signed request proof (UniversalSignatureValidator on the
+# presenter's chain), runs the admission engine with the foreign-estate evaluator against roots READ LIVE from
+# neutral ground, writes a hash-chained receipt, and forwards admitted bytes to the estate's A2A door with the
+# evidence in headers. It admits; it never decides what the agent may do (ADR-0043 / ADR-0056).
+#
+# The receiving AGENT is maya-fernandes.me (imbnet) through the estate's edge-addressed door (spec 346 §5: imbnet
+# mints no per-agent hosts). The estate agent has no A2A door of its own, which is why the target is a resident.
+# Secrets (never here): FEDERATION_RPC_URL (carries an app token), DOOR_SECRET (challenge tickets + grant MAC).
+name = "ap-federation-door"
+main = "src/index.ts"
+compatibility_date = "2026-09-01"
+
+[[durable_objects.bindings]]
+name = "LEDGER"
+class_name = "DoorLedgerDO"
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["DoorLedgerDO"]
+
+[vars]
+PUBLIC_ORIGIN = "http://localhost:8787"
+BOUNDARY_ID = "ap-federation-door:local"
+RECEIVING_ESTATE = "imbnet"
+ORIGIN_A2A = "https://edge.impact-agent.io/api/a2a/maya-fernandes.me"
+TARGET_AGENT_ID = "eip155:34348:0x013fb41c28fe7919f9abfa03884110ef629006e5"
+TARGET_RUNTIME_ID = "urn:ap:runtime:imbnet:prod"
+CHAIN_ID = "34348"
+REGISTRY_ADDRESS = "0xb4E116F5C6915a4f1e649E0877e4a0A7a1c1147b"
+UNIVERSAL_SIGNATURE_VALIDATOR = "0xeDd56f500325D4701B9985A34e5Fa6EED6716137"
+MAX_AGE_SECONDS = "86400"
+
+[env.faithnet]
+name = "ap-federation-door"
+routes = [{ pattern = "door.ap-federation.faithnet.io", custom_domain = true }]
+[[env.faithnet.durable_objects.bindings]]
+name = "LEDGER"
+class_name = "DoorLedgerDO"
+[[env.faithnet.migrations]]
+tag = "v1"
+new_sqlite_classes = ["DoorLedgerDO"]
+[env.faithnet.vars]
+PUBLIC_ORIGIN = "https://door.ap-federation.faithnet.io"
+BOUNDARY_ID = "ap-federation-door:imbnet"
+RECEIVING_ESTATE = "imbnet"
+ORIGIN_A2A = "https://edge.impact-agent.io/api/a2a/maya-fernandes.me"
+TARGET_AGENT_ID = "eip155:34348:0x013fb41c28fe7919f9abfa03884110ef629006e5"
+TARGET_RUNTIME_ID = "urn:ap:runtime:imbnet:prod"
+CHAIN_ID = "34348"
+REGISTRY_ADDRESS = "0xb4E116F5C6915a4f1e649E0877e4a0A7a1c1147b"
+UNIVERSAL_SIGNATURE_VALIDATOR = "0xeDd56f500325D4701B9985A34e5Fa6EED6716137"
+MAX_AGE_SECONDS = "86400"

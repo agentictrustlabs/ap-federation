@@ -47,6 +47,7 @@ against the root it reads itself.
 | **naming across towns and chains** | `docs/architecture/federated-agent-naming.md` — N1–N8: CAIP-10 is the identity; a handle is unique per town and never re-registered elsewhere; across towns a name is the pair `{ name, chain }` and is never shown bare; the DNS projection is a rented locator; trust is named signals; **no federation root** (an opt-in one on public ground is recorded, not built). §7 is the Ring 0 backlog |
 | what ERC-8004, ENS v2, the ANS family, AID, HCS-14, NANDA, AGNTCY actually say, dated | `docs/architecture/naming-landscape-crosswalk.md` |
 | the shared KMS operator, the site, the universal naming service | `specs/440-shared-kms-federation-site-and-universal-naming.md` — A1–A4 (one operator, one tenant per estate, four conditions), B1–B2 (the site reads the towns' own surfaces), C1–C4 (**one namespace rooted on faithchain, ENS v2 style**; other chains join by gate + satellite + chain-keyed records + proof) |
+| the receiving door (F2) | `apps/door/src/index.ts` — the four steps in order: proof → resolution → admission (foreign-estate evaluator, roots read live) → forward with evidence. The challenge is a stateless HMAC ticket (`challenge.ts`); the ledger DO is serving plane (`ledger-do.ts`). The gate's presenter is a real delegate (`scripts/setup-f2-test-grant.mts`) |
 | standards versions | Ring 0 `docs/standards-lock.json`. **This repo proposes entries; it never pins its own target** — the point of the lock is that an upgrade is reviewable by someone other than the adapter's author. |
 
 ### Drift triggers — STOP
@@ -91,6 +92,11 @@ against the root it reads itself.
 - *"Make the DNS host the identity — every ANS/AID resolver already speaks DNS."* **STOP.** The host is a projection
   the agent publishes and could lose without losing anything but reach; the DANE-DID draft itself says a name binding
   "MUST NOT be read as providing continuity of holding".
+- *"Let an OAuth bearer through the door when it cites a presentation."* **STOP.** A request that claims authority
+  needs a PRINCIPAL-signed proof (admission's binding position; ADR-0041). The door accepts only the request proof.
+- *"Return the request-proof failure code to the caller so they can debug."* **STOP.** Those codes are a map of how
+  to forge a proof (spec 339 §26.2). Log precisely, answer `authentication_failed`. The FOREIGN_ESTATE_* codes are
+  the federation's own vocabulary and are the ones that stay legible.
 - *"Add a primitive here."* **STOP.** Anything a second product would need is a Ring-0 package API
   (spec 399 §4). This repo holds adapters, deployed jobs and gates.
 

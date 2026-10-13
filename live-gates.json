@@ -25,6 +25,21 @@
       "env": {
         "FEDERATION_SITE_URL": "https://ap-federation.faithnet.io"
       }
+    },
+    {
+      "id": "f2-door",
+      "script": "scripts/gate-f2-door.mts",
+      "spec": "specs/439 F2 (Ring 0); Ring 0 spec 410 \u00a74.2",
+      "proves": "the receiving door admits a foreign presentation on a principal-signed request proof and a leaf proved against the root READ FROM NEUTRAL GROUND, writes a hash-chained receipt naming only the acting account and the boundary, and forwards the admitted bytes to the estate's A2A door with the standing in headers.",
+      "twin": "a presentation one sequence behind (stale), one answering another door's challenge, one about another subject, a replayed proof, and no proof are each refused; a request with no presentation is admitted as nobody-foreign with no standing.",
+      "required": true,
+      "timeoutSec": 180,
+      "env": {
+        "FEDERATION_DOOR_URL": "https://door.ap-federation.faithnet.io",
+        "FEDERATION_ESTATE": "imbnet",
+        "NODE_OPTIONS": "--dns-result-order=ipv4first"
+      },
+      "needs": "FEDERATION_RPC_URL + .secrets/f2-test-agent.env + .secrets/f2-test-wire.json (scripts/setup-f2-test-grant.mts, once)"
     }
   ]
 }
