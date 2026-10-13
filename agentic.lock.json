@@ -38,7 +38,12 @@
         "apps",
         "examples"
       ],
-      "allowedIn": [],
+      "allowedIn": [
+        {
+          "file": "apps/projector/src/anchor.ts",
+          "reason": "The projector signs the estate's anchoring transactions with the estate's projection-signer key (federation.yaml `signerKeyEnv`), read from the environment at run time and never from the tree. F1 holds it on an operator's machine; F2 moves it into the estate's .registry service agent (DEPLOYER.md). The one place the key becomes an account is here."
+        }
+      ],
       "toleratedEnvNames": []
     },
     "noHmacHomeBridge": {
@@ -71,10 +76,10 @@
       "budget": {}
     },
     "custodianCoverage": {
-      "skip": "ap-federation carries no Home custody surface yet — enable when a Home moves in (specs 294/295)"
+      "skip": "ap-federation carries no Home custody surface yet \u2014 enable when a Home moves in (specs 294/295)"
     },
     "archetypeCatalog": {
-      "skip": "ap-federation carries no archetype catalog yet — enable when a Home moves in (spec 354 §3)"
+      "skip": "ap-federation carries no archetype catalog yet \u2014 enable when a Home moves in (spec 354 \u00a73)"
     },
     "capabilityVocabulary": {
       "homeGlobs": [
@@ -84,7 +89,7 @@
       "wireAllowed": []
     },
     "demoPersonOrgDistinct": {
-      "skip": "ap-federation carries no persona roster yet — enable when @agenticprimitives-demo/estate is consumed (spec 399 §2.6)"
+      "skip": "ap-federation carries no persona roster yet \u2014 enable when @agenticprimitives-demo/estate is consumed (spec 399 \u00a72.6)"
     },
     "rulesDrift": {
       "cursorRules": ".cursor/rules",

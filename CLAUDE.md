@@ -43,6 +43,9 @@ against the root it reads itself.
 | the wire | ADR-0057 (A2A over HTTPS is the normative external profile) · ADR-0044 (MCP stays INSIDE an estate, never a peer surface) |
 | what a presentation is | ADR-0056 — resolution/evidence is never authority |
 | the town's shape | `ap-town` `towns/<chain>/town.yaml`: estates, `agentZone`, lanes, naming gate |
+| the principles, with the field's own sentences beside each | `docs/architecture/federation-principles.md` (P1–P10) |
+| **naming across towns and chains** | `docs/architecture/federated-agent-naming.md` — N1–N8: CAIP-10 is the identity; a handle is unique per town and never re-registered elsewhere; across towns a name is the pair `{ name, chain }` and is never shown bare; the DNS projection is a rented locator; trust is named signals; **no federation root** (an opt-in one on public ground is recorded, not built). §7 is the Ring 0 backlog |
+| what ERC-8004, ENS v2, the ANS family, AID, HCS-14, NANDA, AGNTCY actually say, dated | `docs/architecture/naming-landscape-crosswalk.md` |
 | standards versions | Ring 0 `docs/standards-lock.json`. **This repo proposes entries; it never pins its own target** — the point of the lock is that an upgrade is reviewable by someone other than the adapter's author. |
 
 ### Drift triggers — STOP
@@ -69,6 +72,16 @@ against the root it reads itself.
   verifier `maxAge` — and know that the two pull against each other (`apps/projector/README.md` §3).
 - *"Say the cross-chain story is demonstrated."* **STOP.** F1 is CROSS-ESTATE on one chain. The id is
   chain-scoped by construction, which is a design property, not a demonstration.
+- *"Give the federation its own `.me` so names are unique everywhere."* **STOP.** A root is a trust domain every town
+  must join (spec 439 §0). Across towns a name is `{ name, chain }` and is displayed with its town; a federation root on
+  public ground is an opt-in recorded in `docs/architecture/federated-agent-naming.md` §5.6, after custody propagation.
+- *"Write `alice.me@faithchain` for the cross-town form."* **STOP.** `@` means context (spec 346 §3); the chain is a
+  record beside the name, never a name component (Ring 0 refused ERC-7828 for this reason).
+- *"Put the capability / version / certification in the name so resolvers can filter."* **STOP.** The one derived fact
+  in a name is the type, checked on chain (ADR-0061). Everything else changes without the agent changing.
+- *"Make the DNS host the identity — every ANS/AID resolver already speaks DNS."* **STOP.** The host is a projection
+  the agent publishes and could lose without losing anything but reach; the DANE-DID draft itself says a name binding
+  "MUST NOT be read as providing continuity of holding".
 - *"Add a primitive here."* **STOP.** Anything a second product would need is a Ring-0 package API
   (spec 399 §4). This repo holds adapters, deployed jobs and gates.
 

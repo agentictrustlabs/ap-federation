@@ -2,8 +2,8 @@
 
 **Two AP towns interoperate — on protocols the field already speaks, over proof rather than trust.**
 
-Spec of record: [`specs/439-ap-federation-cross-town-interoperation.md`](https://github.com/agentictrustlabs/agentic-primitives/blob/main/specs/439-ap-federation-cross-town-interoperation.md)
-in Ring 0. Generated from the Developer Kit's `product-repo` template (spec 399 §3.6, revision 2026-09-16.1)
+Spec of record: Ring 0 `specs/439-ap-federation-cross-town-interoperation.md` (the substrate repository is private, so it is
+named here and not linked; the architecture notes in `docs/architecture/` carry what a reader needs from it). Generated from the Developer Kit's `product-repo` template (spec 399 §3.6, revision 2026-09-16.1)
 by `@agenticprimitives/create-app` 0.0.0-alpha.22. Ring 0 (`agenticprimitives`) keeps the packages, the
 contracts and the kit; this repository owns its runtime, its ops scripts, its live gates and its adapters
 (ADR-0063 §2).
@@ -89,6 +89,7 @@ not a demonstration. Next: F2, the receiving edge through `foreignEstateEvaluato
 | `examples/*` | relying-app demonstrations of the product's ceremonies; each builds against published packages or is retired |
 | `federation.yaml` | the register: neutral ground, and the estates that project onto it (governance, signer, how each was determined, and why an estate is refused) |
 | `scripts/` | ops scripts and the live gates (`gate-f1-projection.mts`) |
+| `docs/architecture/` | the federation principles with their industry anchors, **the federated naming decision** (identity · town handle · town-qualified pair · DNS projection · signals, no root), and a dated crosswalk of ERC-8004 / ENS v2 / the ANS family (OWASP, IETF, Linux Foundation, GoDaddy) / AID / HCS-14 / NANDA / AGNTCY — start at its `README.md` |
 | `docs/runbooks/` | `project-an-estate.md` — putting an estate on neutral ground, end to end |
 | `live-gates.json` | the live-gates ledger (spec 392 shape) the nightly runs through `ap test --live-gates` |
 | `agentic.lock.json` | the coherent `@agenticprimitives/*` set, the rules-source digests, the doctor config |
@@ -100,6 +101,7 @@ not a demonstration. Next: F2, the receiving edge through `foreignEstateEvaluato
 ```
 pnpm install
 pnpm doctor                     # ap doctor — the doctrine rules over this tree
+pnpm check:public-links         # no link into a private repository (this repo is public)
 pnpm doctor:rules               # drift between the projected rules and the pinned source
 pnpm upgrade:canary             # newest canary of every pin, one coherent set, then doctor
 pnpm upgrade:pin 1.0.0-alpha.24 # or one named version / dist-tag
