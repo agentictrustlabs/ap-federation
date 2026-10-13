@@ -58,6 +58,17 @@ ledger.
 `/api/names?q=`, `/api/names/<name>`, `/api/doors`, `/api/federation`. It bundles the register at build time and
 fetches everything else live, so a register change needs a redeploy and a town change does not.
 
+## §6's positive half (a visitor paid under a steward's standing wire)
+
+1. The visitor needs a **treasury** on the receiving chain: ap-home `scripts/charter-visitor-treasury.mts` (an
+   account custodied by the visitor's payee key, typed `treasury` on its profile). Its address goes in
+   `.secrets/f3-visitor-payee.env` as `F3_VISITOR_TREASURY`.
+2. A steward issues the **standing wire**: ap-home `scripts/issue-visitor-standing-wire.mts --by alice --treasury
+   alice2.treasury --delegate <visitor agent> --payee <visitor treasury> --asset <the treasury's rail> --cap 10 --out
+   .secrets/f3-standing-wire-<estate>.json`. Delegate ≠ payee, by the harness's rule; the asset is the one the
+   treasury pays in.
+3. `pnpm gate:door` for that estate runs the positive half when the wire file exists, and its payee twin.
+
 ## The gates
 
 | Gate | Command | Proves | Needs |

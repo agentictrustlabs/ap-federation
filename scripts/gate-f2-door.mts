@@ -17,6 +17,7 @@ import { createPublicClient, http, type Address, type Hex } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { requestProofDigest, sha256Of, type AgenticRequestProofClaims } from '@agenticprimitives/admission';
 import { callerAssertionDigest, requestBodyHash, sessionAuthorizationHeader } from '@agenticprimitives/a2a/standard';
+import { deriveFromStanding, parkedNeedOf, type StandingWireV1 } from '@agenticprimitives/delegation';
 import { parse } from 'yaml';
 
 const DOOR = (process.env.FEDERATION_DOOR_URL ?? 'https://door.ap-federation.faithnet.io').replace(/\/$/, '');
@@ -51,9 +52,9 @@ function present(nonce: Hex, audience: string): unknown {
   execFileSync('pnpm', ['-s', 'projector', 'present', '--estate', estateId, '--digest', wire.digest, '--audience', audience, '--nonce', nonce, '--out', file], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'] });
   return JSON.parse(readFileSync(file, 'utf8'));
 }
-async function knock(opts: { pres?: unknown; challengeHeader?: string; path?: string; body?: string; sign?: boolean; replayId?: string; audience?: string; proofOverride?: string; originAudience?: string }) {
+async function knock(opts: { pres?: unknown; challengeHeader?: string; path?: string; body?: string; sign?: boolean; replayId?: string; audience?: string; proofOverride?: string; originAudience?: string; text?: string; taskId?: string; metadata?: Record<string, unknown> }) {
   const path = opts.path ?? '/federation/knock';
-  const body = opts.body ?? JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'SendMessage', params: { message: { messageId: crypto.randomUUID(), role: 'ROLE_USER', parts: [{ text: 'A visiting agent from another estate says hello. In one sentence, what may a visitor ask you about?' }] } } });
+  const body = opts.body ?? JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'SendMessage', params: { message: { messageId: crypto.randomUUID(), role: 'ROLE_USER', parts: [{ text: opts.text ?? 'A visiting agent from another estate says hello. In one sentence, what may a visitor ask you about?' }], ...(opts.taskId ? { taskId: opts.taskId } : {}), ...(opts.metadata ? { metadata: opts.metadata } : {}) } } });
   const now = Math.floor(Date.now() / 1000);
   const presRef = opts.pres ? `estate:${String((opts.pres as { estateId: string }).estateId).toLowerCase()}:presentation:${(await sha256Of(JSON.stringify(opts.pres))).slice(7, 39)}` : null;
   const claims: AgenticRequestProofClaims = {
@@ -122,6 +123,56 @@ const refusedAtAuthority = actTask?.status?.state === 'TASK_STATE_AUTH_REQUIRED'
   : actTask?.status?.state === 'TASK_STATE_REJECTED' && /authority|mandate|steward/i.test(said);
 check('§6 twin: an act that needs a mandate is refused at the AUTHORITY stage, by the estate\'s own harness, with the missing authority named — standing is not a mandate', act.effect === 'ADMIT' && refusedAtAuthority, `door ${act.effect}; origin ${act.status} ${actTask ? `${actTask.status?.state} · "${said.slice(0, 120)}" · requirement ${need?.requirement ? 'named' : 'absent'}` : JSON.stringify(act.json?.error ?? act.text.slice(0, 160))}`);
 check('§6 twin: the parked act still carries the verified standing, so a steward reading it knows who asked and from where', actTask?.metadata?.foreignStanding?.verified === true, '');
+
+// ── §6's POSITIVE half: the same visitor, an act a resident's STANDING WIRE covers, run under a mandate derived from it ──
+// A steward of the receiving estate decided once (issue-visitor-standing-wire.mts): this visitor may be paid from her
+// treasury, up to a cap, for thirty days. The visitor asks for a payment within those bounds; the run parks
+// authority_required with what it would need; the visitor derives the child for THAT intent from the standing wire
+// (`deriveFromStanding`), signs it, and continues the same task presenting [child, standing]. The estate's harness
+// verifies every link before the money moves. Then the twin: the same wire does not cover a payment to someone else.
+const standingFile = `.secrets/f3-standing-wire-${(health as { receivingEstate?: string }).receivingEstate ?? 'x'}.json`;
+if (existsSync(standingFile)) {
+  const standing = JSON.parse(readFileSync(standingFile, 'utf8')) as StandingWireV1 & { treasuryName?: string; capShq?: string };
+  // The asset is the one the wire names — the treasury's payment rail (mock USDC on faithchain), not the naming coin.
+  const SHQ = String((standing.requirement.limits as { asset?: string } | undefined)?.asset ?? '').toLowerCase() as Address;
+  const ERC20 = [{ type: 'function', name: 'balanceOf', stateMutability: 'view', inputs: [{ name: 'a', type: 'address' }], outputs: [{ type: 'uint256' }] }, { type: 'function', name: 'symbol', stateMutability: 'view', inputs: [], outputs: [{ type: 'string' }] }] as const;
+  const symbol = (await pub.readContract({ address: SHQ, abi: ERC20, functionName: 'symbol' })) as string;
+  // THE PAYEE IS NOT THE ASKER. The harness refuses an asker naming itself as the counterparty of its own act
+  // ('That would be you. Who is being paid?'), which is right; and assets live only in treasuries anyway. So the
+  // wire names a payee account the visitor holds separately, and the payment lands there.
+  const payee = String((standing.requirement.limits as { payee?: string } | undefined)?.payee ?? '').toLowerCase() as Address;
+  if (!/^0x[0-9a-f]{40}$/.test(payee)) throw new Error('the standing wire names no payee');
+  const before = (await pub.readContract({ address: SHQ, abi: ERC20, functionName: 'balanceOf', args: [payee] })) as bigint;
+  const c3a = await challenge();
+  const ask = await knock({ pres: present(c3a.nonce, c3a.audience), challengeHeader: c3a.header, path: '/a2a', originAudience, text: `Pay 5 ${symbol} from ${standing.treasuryName ?? 'your treasury'} to ${payee}.` });
+  const askTask = (ask.json?.result as { task?: { id?: string; status?: { state?: string; message?: { parts?: Array<{ text?: string; data?: Record<string, unknown> }> } }; metadata?: { runRef?: string } } } | undefined)?.task;
+  const parkedData = askTask?.status?.message?.parts?.find((pt) => pt.data)?.data;
+  const need = parkedNeedOf(parkedData);
+  check('§6 positive: a payment within a standing wire\'s bounds parks AUTH_REQUIRED with the requirement the visitor can derive against', askTask?.status?.state === 'TASK_STATE_AUTH_REQUIRED' && !!need, `${askTask?.status?.state ?? ask.status} · ${need ? `${need.requirement.type} of ${need.delegator.slice(0, 10)}… for ${need.delegate.slice(0, 10)}…` : (askTask?.status?.message?.parts?.find((pt) => pt.text)?.text ?? JSON.stringify(ask.json?.error ?? '')).slice(0, 140)}`);
+  if (need && askTask?.id) {
+    const derived = await deriveFromStanding(standing, need, (digest) => me.signMessage({ message: { raw: digest } }));
+    check('§6 positive: the child mandate for THIS intent derives from the standing wire (a subset: payee, asset, amount, window)', derived.ok === true, derived.ok ? `child ${derived.childRef.slice(0, 10)}… under ${derived.parentRef.slice(0, 10)}…` : derived.reason);
+    if (!derived.ok) console.log('  need:     ' + JSON.stringify(need.requirement) + '\n  standing: ' + JSON.stringify(standing.requirement));
+    if (derived.ok) {
+      const c3b = await challenge();
+      const cont = await knock({ pres: present(c3b.nonce, c3b.audience), challengeHeader: c3b.header, path: '/a2a', originAudience, text: 'Here is the mandate for that payment.', taskId: askTask.id, metadata: { presented: derived.presented } });
+      const doneTask = (cont.json?.result as { task?: { id?: string; status?: { state?: string; message?: { parts?: Array<{ text?: string }> } }; metadata?: { foreignStanding?: { verified?: boolean }; runRef?: string } } } | undefined)?.task;
+      const said = doneTask?.status?.message?.parts?.find((pt) => pt.text)?.text ?? '';
+      const after = (await pub.readContract({ address: SHQ, abi: ERC20, functionName: 'balanceOf', args: [payee] })) as bigint;
+      check('§6 positive: the same task continues under the presented chain and COMPLETES — the estate\'s harness verified every link before the money moved', doneTask?.status?.state === 'TASK_STATE_COMPLETED', `${doneTask?.status?.state ?? cont.status} · "${said.slice(0, 120)}"`);
+      check('§6 positive: 5 ' + symbol + ' actually moved from the treasury to the wire\'s payee', after - before === 5_000_000n, `payee balance ${Number(before) / 1e6} → ${Number(after) / 1e6} ${symbol}`);
+      check('§6 positive: the completed act still carries the verified foreign standing and names its run', doneTask?.metadata?.foreignStanding?.verified === true && typeof doneTask?.metadata?.runRef === 'string', doneTask?.metadata?.runRef ?? '');
+    }
+  }
+  // the twin: the wire names ONE payee; a payment to anyone else is not a subset and derives nothing
+  const other = '0x000000000000000000000000000000000000dEaD';
+  const c3c = await challenge();
+  const ask2 = await knock({ pres: present(c3c.nonce, c3c.audience), challengeHeader: c3c.header, path: '/a2a', originAudience, text: `Pay 5 ${symbol} from ${standing.treasuryName ?? 'your treasury'} to ${other}.` });
+  const task2 = (ask2.json?.result as { task?: { status?: { state?: string; message?: { parts?: Array<{ data?: Record<string, unknown> }> } } } } | undefined)?.task;
+  const need2 = parkedNeedOf(task2?.status?.message?.parts?.find((pt) => pt.data)?.data);
+  const derived2 = need2 ? await deriveFromStanding(standing, need2, (digest) => me.signMessage({ message: { raw: digest } })) : null;
+  check('§6 twin: the same standing wire does not cover a payment to another payee — nothing derives, the run stays parked for the steward', task2?.status?.state === 'TASK_STATE_AUTH_REQUIRED' && !!derived2 && derived2.ok === false, derived2 ? (derived2.ok ? 'DERIVED (wrong)' : derived2.reason.slice(0, 120)) : `${task2?.status?.state ?? ask2.status}`);
+} else console.log(`  (no standing wire at ${standingFile} — §6's positive half not run here; ap-home scripts/issue-visitor-standing-wire.mts)`);
 
 // ── twins ──
 const c3 = await challenge();

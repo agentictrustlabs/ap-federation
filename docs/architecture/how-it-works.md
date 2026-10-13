@@ -73,6 +73,32 @@ Two shapes of that refusal are accepted by the gate, because the harness has two
 **rejected** (when the capability needs a steward's mandate the caller cannot derive). Either is the authority stage
 speaking; neither is the door.
 
+## The covered act, shown (spec 439 §6's positive half)
+
+A steward of the receiving estate decided **once**: this visitor may be paid from her treasury, up to a cap, for
+thirty days. That decision is a **standing wire**, the same act-as-me wire a connected client gets (spec 397 §11),
+with the visitor's agent as the delegate and the visitor's own treasury as the payee, signed at her Home as the
+treasury's custodian and revocable on chain like any delegation.
+
+| Step | What happens | Where |
+| --- | --- | --- |
+| 19 | The visitor, admitted on its foreign standing, asks alice's agent to pay 5 USDC from `alice2.treasury` to the visitor's treasury. | `gate-f2-door` positive half |
+| 20 | The harness parks the act `TASK_STATE_AUTH_REQUIRED` and says exactly what it would need: a `treasury.payment.execute` mandate of that treasury, for the runtime's executing key, bound to this intent. | ap-home `harness-run.ts` |
+| 21 | **The visitor derives the child for that intent** from the standing wire (`deriveFromStanding`): a subset check on payee, asset, amount, window; a digest binding to the intent and the plan; signed with the visitor's key. | `@agenticprimitives/delegation` |
+| 22 | The visitor continues **the same task**, presenting `[child, standing]` in the message's metadata. | A2A `SendMessage` with `taskId` |
+| 23 | The estate's harness re-enters the run, verifies every link of the chain and the intent binding, and the step runs: *"Done — make payments: done, on chain."* 5 USDC lands in the visitor's treasury. | ap-home `resumeAsAgent`, `mandate-verifier` |
+| 24 | **The twin:** the same wire, a payment to any other payee — not a subset, nothing derives, the run stays parked for the steward. | `gate-f2-door` |
+
+Three rules the building enforced on the way, all correct and all recorded:
+
+- **Never the asker.** A visitor may not name itself as the counterparty of its own act ("That would be you. Who is
+  being paid?"). The payee is a separate account.
+- **Money moves only between treasuries.** A bare account "has no agent type recorded on chain, so this agent cannot
+  tell it is a treasury — nothing was paid". The visitor chartered a treasury on faithchain, typed on its own
+  profile, and the wire names it.
+- **The asset is the treasury's rail.** The ask said "SHQ"; the treasury pays USDC; the wire had to name USDC or
+  derivation refused the subset. A standing wire names the asset the treasury actually pays in.
+
 ## What is not yet shown
 
 The two-chain twin. Everything above runs on faithchain; the estate id is chain-scoped by construction, so a second
