@@ -56,7 +56,8 @@ async function townView(t: FederationTown) {
     t.agent ? probe(`${t.agent}/api/health`) : null,
     t.agent ? probe(`${t.agent}/api/town`) : null,
     t.naming ? probe(`${t.naming}/api/town`) : null,
-    t.agent ? probe(`${t.agent}/api/services`) : null,
+    // The town agent probes every service live before answering; give it longer than the rest.
+    t.agent ? probe(`${t.agent}/api/services`, 25_000) : null,
   ]);
   const townBody = obj(town?.body);
   const namingBody = obj(naming?.body);
@@ -69,6 +70,7 @@ async function townView(t: FederationTown) {
     chain: townBody?.chain ?? null,
     estates: Array.isArray(townBody?.estates) ? townBody!.estates : [],
     services: svc.map((s) => ({ id: s.id, kind: s.kind, hosts: s.hosts, agentName: s.agentName, estates: s.estates, signals: s.signals, description: s.description })),
+    servicesError: services && !services.ok ? (services.error ?? `HTTP ${services.status}`) : undefined,
     names: namingBody
       ? { ok: naming!.ok, block: namingBody.block ?? null, roots: Array.isArray(namingBody.roots) ? (namingBody.roots as Record<string, unknown>[]).map((r) => ({ tld: r.tld, kind: r.kind, count: r.count, priced: r.priced, estates: r.estates })) : [], fees: namingBody.fees ?? null }
       : { ok: false, error: naming?.error ?? (naming ? `HTTP ${naming.status}` : 'no naming service declared') },
