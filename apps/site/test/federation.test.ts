@@ -16,6 +16,17 @@ describe('the register', () => {
     fed.kms.tenants.push({ ...t0, estate: 'other-estate' });
     expect(validateFederation(fed).some((e) => e.includes('never shared'))).toBe(true);
   });
+  it('refuses more billable platform roots than the budget (the cost rule as a gate)', () => {
+    const fed = parseFederation(text);
+    fed.kms.platformRoots = [...(fed.kms.platformRoots ?? []), { provider: 'azure-key-vault', key: 'second', billable: true }, { provider: 'azure-key-vault', key: 'third', billable: true }];
+    expect(validateFederation(fed).some((e) => e.includes('exceeds the budget'))).toBe(true);
+  });
+  it('refuses operations * on a tenant that does not admit a shared credential', () => {
+    const fed = parseFederation(text);
+    const imb = fed.kms.tenants.find((t) => t.tenant === 'imb')!;
+    imb.callers = [{ subject: 'x', operations: ['*'], protectionLevels: ['CVM_WRAPPED'] }];
+    expect(validateFederation(fed).some((e) => e.includes('operations *'))).toBe(true);
+  });
   it('refuses a billable HSM level without a payer (condition 3)', () => {
     const fed = parseFederation(text);
     fed.kms.tenants[0]!.callers = [{ subject: 'x', operations: ['mac-generate'], protectionLevels: ['AZURE_HSM_DIRECT'] }];

@@ -107,6 +107,30 @@ callers where known, the four conditions with status, the operator role); `docs/
 `scripts/check-federation.mts` (conditions 1–3 as refusals over the record); the KMS view on the site (§B). The
 operator actions in A5 are **not done** — they need the CVM and are the owner's.
 
+### A7 Cost evidence (2026-10-14) — the federation adds no Azure key cost, and the record now proves it
+
+Read from the CVM (`akcs operator status`, non-secret metadata) and from Azure Cost Management, not assumed:
+
+| | |
+| --- | --- |
+| platform roots in Key Vault (the keys Azure bills for) | **1** — `akcs-platform-root-wrap`, Key Vault Premium, private link only |
+| Key Vault cost, month to date | **5.00 USD** (one Premium HSM-protected advanced key); key operations 0.00 USD |
+| logical keys under the root | **433** — faithnet 423, imb 7, impact 3 — every one `CVM_WRAPPED`, none billable |
+| Azure spend, month to date | 323.85 USD, of which keys are the 5.00: the rest is the confidential VM, Bastion, the Postgres, the registry, disks |
+
+What the federation approach changes in that table: **nothing.** A tenant is a set of purpose roots derived under the
+platform root; a caller is a binding; a logical key is wrapped by the CVM. None of them touches Key Vault. The two
+things that *would* add a billable key are a second platform root (a deliberate ceremony, `akcs operator init`) and
+a caller bound with `AZURE_HSM_DIRECT`, and both are now refusals in `check:federation` unless the record names
+them: `billableKeyBudget: 2` (the owner's "a couple of root keys" as a number) and `billedTo` on any HSM-direct
+caller. The register carries the evidence (`kms.platformRoots`, `kms.evidence`) so the site's KMS view shows
+"keys the cloud bills for: 1 of 2" beside the 433 that cost nothing.
+
+Two things the status read surfaced, recorded and not acted on: `demo-a2a-faithnet` is bound with operations `*`
+(the concrete form of condition 1; the check tolerates it only because the faithnet row says `sharedCredential:
+true`), and tenant `impact` — the retired base-sepolia town's estate — still has three active callers (disable or
+keep is the owner's call).
+
 ---
 
 ## B. The federation site — `ap-federation.faithnet.io`

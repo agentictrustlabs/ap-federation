@@ -14,5 +14,7 @@ if (errs.length) {
   process.exit(1);
 }
 const open = fed.kms.conditions.filter((c) => c.status === 'open');
+const billable = (fed.kms.platformRoots ?? []).filter((r) => r.billable).length;
+console.log(`  KMS keys the cloud bills for: ${billable} of a budget of ${fed.kms.billableKeyBudget ?? 2} (${(fed.kms.platformRoots ?? []).map((r) => r.key).join(', ') || 'none recorded'}); logical keys under them: ${fed.kms.evidence?.logicalKeys ?? '?'} (${Object.entries(fed.kms.evidence?.byProtection ?? {}).map(([k, v]) => `${k} ${v}`).join(', ')}) — checked ${fed.kms.evidence?.checked ?? 'never'}`);
 console.log(`✓ check:federation — ${fed.towns.length} town(s) (${fed.towns.filter((t) => t.status === 'live').length} live), ${fed.kms.tenants.length} KMS tenant(s), root chain eip155:${fed.naming.rootChain}`);
 if (open.length) console.log(`  KMS conditions open (said, not hidden): ${open.map((c) => `#${c.id}`).join(', ')} — a NEW town's estate may not bind until #1 and #4 are met`);

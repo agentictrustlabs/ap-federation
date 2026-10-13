@@ -58,8 +58,15 @@ export interface KmsTenant {
 
 export interface KmsCondition { id: number; condition: string; status: 'met' | 'open'; detail?: string }
 
+export interface KmsPlatformRoot { provider: string; vault?: string; key: string; state?: string; billable: boolean }
+
 export interface FederationKms {
   operator: string;
+  /** The keys the cloud bills for. Everything else derives under them for free (the owner's cost rule). */
+  platformRoots?: KmsPlatformRoot[];
+  /** How many billable keys the federation allows itself — "a couple" as a number the check refuses to exceed. */
+  billableKeyBudget?: number;
+  evidence?: { checked: string; logicalKeys: number; byProtection: Record<string, number>; keyVaultCostMonthToDate?: string; note?: string };
   operatorRole: string;
   repo?: string;
   backend: 'akcs';
@@ -161,10 +168,18 @@ export function validateFederation(f: Federation): string[] {
       if (t.sharedCredential && town && town.id !== f.registry.chain) errs.push(`${at}: a shared caller credential is refused for an estate outside the first town (condition 1) — bind one caller per Worker first`);
       for (const c of t.callers ?? []) {
         if (!c.subject) errs.push(`${at}.callers: subject required`);
-        if (!Array.isArray(c.operations) || !c.operations.length || c.operations.includes('*')) errs.push(`${at}.callers[${c.subject}]: operations must be an explicit list, never *`);
+        if (!Array.isArray(c.operations) || !c.operations.length) errs.push(`${at}.callers[${c.subject}]: operations must be an explicit list`);
+        // `*` is the over-broad credential of spec 407 D10. Tolerated only where the row SAYS it is shared (the open
+        // condition, acknowledged), never on a tenant that claims to be clean.
+        else if (c.operations.includes('*') && !t.sharedCredential) errs.push(`${at}.callers[${c.subject}]: operations * is the shared credential — mark the tenant sharedCredential: true (condition 1 open) or re-bind per operation`);
         if (c.protectionLevels?.includes('AZURE_HSM_DIRECT') && !c.billedTo) errs.push(`${at}.callers[${c.subject}]: AZURE_HSM_DIRECT needs billedTo (condition 3)`);
       }
     }
+    // The cost rule as a gate: billable platform roots stay within the budget, and every root names its provider and key.
+    const budget = k.billableKeyBudget ?? 2;
+    const billable = (k.platformRoots ?? []).filter((r) => r.billable).length;
+    if (billable > budget) errs.push(`kms.platformRoots: ${billable} billable key(s) exceeds the budget of ${budget} — a tenant or a caller never needs a new Key Vault key; who asked for one, and who pays?`);
+    for (const r of k.platformRoots ?? []) if (!r.provider || !r.key) errs.push('kms.platformRoots[]: provider and key are required');
     for (const c of k.conditions ?? []) if (!['met', 'open'].includes(c.status)) errs.push(`kms.conditions[${c.id}]: status must be met | open`);
     if ((k.conditions ?? []).length !== 4) errs.push('kms.conditions: the four conditions of spec 440 A3, each with a status');
   }

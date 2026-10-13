@@ -120,6 +120,24 @@ kms:
   azureResources:
     - /subscriptions/5a656e13-849d-4b56-9101-53f987cf971b/resourceGroups/RG-AKCS-PILOT-WESTUS/providers/Microsoft.Compute/virtualMachines/vm-akcs-pilot-0
     - /subscriptions/5a656e13-849d-4b56-9101-53f987cf971b/resourceGroups/RG-AKCS-PILOT-WESTUS/providers/Microsoft.Compute/virtualMachines/vm-akcs-tunnel-pilot
+  # THE BILLABLE KEYS — read from the CVM (`akcs operator status`) and Azure Cost Management on 2026-10-14, not
+  # assumed. ONE platform root in Key Vault Premium is the whole Azure key spend; every tenant's purpose roots and
+  # every logical key (433 that day: envelope KEKs, signing delegates, MACs, OIDC-custody seeds) is CVM-wrapped
+  # under it and costs nothing. A tenant or a caller never creates a Key Vault key. `billableKeyBudget` is the
+  # owner's rule ("a couple of root keys") as a number the check refuses to exceed.
+  platformRoots:
+    - provider: azure-key-vault
+      vault: kv-akcs-pilot-vrw42jcwx4      # SKU premium; public network access disabled (private link only)
+      key: akcs-platform-root-wrap
+      state: ACTIVE
+      billable: true
+  billableKeyBudget: 2
+  evidence:
+    checked: 2026-10-14
+    logicalKeys: 433
+    byProtection: { CVM_WRAPPED: 433 }
+    keyVaultCostMonthToDate: "5.00 USD — one Premium HSM-protected advanced key; key operations 0.00 USD"
+    note: "the Azure spend that month-to-date (323.85 USD) is compute, Bastion, Postgres, the registry and disks, not keys"
   protectionLevels: [CVM_WRAPPED, CVM_DERIVED]
   costRule: "a couple of HSM root keys are the whole Azure spend; every agent key derives from them for free. AZURE_HSM_DIRECT is a billable Key Vault HSM key per key and is never bound by default — a caller that needs one names the estate that pays (billedTo)."
   tenants:
@@ -129,9 +147,31 @@ kms:
       backend: akcs
       # The first tenant, bound before the per-Worker rule existed: faithnet's Workers, its second deployment
       # (faithnet-b) and the service skills-a2a share its credential — spec 407 D10's finding, condition 1 OPEN.
-      callers: null
+      # From `akcs operator status` on 2026-10-14 (non-secret metadata). The first caller holds `*` — every operation
+      # — which is the shared, over-broad credential of spec 407 D10; it is tolerated by the check ONLY because
+      # this row says so (`sharedCredential: true`). 423 logical keys, all CVM_WRAPPED.
+      callers:
+        - { subject: demo-a2a-faithnet, worker: demo-a2a-faithnet, operations: ["*"], protectionLevels: [CVM_WRAPPED] }
+        - { subject: skills-a2a-faithnet, worker: skills-a2a, operations: [key-public-key, key-sign], protectionLevels: [CVM_WRAPPED] }
+        - { subject: field-a2a-faithnet, worker: field-a2a-faithnet, operations: [key-public-key, key-sign], protectionLevels: [CVM_WRAPPED] }
+        - { subject: gather27-a2a-faithnet, worker: gather27-a2a-faithnet, operations: [key-public-key, key-sign], protectionLevels: [CVM_WRAPPED] }
+        - { subject: gather27-a2a-churchglobal, worker: gather27-a2a-churchglobal, operations: [key-public-key, key-sign], protectionLevels: [CVM_WRAPPED] }
+        - { subject: demo-bible-mcp-faithnet, worker: demo-bible-mcp-faithnet, operations: [key-public-key, key-sign], protectionLevels: [CVM_WRAPPED] }
+        - { subject: scripture-validator, operations: [key-public-key, key-sign], protectionLevels: [CVM_WRAPPED] }
+        - { subject: coach-a2a-faithnet, worker: coach-a2a-faithnet, operations: [key-public-key, key-sign], protectionLevels: [CVM_WRAPPED] }
       sharedCredential: true
-      note: "re-bind one caller per Worker (runbook step 2), then disable the shared credential; callers are recorded here as they are bound"
+      note: "demo-a2a-faithnet is bound with operations * — re-bind it per operation (runbook step 2) and disable it; gather27-churchglobal-faithnet is already DISABLED and not listed"
+    - tenant: impact
+      estate: impact
+      town: base-sepolia
+      backend: akcs
+      # The retired demo town's estate (ap-town spec 429 §12.3). Three callers are still ACTIVE on the CVM; the
+      # town is retired, so this tenant is a candidate to disable — an owner decision, listed so it is not forgotten.
+      callers:
+        - { subject: engage-a2a-production, operations: [key-public-key, key-sign], protectionLevels: [CVM_WRAPPED] }
+        - { subject: field-a2a-production, operations: [key-public-key, key-sign], protectionLevels: [CVM_WRAPPED] }
+        - { subject: gather27-a2a-production, operations: [key-public-key, key-sign], protectionLevels: [CVM_WRAPPED] }
+      note: "3 logical keys (service-agent delegates); the town is retired — disable or keep is the owner's call"
     - tenant: imb
       estate: imbnet
       town: faithchain
@@ -147,7 +187,7 @@ kms:
           operations: [mac-generate]
           protectionLevels: [CVM_WRAPPED, CVM_DERIVED]
           since: 2026-10-11
-      note: "bound with --audiences urn:mcp:server:person --purposes '*' (one KEK purpose per person); the -2 subjects replaced bindings made without audiences"
+      note: "bound with --audiences urn:mcp:server:person --purposes '*' (one KEK purpose per person); the -2 subjects replaced imb-vault / imb-runtime, which are DISABLED on the CVM; 7 logical keys"
   conditions:
     - id: 1
       condition: "No shared caller credential — one least-privilege bind-caller per Worker per estate (closes spec 407 D10)"
