@@ -237,7 +237,7 @@ governor those towns accept and that no single town can replace. The shape that 
 towns agree), so `setGate` for a new estate is a quorum act with a receipt. That is a Ring 0 spec (custody of a
 service agent by a council), listed here as **wave U4's precondition**, not designed here.
 
-### C8 Wave 1, built 2026-10-14
+### C8 Wave 1, built 2026-10-14 — and U2's record half the same day
 
 `federation.yaml#naming` (root chain, root registry and universal resolver addresses, the roots, which town's naming
 service answers for which chain); the universal resolver over the towns' naming services, on the site; the
@@ -248,7 +248,7 @@ never-bare rule as pure functions with tests (`apps/site/src/resolver.ts`); the 
 | Wave | Delivers | Gate | Needs |
 | --- | --- | --- | --- |
 | **U1** (built) | the register, the resolver over town naming services, the never-bare rule, the site | `gate-federation-site` | — |
-| **U2** | `FederatedAgentNameV1 { name, chain }` and `displayName` in `agent-naming`; `atl:addr` keyed by CAIP-2; the per-chain reverse claim | Ring 0 `check:agent-naming`; the resolver's `/api/names/<name>` shows per-chain addresses | Ring 0 (chains-and-estates items 3–4) |
+| **U2** | `FederatedAgentNameV1 { name, chain }` and `displayAgentName` in `agent-naming` (**built 2026-10-14**, Ring 0 `35fc6955`); **`atl:accounts`** — CAIP-10 ids keyed by chain, one per chain, on the existing `string[]` storage (**registered on faithchain 2026-10-14**, shape v3, Ring 0 spec 346 §3.8); the per-chain reverse claim (waits for a second chain) | Ring 0 `check:agent-naming` green (164 tests); the resolver's `/api/names/<name>` shows `accounts` once a town's naming service exposes the record | the reverse claim: a second chain |
 | **U3** | a second town's estate gate named on the root roots; a resident of that chain claims a root-chain name through their satellite (C3) | the claim lands on the root chain with that estate's gate in the ticket; the negative twin: a ticket from an un-named gate is refused `NotAGate` | a second chain; Ring 0 custody propagation (item 7) before production |
 | **U4** | the naming root anchored on neutral ground; the proof-backed resolver on the second chain | a name at a stale naming sequence is refused | spec 410 §4 amendment; `EstateProjectionRegistry` third root or a second instance |
 | **U5** | the root's governor becomes a council (C7) | `setGate` is a quorum act with a receipt | Ring 0 spec |
