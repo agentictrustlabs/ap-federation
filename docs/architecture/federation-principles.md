@@ -1,6 +1,6 @@
 # Federation principles, and where the field agrees with them
 
-**Status:** 2026-10-13, written after F1 (the projector, live on faithchain). Every claim about an external standard or
+**Status:** 2026-10-13, written after F1; still accurate after F2, F2.5 and F3 on one chain (2026-10-14) — what each wave built is in [`how-it-works.md`](how-it-works.md), and P4's cross-check (F2.5) is now live for both estates. Every claim about an external standard or
 body is dated and sourced in [`naming-landscape-crosswalk.md`](naming-landscape-crosswalk.md); a claim this document
 cannot source is marked *unverified*. Ring 0 doctrine is cited by its identifier (an ADR or a spec number) and never
 restated: the rules are projected into this repository by digest (`CLAUDE.md`, the managed block), and a product
