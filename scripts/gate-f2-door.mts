@@ -24,10 +24,11 @@ const checks: { name: string; ok: boolean; detail: string }[] = [];
 const check = (name: string, ok: boolean, detail = '') => { checks.push({ name, ok, detail }); console.log(`${ok ? '✓' : '✗'} ${name}${detail ? ` — ${detail}` : ''}`); };
 const b64url = (o: unknown) => Buffer.from(JSON.stringify(o)).toString('base64url');
 
-if (!existsSync('.secrets/f2-test-agent.env') || !existsSync('.secrets/f2-test-wire.json')) throw new Error('run scripts/setup-f2-test-grant.mts first');
+const wireFile = `.secrets/f2-test-wire${estateId === 'imbnet' ? '' : `-${estateId}`}.json`;
+if (!existsSync('.secrets/f2-test-agent.env') || !existsSync(wireFile)) throw new Error(`run scripts/setup-f2-test-grant.mts --estate ${estateId} first`);
 const key = /F2_TEST_AGENT_KEY=(0x[0-9a-fA-F]{64})/.exec(readFileSync('.secrets/f2-test-agent.env', 'utf8'))![1] as Hex;
 const me = privateKeyToAccount(key);
-const wire = JSON.parse(readFileSync('.secrets/f2-test-wire.json', 'utf8')) as { digest: Hex; chainId: number };
+const wire = JSON.parse(readFileSync(wireFile, 'utf8')) as { digest: Hex; chainId: number };
 const fed = parse(readFileSync('federation.yaml', 'utf8')) as { registry: { address: string; chainId: number }; estates: { id: string; governance: string | null }[] };
 const rpc = process.env.FEDERATION_RPC_URL ?? (() => { throw new Error('FEDERATION_RPC_URL is not set'); })();
 const pub = createPublicClient({ chain: { id: fed.registry.chainId, name: 'x', nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 }, rpcUrls: { default: { http: [rpc] } } }, transport: http(rpc) });

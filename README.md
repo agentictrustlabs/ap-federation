@@ -73,9 +73,9 @@ Three things F1 found, and none of them are footnotes:
 - **`register` is first-come-wins**, so a verifier that trusts `signerOf` alone trusts whoever registered
   first. F2.5 added the estate-side declaration a verifier cross-checks (`atl:projectionSigner`); imbnet has
   declared, and a run prints the gap for any estate that has not.
-- **faithnet cannot be federated yet.** It has no estate agent: `faithnet.estate` is unregistered and its
-  people declare no `atl:estate`, so it has no address that will still mean "faithnet" in a year, and an
-  estate id is permanent. `federation.yaml` carries the refusal and the fix.
+- **faithnet could not be federated until it had an estate agent** (an estate id is permanent, so it needed an
+  address that will still mean "faithnet" in a year). It has one since 2026-10-14; its people still declare no
+  `atl:estate`, which is a Home backfill, not a federation blocker.
 
 **Spec 440 wave 1 (2026-10-14):** the federation's site is live at **ap-federation.faithnet.io** (`apps/site`): every
 town with live probes, the shared KMS operator record with its tenants and the four conditions, the universal name

@@ -65,7 +65,7 @@ const okRaw = await pub.readContract({ address: CONTRACTS.universalSignatureVali
 const ok191 = okRaw ? true : await pub.readContract({ address: CONTRACTS.universalSignatureValidator, abi: VALIDATOR_ABI, functionName: 'isValidSig', args: [d.delegator, hashMessage({ raw: digest }), d.signature] }).catch(() => false);
 if (!okRaw && !ok191) throw new Error(`the wire's signature does not verify for ${d.delegator} on chain ${chainId} — nothing written`);
 console.log(`wire ${digest} — ${by} (${d.delegator}) → ${me.address}, harness.read, 365d; signature verified (${okRaw ? 'raw digest' : 'EIP-191'})`);
-writeFileSync('.secrets/f2-test-wire.json', JSON.stringify({ estate: estateId, chainId, delegationManager: CONTRACTS.delegationManager, digest, delegation: { ...d, salt: d.salt.toString() }, by, issuedAt: new Date().toISOString() }, null, 2), { mode: 0o600 });
+writeFileSync(`.secrets/f2-test-wire${estateId === 'imbnet' ? '' : `-${estateId}`}.json`, JSON.stringify({ estate: estateId, chainId, delegationManager: CONTRACTS.delegationManager, digest, delegation: { ...d, salt: d.salt.toString() }, by, issuedAt: new Date().toISOString() }, null, 2), { mode: 0o600 });
 
 // 3. submit the leaf
 const out = execFileSync('pnpm', ['-s', 'projector', 'submit', '--estate', estateId, '--set', 'live-grant', '--digest', digest, '--subject', me.address.toLowerCase(), '--by', `${by} (persona-sign at ${HOME})`, '--source', 'f2-setup'], { encoding: 'utf8' });

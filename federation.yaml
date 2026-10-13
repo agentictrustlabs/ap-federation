@@ -68,20 +68,22 @@ estates:
     chainId: 34348
     home: https://www.faithnet.me
     a2a: https://a2a.faithnet.io
-    # NOT REGISTERED, AND THIS IS THE FINDING (2026-10-13, checked on chain, not assumed): faithnet has no
-    # estate agent. `faithnet.estate` does not exist in the AgentNameRegistry (`recordExists` false) and
-    # faithnet's people carry an empty `atl:estate` — the estate predates the mechanism and imbnet was the
-    # first to use it. It therefore has no address that will still mean "faithnet" in a year, and the
-    # projector REFUSES to register it rather than mint a permanent id from, say, its naming gate (a key,
-    # and keys rotate).
-    #
-    # The fix is the estate's own half of `ap-home scripts/add-estate-agent.mts` (deploy the agent at salt 2
-    # over the estate's interactions key, set `atl:homepage`) plus Ring 0's
-    # `script/AddEstateName.s.sol` for the name. It needs faithnet's interactions key, which is a
-    # Cloudflare secret and is not on this machine — so this is an owner action, not a code change.
-    governance: null
-    governanceKind: none
-    blocked: "no estate agent: `faithnet.estate` is unregistered and faithnet's people declare no `atl:estate`. Deploy the estate agent + register the name (ap-home scripts/add-estate-agent.mts, Ring 0 script/AddEstateName.s.sol), then set `governance` to its SA."
+    # ON NEUTRAL GROUND SINCE 2026-10-14. faithnet's estate agent is PERSONA-CUSTODIED (the owner's decision: "use a
+    # demo user for that agent … a type of .estate for each"): a Smart Agent at salt 2 over the demo-admin persona's
+    # key (ap-home scripts/add-estate-agent-persona.mts), named `faithnet.estate` by the deployer (Ring 0
+    # AddEstateName, tx 0x200393e4…), its Home in `atl:homepage`, its signer in `atl:projectionSigner`
+    # (tx 0xd81334ac…). It is NOT `faith-estate.workspace` — that stays the Pulse's context agent (spec 436 §5.5),
+    # one agent per estate typed .estate, one per context typed .workspace. (Proposed, not decided: the Pulse's
+    # context agents become the .estate agents — spec 440 §A/ap-town 436.)
+    governance: "0x3273f419FDfc7eA1Bf14372C4A9CA5fC43818F64"
+    governanceKind: estate-agent
+    governanceName: faithnet.estate         # on-chain: AgentNameRegistry owner of `faithnet.estate`
+    governanceCustody: "demo-admin persona (demo/personas.local.json), the owner's choice 2026-10-14"
+    signer: "0x9d0C710b73a9E0CD103A1A7034F871C852d8657e"
+    signerKeyEnv: FAITHNET_PROJECTION_SIGNER
+    delegationManager: "0x710cb1bF08C234Df397e0910331e0A29710EF4F7"
+    profileResolver: "0xB03F7C06ad3274F584AB72794406D639c02A45e1"
+    declaredOnChain: true
 
 # ── THE DOORS (spec 439 F2) ───────────────────────────────────────────────────────────────────────────
 # The federation's reference receiving doors — one in front of one estate's A2A door each. A production door is

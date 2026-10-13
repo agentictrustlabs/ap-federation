@@ -97,6 +97,9 @@ against the root it reads itself.
 - *"Return the request-proof failure code to the caller so they can debug."* **STOP.** Those codes are a map of how
   to forge a proof (spec 339 §26.2). Log precisely, answer `authentication_failed`. The FOREIGN_ESTATE_* codes are
   the federation's own vocabulary and are the ones that stay legible.
+- *"Use `faith-estate.workspace` / `imb-estate.workspace` as the estate agent — it's already there."* **STOP.** Those are
+  the Pulse's context agents, typed `.workspace`. An estate's identity on neutral ground is its `.estate` agent (owner,
+  2026-10-14: one per estate typed `.estate`). Two custody shapes exist (runtime key; a demo persona); the type does not change.
 - *"Add a primitive here."* **STOP.** Anything a second product would need is a Ring-0 package API
   (spec 399 §4). This repo holds adapters, deployed jobs and gates.
 
