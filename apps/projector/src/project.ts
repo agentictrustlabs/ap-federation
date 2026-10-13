@@ -17,6 +17,7 @@
 // re-anchor to refresh a root it did not rebuild; or claim a live-grant root it did not prune. The empty
 // set's root is `0x00…00`, which is also what an estate that has never anchored reads as — an ambiguity
 // that is safe in exactly one direction, since every presentation against it fails inclusion.
+import type { DeclaredSigner } from './anchor.js';
 import { buildProjection, type EstateProjectionV1 } from '@agenticprimitives/estate-projection';
 import type { Hex } from 'viem';
 import { anchorDecision, type AnchorDecision, type AnchoredState, type RegistryClient } from './anchor.js';
@@ -46,6 +47,8 @@ export interface ProjectDeps {
   now?: () => Date;
   /** Absent in a dry run: the job then reports the decision it would have taken and writes nothing. */
   signerKey?: Hex;
+  /** What the estate agent declares on its own chain (spec 439 F2.5), when the run read it. */
+  declaredSigner?: DeclaredSigner;
 }
 
 /**
@@ -87,7 +90,18 @@ export async function projectEstate(estate: ProjectableEstate, deps: ProjectDeps
     );
   }
   if (!onChainSigner) throw new Error(`estate ${estate.id} is not registered on neutral ground yet — run \`projector register --estate ${estate.id}\` first`);
-  if (!estate.declaredOnChain) {
+  // F2.5 — THE CROSS-CHECK, read from the estate's own chain when the run can reach it. The register's
+  // `declaredOnChain` is a claim; `atl:projectionSigner` on the estate agent is the fact, and `signerOf` on neutral
+  // ground is what it must agree with. Three outcomes, each said: declared and equal; declared and DIFFERENT (the
+  // registration is somebody else's — stop); undeclared (reviewable here, not chain-verifiable).
+  if (deps.declaredSigner) {
+    const registered = await deps.registry.signerOf(estate.estateId);
+    if (deps.declaredSigner.declared && registered && deps.declaredSigner.signer.toLowerCase() !== registered.toLowerCase()) {
+      throw new Error(`the estate agent declares ${deps.declaredSigner.signer} as its projection signer but neutral ground has ${registered} registered for ${estate.estateId}: this registration is not the estate's — nothing anchored`);
+    }
+    if (deps.declaredSigner.declared) warnings.length = 0; // nothing to warn about: chain-verifiable both ways
+    else warnings.push('the estate agent has not declared `atl:projectionSigner` on its own chain — reviewable in this register and ap-town, not yet chain-verifiable (spec 439 F2.5; ap-home scripts/set-projection-signer.mts writes it)');
+  } else if (!estate.declaredOnChain) {
     warnings.push(
       'the signer is not declared on the estate\'s own chain, so a verifier can only cross-check it against this repository and ap-town — ' +
       'until `atl:projectionSigner` exists (spec 439 F2), a first-come-wins registration is reviewable but not chain-verifiable.',

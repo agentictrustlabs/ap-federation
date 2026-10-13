@@ -49,6 +49,8 @@ estates:
     # `deployments-faithchain.json#delegationManager`). No address here means nothing can be pruned, and the
     # projector then refuses to vouch for a set it cannot narrow.
     delegationManager: "0x710cb1bF08C234Df397e0910331e0A29710EF4F7"
+    # Where the estate agent declares `atl:projectionSigner` (spec 439 F2.5; Ring 0 deployments-faithchain.json#agentProfileResolver).
+    profileResolver: "0xB03F7C06ad3274F584AB72794406D639c02A45e1"
     # Its chain endpoint. Omitted = neutral ground's, which is only correct while they share a chain. An
     # estate on a second chain names its own here, and that is the only line that changes for it.
     # WHY A VERIFIER MUST CROSS-CHECK THIS. `register(estateId, signer)` is first-come-wins — public ground
@@ -58,7 +60,9 @@ estates:
     # OntologyTermRegistry and the estate agent writes it (a verifier on another chain reads that chain —
     # public data, no trust required). Until then the declaration is this file and ap-town's town.yaml row,
     # both public and reviewed, and the projector prints the gap on every run.
-    declaredOnChain: false
+    # DECLARED 2026-10-14: imbnet.estate wrote `atl:projectionSigner` = this signer on its own chain (tx 0x35045e1b…,
+    # ap-home scripts/set-projection-signer.mts); `projector status` and the door read it and compare with `signerOf`.
+    declaredOnChain: true
 
   - id: faithnet
     chainId: 34348
@@ -78,6 +82,15 @@ estates:
     governance: null
     governanceKind: none
     blocked: "no estate agent: `faithnet.estate` is unregistered and faithnet's people declare no `atl:estate`. Deploy the estate agent + register the name (ap-home scripts/add-estate-agent.mts, Ring 0 script/AddEstateName.s.sol), then set `governance` to its SA."
+
+# ── THE DOORS (spec 439 F2) ───────────────────────────────────────────────────────────────────────────
+# The federation's reference receiving doors — one in front of one estate's A2A door each. A production door is
+# the estate's own edge; these are where a foreign presentation reaches an admission receipt today.
+doors:
+  - estate: imbnet
+    url: https://door.ap-federation.faithnet.io
+    target: maya-fernandes.me          # the receiving agent, through the estate's edge-addressed door
+    since: 2026-10-14
 
 # ── THE TOWNS (spec 440 §B) ───────────────────────────────────────────────────────────────────────────
 # Every town we have. A town is one chain and the estates on it (ap-town spec 429); its manifest is ITS record

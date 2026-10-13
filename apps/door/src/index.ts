@@ -23,13 +23,15 @@
 //   POST /a2a, /api/a2a (decide, forward) · GET /federation/receipts/<id>
 import { createAdmissionEngine, foreignEstateEvaluator, verifyRequestProof, sha256Of, type AdmissionRequest, type AdmissionDecision, type AgenticRequestProofClaims, type AtomicReplayStore } from '@agenticprimitives/admission';
 import { verifyAuthorityPresentation, type AuthorityPresentationV1 } from '@agenticprimitives/estate-projection';
-import { createPublicClient, hashMessage, http, type Address, type Hex } from 'viem';
+import { createPublicClient, hashMessage, http, keccak256, toHex, type Address, type Hex } from 'viem';
 import { issueChallenge, verifyChallengeHeader } from './challenge';
+import { parse as parseYaml } from 'yaml';
+import federationYaml from '../../../federation.yaml';
 export { DoorLedgerDO } from './ledger-do';
 
 interface Env {
   PUBLIC_ORIGIN: string; BOUNDARY_ID: string; RECEIVING_ESTATE: string; ORIGIN_A2A: string; TARGET_AGENT_ID: string; TARGET_RUNTIME_ID: string;
-  CHAIN_ID: string; REGISTRY_ADDRESS: string; UNIVERSAL_SIGNATURE_VALIDATOR: string; MAX_AGE_SECONDS: string;
+  CHAIN_ID: string; REGISTRY_ADDRESS: string; UNIVERSAL_SIGNATURE_VALIDATOR: string; MAX_AGE_SECONDS: string; PROFILE_RESOLVER: string;
   FEDERATION_RPC_URL?: string; DOOR_SECRET?: string;
   LEDGER: DurableObjectNamespace;
 }
@@ -39,6 +41,20 @@ const REGISTRY_ABI = [
     { name: 'liveGrantRoot', type: 'bytes32' }, { name: 'membershipRoot', type: 'bytes32' }, { name: 'charterHash', type: 'bytes32' },
     { name: 'sequence', type: 'uint64' }, { name: 'anchoredAt', type: 'uint64' }] },
 ] as const;
+const PROFILE_RESOLVER_ABI = [
+  { type: 'function', name: 'getAddressProperty', stateMutability: 'view', inputs: [{ name: 'agent', type: 'address' }, { name: 'predicate', type: 'bytes32' }], outputs: [{ type: 'address' }] },
+] as const;
+const ATL_PROJECTION_SIGNER = keccak256(toHex('atl:projectionSigner'));
+const SIGNER_OF_ABI = [{ type: 'function', name: 'signerOf', stateMutability: 'view', inputs: [{ name: 'estateId', type: 'bytes32' }], outputs: [{ type: 'address' }] }] as const;
+
+/** The register, bundled as text: the only thing the door needs from it is which GOVERNANCE an estate id belongs to. */
+interface RegisterEstate { id: string; chainId: number; governance: string | null; profileResolver?: string }
+let registerCache: RegisterEstate[] | null = null;
+function registerEstates(): RegisterEstate[] {
+  if (!registerCache) registerCache = ((parseYaml(federationYaml) as { estates?: RegisterEstate[] }).estates ?? []).filter((e) => !!e.governance);
+  return registerCache;
+}
+
 const VALIDATOR_ABI = [
   { type: 'function', name: 'isValidSig', stateMutability: 'view', inputs: [{ name: 'signer', type: 'address' }, { name: 'hash', type: 'bytes32' }, { name: 'sig', type: 'bytes' }], outputs: [{ type: 'bool' }] },
 ] as const;
@@ -52,6 +68,9 @@ const b64urlJson = <T>(s: string | null): T | null => {
   try { return JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), (c) => c.charCodeAt(0)))) as T; } catch { return null; }
 };
 const addressOf = (caip10: string): `0x${string}` | null => (caip10.match(/^eip155:\d+:(0x[0-9a-fA-F]{40})$/)?.[1]?.toLowerCase() as `0x${string}`) ?? null;
+
+/** `EstateProjectionRegistry.estateIdOf`: keccak256("eip155:<chainId>:<governance>") with the address lower-cased (spec 410 §4). */
+const estateIdOf = (chainId: number, governance: Address): string => keccak256(toHex(`eip155:${chainId}:${governance.toLowerCase()}`)).toLowerCase();
 
 /** The ledger DO, one per door, as the two ports the admission package asks for. */
 function ledger(env: Env) {
@@ -151,7 +170,31 @@ async function admit(req: Request, env: Env, rawBody: Uint8Array): Promise<Knock
     relationshipRefs: [], delegationRefs: presRef ? [presRef] : [], entitlementRefs: [],
     situation: { timestamp: at, environment: 'prod' },
   };
-  const decision = await engine.evaluate(request);
+  let decision = await engine.evaluate(request);
+  // ── 3b. F2.5 — the cross-check that closes first-come-wins. The evaluator trusted the registry's roots for this
+  // estate id; whoever REGISTERED that id controls them. So, once admitted on a presentation, read what the estate's
+  // own agent declares on its own chain and compare with `signerOf`. Declared and different ⇒ the registration is
+  // somebody else's ⇒ refused. Undeclared ⇒ admitted, with the gap said in the reason codes.
+  if (pres && (decision.effect === 'ADMIT' || decision.effect === 'ADMIT_CONSTRAINED')) {
+    const estateId = String(pres.estateId).toLowerCase();
+    const row = registerEstates().find((e) => e.governance && estateIdOf(e.chainId, e.governance as Address) === estateId);
+    const extra: string[] = [];
+    if (!row) extra.push('FOREIGN_ESTATE_SIGNER_UNKNOWN_ESTATE');
+    else {
+      try {
+        const [registered, declared] = await Promise.all([
+          pub.readContract({ address: env.REGISTRY_ADDRESS as Address, abi: SIGNER_OF_ABI, functionName: 'signerOf', args: [estateId as Hex] }) as Promise<Address>,
+          pub.readContract({ address: (row.profileResolver ?? env.PROFILE_RESOLVER) as Address, abi: PROFILE_RESOLVER_ABI, functionName: 'getAddressProperty', args: [row.governance as Address, ATL_PROJECTION_SIGNER] }) as Promise<Address>,
+        ]);
+        if (/^0x0{40}$/i.test(declared)) extra.push('FOREIGN_ESTATE_SIGNER_UNDECLARED');
+        else if (declared.toLowerCase() !== registered.toLowerCase()) extra.push('FOREIGN_ESTATE_SIGNER_MISMATCH');
+        else extra.push('FOREIGN_ESTATE_SIGNER_DECLARED');
+      } catch { extra.push('FOREIGN_ESTATE_SIGNER_UNREADABLE'); }
+    }
+    const refuse = extra.includes('FOREIGN_ESTATE_SIGNER_MISMATCH') || extra.includes('FOREIGN_ESTATE_SIGNER_UNREADABLE');
+    decision = { ...decision, effect: refuse ? 'DENY' : decision.effect, reasonCodes: [...decision.reasonCodes, ...extra] };
+    if (refuse) await L.audit.append({ kind: 'door.signer-cross-check', decisionId: decision.decisionId, estateId, reasonCodes: extra, at: new Date().toISOString() }).catch(() => undefined);
+  }
   const publicReasons = decision.reasonCodes.filter((c) => c.startsWith('FOREIGN_ESTATE_') || c === 'AUDIT_SINK_UNAVAILABLE' || c === 'POLICY_DEPENDENCY_UNAVAILABLE');
   const live = decision.contributions.find((c) => c.contributorId === 'foreign-estate-presentation');
   const standing = pres && (decision.effect === 'ADMIT' || decision.effect === 'ADMIT_CONSTRAINED') && live?.reasonCodes.some((c) => c === 'FOREIGN_ESTATE_LIVE_GRANT' || c === 'FOREIGN_ESTATE_MEMBER')
@@ -172,6 +215,10 @@ export default {
       if (!env.DOOR_SECRET) return json({ error: 'door_unconfigured' }, 503);
       const c = await issueChallenge(env.DOOR_SECRET, subject as `0x${string}`, env.PUBLIC_ORIGIN);
       return json({ ...c, header: `${c.nonce}.${c.expiresAt}.${c.ticket}`, present: `projector present --estate <yours> --digest 0x… --audience ${env.PUBLIC_ORIGIN} --nonce ${c.nonce}` });
+    }
+    if (req.method === 'GET' && p === '/federation/receipts') {
+      const r = await ledger(env).recent();
+      return json(r.body, r.status);
     }
     if (req.method === 'GET' && p.startsWith('/federation/receipts/')) {
       const r = await ledger(env).receipt(p.slice('/federation/receipts/'.length));

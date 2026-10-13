@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "The receiving door (spec 439 F2): challenge → principal-signed request proof → admission engine with the foreign-estate evaluator against roots read live from neutral ground → hash-chained receipt → forward to the estate's A2A door with the evidence. It admits; it never decides what the agent may do.",
+  "description": "The receiving door (spec 439 F2): challenge \u2192 principal-signed request proof \u2192 admission engine with the foreign-estate evaluator against roots read live from neutral ground \u2192 hash-chained receipt \u2192 forward to the estate's A2A door with the evidence. It admits; it never decides what the agent may do.",
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
@@ -13,7 +13,8 @@
   "dependencies": {
     "@agenticprimitives/admission": "0.0.0-alpha.13",
     "@agenticprimitives/estate-projection": "0.0.0-alpha.9",
-    "viem": "2.52.2"
+    "viem": "2.52.2",
+    "yaml": "2.8.1"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "4.20260605.1",

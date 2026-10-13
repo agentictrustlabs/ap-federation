@@ -71,8 +71,8 @@ Three things F1 found, and none of them are footnotes:
   records (ap-home deleted its HMAC bridge for that reason), so *inclusion is a submission and exclusion is
   the chain*. `apps/projector/README.md` §1.
 - **`register` is first-come-wins**, so a verifier that trusts `signerOf` alone trusts whoever registered
-  first. F2 adds the estate-side declaration a verifier cross-checks (`atl:projectionSigner`); until then
-  every run prints the gap.
+  first. F2.5 added the estate-side declaration a verifier cross-checks (`atl:projectionSigner`); imbnet has
+  declared, and a run prints the gap for any estate that has not.
 - **faithnet cannot be federated yet.** It has no estate agent: `faithnet.estate` is unregistered and its
   people declare no `atl:estate`, so it has no address that will still mean "faithnet" in a year, and an
   estate id is permanent. `federation.yaml` carries the refusal and the fix.
@@ -93,9 +93,10 @@ from neutral ground at request time, a hash-chained receipt by reference, and th
 gate's account at her Home, its leaf submitted and anchored at sequence 3 — and `scripts/gate-f2-door.mts` is green:
 11 checks including five refusals (stale, wrong audience, wrong subject, replayed proof, no proof).
 
-**And what F1 did NOT prove:** this is cross-*estate*, on one chain. The estate id is chain-scoped by
+**And what F1 and F2 did NOT prove:** this is cross-*estate*, on one chain. The estate id is chain-scoped by
 construction, so a second chain changes one line of config and no verifier code — but a design property is
-not a demonstration. Next: F2, the receiving edge through `foreignEstateEvaluator`.
+not a demonstration. Next is that second chain, faithnet's estate agent, and the naming waves in spec 440 §C9
+(`docs/architecture/cross-town-capabilities.md`).
 
 ## Layout
 
@@ -108,7 +109,7 @@ not a demonstration. Next: F2, the receiving edge through `foreignEstateEvaluato
 | `apps/site` | **ap-federation.faithnet.io** — towns · KMS · names · neutral ground; public, read-only, keyless (spec 440 §B) |
 | `specs/` | this repository's own specs (`440` — the shared KMS operator, the site, the universal naming service) |
 | `scripts/` | ops scripts and the live gates (`gate-f1-projection.mts`) |
-| `docs/architecture/` | the federation principles with their industry anchors, **the federated naming decision** (identity · town handle · town-qualified pair · DNS projection · signals, no root), and a dated crosswalk of ERC-8004 / ENS v2 / the ANS family (OWASP, IETF, Linux Foundation, GoDaddy) / AID / HCS-14 / NANDA / AGNTCY — start at its `README.md` |
+| `docs/architecture/` | three walks — cross-chain authority, the naming service, the cross-town capabilities — then the principles, the naming decision, and the dated crosswalk. Start at its `README.md` |
 | `docs/runbooks/` | `project-an-estate.md` — putting an estate on neutral ground, end to end |
 | `live-gates.json` | the live-gates ledger (spec 392 shape) the nightly runs through `ap test --live-gates` |
 | `agentic.lock.json` | the coherent `@agenticprimitives/*` set, the rules-source digests, the doctor config |

@@ -39,7 +39,10 @@ export interface EstateRow {
   /** Where revocation is read from on the estate's chain (`DelegationManager`). No address ⇒ nothing prunes ⇒ nothing is vouched for. */
   delegationManager?: Address;
   /** Is the signer declared where the estate's OWN chain says it (the first-come-wins cross-check)? */
+  /** The register's own claim; the chain's answer (`readDeclaredSigner`) is what a run reports. Kept so a reviewer sees both. */
   declaredOnChain?: boolean;
+  /** The AgentProfileResolver on the estate's chain, where its agent declares `atl:projectionSigner` (spec 439 F2.5). */
+  profileResolver?: Address;
   blocked?: string;
 }
 

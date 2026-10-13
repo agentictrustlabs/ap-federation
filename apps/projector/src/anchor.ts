@@ -14,7 +14,7 @@
 //   · a set that never changes must STILL be re-anchored, or every presentation against it ages out;
 //   · therefore the heartbeat interval must sit below the shortest `maxAge` any counterparty uses, and a
 //     presentation is deliberately short-lived. That is the cost of "a stale root is a refusal".
-import { createPublicClient, createWalletClient, http, type Address, type Hex } from 'viem';
+import { createPublicClient, createWalletClient, http, keccak256, toHex, type Address, type Hex } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 
 export const ESTATE_PROJECTION_REGISTRY_ABI = [
@@ -36,6 +36,25 @@ export interface AnchoredState {
   liveGrantRoot: Hex; membershipRoot: Hex; charterHash: Hex; sequence: number; anchoredAt: number;
   /** Nothing has ever been anchored for this estate. `sequence === 0` is the registry's own "never". */
   never: boolean;
+}
+
+/** `AgentProfileResolver.getAddressProperty(agent, atl:projectionSigner)` — the estate agent's own declaration (spec 439 F2.5). */
+export const PROFILE_RESOLVER_ABI = [
+  { type: 'function', name: 'getAddressProperty', stateMutability: 'view', inputs: [{ name: 'agent', type: 'address' }, { name: 'predicate', type: 'bytes32' }], outputs: [{ type: 'address' }] },
+] as const;
+export const ATL_PROJECTION_SIGNER = keccak256(toHex('atl:projectionSigner'));
+
+export type DeclaredSigner = { declared: true; signer: Address } | { declared: false };
+
+/**
+ * What the estate agent says on ITS OWN chain about who anchors its roots. Zero = undeclared. A reader that cannot
+ * reach the chain gets a throw, never a "probably undeclared" (ADR-0013).
+ */
+export async function readDeclaredSigner(opts: { rpcUrl: string; chainId: number; profileResolver: Address; governance: Address }): Promise<DeclaredSigner> {
+  const chain = { id: opts.chainId, name: `chain-${opts.chainId}`, nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 }, rpcUrls: { default: { http: [opts.rpcUrl] } } } as const;
+  const pub = createPublicClient({ chain, transport: http(opts.rpcUrl) });
+  const a = (await pub.readContract({ address: opts.profileResolver, abi: PROFILE_RESOLVER_ABI, functionName: 'getAddressProperty', args: [opts.governance, ATL_PROJECTION_SIGNER] })) as Address;
+  return /^0x0{40}$/i.test(a) ? { declared: false } : { declared: true, signer: a.toLowerCase() as Address };
 }
 
 export interface RegistryClient {

@@ -76,6 +76,7 @@ const pres = present(c1.nonce, c1.audience);
 const ok = await knock({ pres, challengeHeader: c1.header });
 check('ADMIT on a live leaf proved against the root read from neutral ground', ok.status === 200 && ok.json?.effect === 'ADMIT' && ok.json?.reasonCodes?.includes('FOREIGN_ESTATE_LIVE_GRANT'), `${ok.status} ${ok.json?.effect} ${JSON.stringify(ok.json?.reasonCodes)} standing=${JSON.stringify(ok.json?.standing)}`);
 const rc = ok.receipt ? await (await fetch(`${DOOR}/federation/receipts/${ok.receipt}`)).json() as any : null;
+check('F2.5: the estate agent\'s declared signer agrees with neutral ground (first-come-wins closed)', ok.json?.reasonCodes?.includes('FOREIGN_ESTATE_SIGNER_DECLARED') === true, JSON.stringify(ok.json?.reasonCodes));
 check('the receipt is readable by reference and hash-chained', !!rc && rc.receiptId === ok.receipt && /^sha256:/.test(rc.recordHash) && /^sha256:/.test(rc.prevHash) && rc.record?.effect === 'ADMIT', ok.receipt ?? '');
 check('the receipt names the acting account and the boundary, nothing else of the estate', !!rc && rc.record?.actingAgentId === `eip155:${wire.chainId}:${me.address.toLowerCase()}` && typeof rc.record?.boundaryId === 'string' && !JSON.stringify(rc.record).includes('blind'), '');
 

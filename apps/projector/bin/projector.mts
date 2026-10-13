@@ -21,7 +21,7 @@ import { makeAuthorityPresentation, verifyAuthorityPresentation, type AuthorityP
 import type { Address, Hex } from 'viem';
 import { estateById, loadFederation, registryRpc, requireProjectable, signerKey } from '../src/config.js';
 import { fileLedger } from '../src/ledger.js';
-import { registryClient } from '../src/anchor.js';
+import { readDeclaredSigner, registryClient, type DeclaredSigner } from '../src/anchor.js';
 import { buildForSequence, projectEstate } from '../src/project.js';
 import { isRevokedReader } from '../src/revocation.js';
 
@@ -33,6 +33,9 @@ const has = (k: string) => argv.includes(`--${k}`);
 const REGISTER = flag('register-file') ?? 'federation.yaml';
 const f = loadFederation(REGISTER);
 const rpc = registryRpc(f);
+/** The estate agent's own declaration (spec 439 F2.5), read from the estate's chain — neutral ground's RPC while they share one. */
+const declaredSignerFor = (estate: { chainId: number; governance: Address; profileResolver?: Address }): Promise<DeclaredSigner> =>
+  readDeclaredSigner({ rpcUrl: rpc, chainId: estate.chainId, governance: estate.governance, profileResolver: estate.profileResolver ?? ('0xB03F7C06ad3274F584AB72794406D639c02A45e1' as Address) });
 const registry = registryClient({ rpcUrl: rpc, chainId: f.registry.chainId, address: f.registry.address });
 const ledgerFor = (id: string) => fileLedger(flag('ledger') ?? `.submissions/${id}.json`);
 const REFRESH_AFTER = Number(flag('refresh-after') ?? process.env.FEDERATION_REFRESH_AFTER_SECONDS ?? 3600);
@@ -60,7 +63,10 @@ if (cmd === 'status') {
     else console.log(`  roots      seq ${r.sequence} · live-grant ${r.liveGrantRoot.slice(0, 18)}… · membership ${r.membershipRoot.slice(0, 18)}… · anchored ${new Date(r.anchoredAt * 1000).toISOString()} (${Math.floor(Date.now() / 1000) - r.anchoredAt}s ago)`);
     const rows = ledgerFor(row.id).list();
     console.log(`  vouches    ${rows.filter((x) => !x.retired).length} live submission(s) in the ledger (${rows.length} ever)`);
-    if (!row.declaredOnChain) console.log('  ⚠ the signer is not declared on the estate\'s own chain — reviewable here, not yet chain-verifiable (spec 439 F2)');
+    const declared = await declaredSignerFor(estate).catch((e) => ({ error: e instanceof Error ? e.message : String(e) }));
+    if ('error' in declared) console.log(`  declared   could not read the estate's chain: ${declared.error}`);
+    else if (!declared.declared) console.log('  declared   ⚠ the estate agent has not declared atl:projectionSigner on its own chain — reviewable here and in ap-town, not yet chain-verifiable (spec 439 F2.5; ap-home scripts/set-projection-signer.mts)');
+    else console.log(`  declared   ${declared.signer}${signer && declared.signer.toLowerCase() === signer.toLowerCase() ? ' — agrees with neutral ground: chain-verifiable both ways' : signer ? `  ✗ DISAGREES with neutral ground (${signer}) — this registration is not the estate's` : ''}`);
   }
 } else if (cmd === 'register') {
   const estate = requireProjectable(estateById(f, estateFlag()));
@@ -108,6 +114,7 @@ if (cmd === 'status') {
   const dry = has('dry-run');
   const run = await projectEstate(estate, {
     registry, ledger: ledgerFor(estate.id),
+    declaredSigner: await declaredSignerFor(estate),
     liveness: { isRevoked: await isRevokedReader(estate) },
     refreshAfterSeconds: REFRESH_AFTER,
     ...(dry ? {} : { signerKey: signerKey(estate) }),

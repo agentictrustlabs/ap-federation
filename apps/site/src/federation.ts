@@ -90,8 +90,11 @@ export interface FederationNaming {
   note?: string;
 }
 
+export interface FederationDoor { estate: string; url: string; target?: string; since?: string }
+
 export interface Federation {
   federation: string;
+  doors: FederationDoor[];
   registry: { chainId: number; chain: string; address: string; deployed?: string; rpcEnv?: string };
   estates: FederationEstate[];
   towns: FederationTown[];
@@ -107,6 +110,7 @@ export function parseFederation(text: string): Federation {
     registry: raw.registry as Federation['registry'],
     estates: (raw.estates ?? []) as FederationEstate[],
     towns: (raw.towns ?? []) as FederationTown[],
+    doors: ((raw as { doors?: FederationDoor[] }).doors ?? []),
     kms: raw.kms as FederationKms,
     naming: raw.naming as FederationNaming,
   };
@@ -184,6 +188,7 @@ export function validateFederation(f: Federation): string[] {
     if ((k.conditions ?? []).length !== 4) errs.push('kms.conditions: the four conditions of spec 440 A3, each with a status');
   }
 
+  for (const d of f.doors ?? []) { if (!isUrl(d.url) || isWorkersDev(d.url)) errs.push(`doors[${d.estate}]: an https custom-domain URL`); if (!(f.estates ?? []).some((e) => e.id === d.estate)) errs.push(`doors[${d.estate}]: not an estate in the register`); }
   const n = f.naming;
   if (!n) errs.push('naming: the universal namespace record is required (spec 440 §C)');
   else {
