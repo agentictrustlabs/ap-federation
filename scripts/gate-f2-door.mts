@@ -16,6 +16,7 @@ import { execFileSync } from 'node:child_process';
 import { createPublicClient, http, type Address, type Hex } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { requestProofDigest, sha256Of, type AgenticRequestProofClaims } from '@agenticprimitives/admission';
+import { callerAssertionDigest, requestBodyHash, sessionAuthorizationHeader } from '@agenticprimitives/a2a/standard';
 import { parse } from 'yaml';
 
 const DOOR = (process.env.FEDERATION_DOOR_URL ?? 'https://door.ap-federation.faithnet.io').replace(/\/$/, '');
@@ -39,7 +40,7 @@ const estateKey = (await pub.readContract({ address: fed.registry.address as Add
 const anchored = (await pub.readContract({ address: fed.registry.address as Address, abi: REGISTRY_ABI, functionName: 'roots', args: [estateKey] })) as readonly [Hex, Hex, Hex, bigint, bigint];
 console.log(`presenter ${me.address} · estate ${estateId} ${estateKey.slice(0, 10)}… anchored at sequence ${anchored[3]} · door ${DOOR}`);
 
-const health = await (await fetch(`${DOOR}/health`)).json() as { configured?: boolean; boundaryId?: string };
+const health = await (await fetch(`${DOOR}/health`)).json() as { configured?: boolean; boundaryId?: string; origin?: string };
 check('the door is up and configured', health.configured === true, health.boundaryId ?? '');
 
 async function challenge(subject = me.address) {
@@ -50,19 +51,28 @@ function present(nonce: Hex, audience: string): unknown {
   execFileSync('pnpm', ['-s', 'projector', 'present', '--estate', estateId, '--digest', wire.digest, '--audience', audience, '--nonce', nonce, '--out', file], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'] });
   return JSON.parse(readFileSync(file, 'utf8'));
 }
-async function knock(opts: { pres?: unknown; challengeHeader?: string; path?: string; body?: string; sign?: boolean; replayId?: string; audience?: string; proofOverride?: string }) {
+async function knock(opts: { pres?: unknown; challengeHeader?: string; path?: string; body?: string; sign?: boolean; replayId?: string; audience?: string; proofOverride?: string; originAudience?: string }) {
   const path = opts.path ?? '/federation/knock';
-  const body = opts.body ?? JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'message/send', params: { message: { role: 'user', parts: [{ kind: 'text', text: 'federation door gate: hello from the test agent' }], messageId: crypto.randomUUID() } } });
+  const body = opts.body ?? JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'SendMessage', params: { message: { messageId: crypto.randomUUID(), role: 'ROLE_USER', parts: [{ text: 'A visiting agent from another estate says hello. In one sentence, what may a visitor ask you about?' }] } } });
   const now = Math.floor(Date.now() / 1000);
   const presRef = opts.pres ? `estate:${String((opts.pres as { estateId: string }).estateId).toLowerCase()}:presentation:${(await sha256Of(JSON.stringify(opts.pres))).slice(7, 39)}` : null;
   const claims: AgenticRequestProofClaims = {
     schemaVersion: '1', principalAgentId: `eip155:${wire.chainId}:${me.address.toLowerCase()}`, actingAgentId: `eip155:${wire.chainId}:${me.address.toLowerCase()}`, runtimeId: 'urn:ap:runtime:ap-federation:f2-presenter',
     sessionKeyId: me.address.toLowerCase(), delegationRefs: presRef ? [presRef] : [], audience: opts.audience ?? DOOR, issuedAt: now, expiresAt: now + 120, replayId: opts.replayId ?? crypto.randomUUID(),
     http: { method: 'POST', authority: new URL(DOOR).host, pathAndQuery: path, bodySha256: await sha256Of(body) },
-    a2a: { protocolVersion: '1.0', protocolBinding: 'HTTP+JSON', operation: 'message/send', requestedCapabilityId: 'harness.read' },
+    a2a: { protocolVersion: '1.0', protocolBinding: 'HTTP+JSON', operation: 'SendMessage', requestedCapabilityId: 'harness.read' },
   };
   const signature = await me.signMessage({ message: await requestProofDigest(claims) });
   const headers: Record<string, string> = { 'content-type': 'application/json' };
+  // THE ESTATE'S OWN DOOR ASKS WHO IS CALLING, separately from the federation door (spec 372 S3c): an `A2A-Session`
+  // caller assertion bound to the method, the body, the ORIGIN's host and the moment, signed DIRECTLY by the agent
+  // (the universal validator answers for an EOA as for a Smart Agent). The door forwards it untouched. Without it
+  // the origin answers 401 — correct, and uninformative.
+  if (opts.originAudience) {
+    const base = { agent: me.address.toLowerCase(), method: 'SendMessage', bodyHash: requestBodyHash(body), issuedAt: now, audience: opts.originAudience };
+    const sig = await me.sign({ hash: callerAssertionDigest(base) });
+    headers.authorization = sessionAuthorizationHeader({ ...base, signature: sig });
+  }
   if (opts.sign !== false) headers['x-ap-request-proof'] = opts.proofOverride ?? b64url({ claims, signature });
   if (opts.pres) headers['x-ap-authority-presentation'] = b64url(opts.pres);
   if (opts.challengeHeader) headers['x-ap-challenge'] = opts.challengeHeader;
@@ -83,8 +93,14 @@ check('the receipt names the acting account and the boundary, nothing else of th
 
 // ── forward: the same, through the A2A path, lands at the estate's door with the standing in headers ──
 const c2 = await challenge();
-const fwd = await knock({ pres: present(c2.nonce, c2.audience), challengeHeader: c2.header, path: '/a2a' });
-check('an admitted request is forwarded to the estate\'s A2A door, which answers as an A2A door, and comes back with the receipt reference', fwd.effect === 'ADMIT' && !!fwd.receipt && fwd.json?.jsonrpc === '2.0', `origin answered ${fwd.status} ${JSON.stringify(fwd.json?.result ? 'result' : fwd.json?.error ?? fwd.text.slice(0, 80))}`);
+const originAudience = new URL(String((health as { origin?: string }).origin ?? '')).origin;
+const fwd = await knock({ pres: present(c2.nonce, c2.audience), challengeHeader: c2.header, path: '/a2a', originAudience });
+// A2A 1.0 SendMessage answers `{ task }` or `{ message }`; an agent asking as itself gets a task.
+const res = fwd.json?.result as { task?: Record<string, unknown>; message?: Record<string, unknown> } | undefined;
+const task = (res?.task ?? (res && 'id' in res ? res : undefined)) as { id?: string; status?: { state?: string }; metadata?: { foreignStanding?: { verified?: boolean; standing?: { estateId?: string; sequence?: number }; boundaryId?: string } } } | undefined;
+if (!task) console.log('  origin result:', JSON.stringify(fwd.json ?? fwd.text).slice(0, 400));
+check('F3: the estate\'s own door admits the visitor as an agent asking as itself and answers with a task', fwd.effect === 'ADMIT' && !!fwd.receipt && !!task?.id, `origin answered ${fwd.status} ${task ? `task ${task.id} ${task.status?.state}` : JSON.stringify(fwd.json?.error ?? fwd.text.slice(0, 120))}`);
+check('F3: the task carries the door\'s receipt as VERIFIED evidence of standing — never as authority', task?.metadata?.foreignStanding?.verified === true && typeof task?.metadata?.foreignStanding?.standing?.estateId === 'string', JSON.stringify(task?.metadata?.foreignStanding ?? null));
 
 // ── twins ──
 const c3 = await challenge();
