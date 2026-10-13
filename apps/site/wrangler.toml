@@ -1,0 +1,20 @@
+# The federation's site (spec 440 §B): ap-federation.faithnet.io. One Worker, no key, no secret, no Durable Object.
+# The register (../../federation.yaml) is bundled as text at build time; everything else is fetched live from the
+# towns' own public surfaces. Deployed by THIS repository (DEPLOYER.md).
+name = "ap-federation-site"
+main = "src/index.ts"
+compatibility_date = "2026-09-01"
+
+[[rules]]
+type = "Text"
+globs = ["**/*.yaml"]
+fallthrough = true
+
+[vars]
+PUBLIC_ORIGIN = "http://localhost:8787"
+
+[env.faithnet]
+name = "ap-federation-site"
+routes = [{ pattern = "ap-federation.faithnet.io", custom_domain = true }]
+[env.faithnet.vars]
+PUBLIC_ORIGIN = "https://ap-federation.faithnet.io"

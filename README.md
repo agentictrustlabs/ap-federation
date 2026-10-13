@@ -77,6 +77,14 @@ Three things F1 found, and none of them are footnotes:
   people declare no `atl:estate`, so it has no address that will still mean "faithnet" in a year, and an
   estate id is permanent. `federation.yaml` carries the refusal and the fix.
 
+**Spec 440 wave 1 (2026-10-14):** the federation's site is live at **ap-federation.faithnet.io** (`apps/site`): every
+town with live probes, the shared KMS operator record with its tenants and the four conditions, the universal name
+resolver over every live town's naming service (every row qualified, never bare), and neutral ground.
+`federation.yaml` gained `towns`, `kms` and `naming`; `check:federation` refuses a shared tenant, a billable key
+without a payer, or a root chain that is not a live town. The naming decision changed by the owner's choice: **one
+universal namespace rooted on faithchain, the way ENS v2 is rooted on L1**, other chains joining without a second
+registry (spec 440 §C; the naming document's N7 is amended).
+
 **And what F1 did NOT prove:** this is cross-*estate*, on one chain. The estate id is chain-scoped by
 construction, so a second chain changes one line of config and no verifier code — but a design property is
 not a demonstration. Next: F2, the receiving edge through `foreignEstateEvaluator`.
@@ -87,7 +95,9 @@ not a demonstration. Next: F2, the receiving edge through `foreignEstateEvaluato
 | --- | --- |
 | `apps/*` | the product's deployables — each with its own `wrangler.toml` (see `wrangler.example.toml` for the env layout) |
 | `examples/*` | relying-app demonstrations of the product's ceremonies; each builds against published packages or is retired |
-| `federation.yaml` | the register: neutral ground, and the estates that project onto it (governance, signer, how each was determined, and why an estate is refused) |
+| `federation.yaml` | the register: neutral ground and the estates that project onto it; **the towns** and where their public surfaces are; **the shared KMS operator** (tenants, callers, the four conditions); **the universal namespace** (root chain, roots, resolver) |
+| `apps/site` | **ap-federation.faithnet.io** — towns · KMS · names · neutral ground; public, read-only, keyless (spec 440 §B) |
+| `specs/` | this repository's own specs (`440` — the shared KMS operator, the site, the universal naming service) |
 | `scripts/` | ops scripts and the live gates (`gate-f1-projection.mts`) |
 | `docs/architecture/` | the federation principles with their industry anchors, **the federated naming decision** (identity · town handle · town-qualified pair · DNS projection · signals, no root), and a dated crosswalk of ERC-8004 / ENS v2 / the ANS family (OWASP, IETF, Linux Foundation, GoDaddy) / AID / HCS-14 / NANDA / AGNTCY — start at its `README.md` |
 | `docs/runbooks/` | `project-an-estate.md` — putting an estate on neutral ground, end to end |
@@ -102,6 +112,9 @@ not a demonstration. Next: F2, the receiving edge through `foreignEstateEvaluato
 pnpm install
 pnpm doctor                     # ap doctor — the doctrine rules over this tree
 pnpm check:public-links         # no link into a private repository (this repo is public)
+pnpm check:federation           # the register is fit to publish (towns, one tenant per estate, the root chain)
+pnpm site:deploy                # apps/site → ap-federation.faithnet.io
+pnpm gate:site                  # the site answers from the towns' live surfaces (incl. the never-bare twin)
 pnpm doctor:rules               # drift between the projected rules and the pinned source
 pnpm upgrade:canary             # newest canary of every pin, one coherent set, then doctor
 pnpm upgrade:pin 1.0.0-alpha.24 # or one named version / dist-tag

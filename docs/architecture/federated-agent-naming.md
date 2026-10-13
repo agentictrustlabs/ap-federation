@@ -1,6 +1,6 @@
 # Federated agent naming — one coherent approach across towns and chains
 
-**Status:** DRAFT 2026-10-13 (decision document; nothing below is built unless a status says so). Companion to
+**Status:** DRAFT 2026-10-13; **amended 2026-10-14** — the owner chose the root (N7 below). Spec 440 §C is now the decision of record for the root and how other chains join; §5.3–§5.5 here stand unchanged beneath it. Companion to
 [`federation-principles.md`](federation-principles.md) (P1, P7, P8, P9 are the ones naming leans on) and
 [`naming-landscape-crosswalk.md`](naming-landscape-crosswalk.md) (every external claim here, dated and sourced).
 Ring 0 holds the naming substrate and doctrine; this document decides how that substrate is *used across a
@@ -20,11 +20,11 @@ Foundation. ap-federation needs a coherent approach to agent naming."*
 | --- | --- |
 | N1 | **Naming is a trust question, and the answer is layered, not chosen.** A name is a facet (Ring 0 ADR-0010); the identity is the chain-qualified account. So "may two agents share a name?" is not one question: it is one question per layer, with a different answer at each. |
 | N2 | **L0 — the identifier needs no naming authority.** `eip155:<chainId>:<address>` (CAIP-10) is globally unique by construction and is the only thing a verifier ever binds to. Nothing below changes that. |
-| N3 | **L1 — a town's handle is unique in that town and nowhere else.** `alice.me` is one record in one `AgentNameRegistry` on one chain, typed, paid, gate-signed and domain-protected (Ring 0 specs 346/431). That registry is the one authority for its handles (the ENS v2 principle, applied **per town**): another town never re-registers them and never claims to serve them; it resolves them by proof or not at all. |
+| N3 | **L1 — a handle is unique in its registry and nowhere else.** `alice.me` is one record in one `AgentNameRegistry` on one chain, typed, paid, gate-signed and domain-protected (Ring 0 specs 346/431). That registry is the one authority for its handles: another registry never re-registers them and never claims to serve them; it resolves them by proof or not at all. *Amended 2026-10-14:* with one universal namespace (N7) there is one such registry, on the root chain; a town's naming service **reads** it and runs no root of its own. |
 | N4 | **L2 — across towns, a handle is always qualified by its town, and the same handle may be issued by two towns to two subjects.** This is the ERC-8004 reading: names may recur; the identity does not. The machine form of a federated name is the pair `{ name, chain }` (CAIP-2), never a new syntax — Ring 0 already refused ERC-7828's `name@chain` because `@` means *context* here (spec 346 §3), and the chain belongs in the record. A name shown outside its home town is shown with its town, every time (the ENSIP-19 rule turned into a display rule). |
 | N5 | **L3 — the DNS projection is the federation's globally-unique human-readable locator, and it is only a locator.** `<label>-<type>.<estate zone>` (spec 346 §5) is unique because DNS is, reversible by function, and rented rather than owned: we take DNS's root for *routing* and refuse it for *identity*. Every AP agent publishes the DNS-anchored discovery records the field reads (`_agent` TXT per AID v2 and HCS-14, the well-known card and registration paths), so an ANS, AID or HCS-14 resolver finds an AP agent, and what it finds is a pointer to the account with a proof the account signed. |
 | N6 | **L4 — trust around a name is a set of named signals, never a score.** Named · typed · listed · reachable (spec 430 D5), plus three federation signals: *issued by* (which town, which estate's gate), *projected* (the estate's roots are anchored on neutral ground at sequence N), *presented* (a live leaf verified against that root). A fifth line stays: *authorized* is the caller's own mandate. Reuse of a label across towns is answered by these signals and by the domain rule, not by a global root. |
-| N7 | **No federation root is created.** The federation does not run a `.me` above the towns. A future federation-wide typed root on public ground (spec 407 D-03) is recorded as an **opt-in** path a town may take when it needs one name to be a person's on every chain (§5.6); it is the ENS v2 path, and it is not required for any of N2–N6. |
+| N7 | **AMENDED 2026-10-14 (owner's decision).** ~~No federation root is created.~~ **One universal namespace, rooted on one chain — faithchain today — the way ENS v2 is rooted on Ethereum L1.** The typed roots on the root chain are the federation's names; other chains join without a second registry (an estate's gate named on the root's priced roots; residents own names by their own root-chain account; address records keyed by chain; a reverse claim per chain valid only with the forward; resolution elsewhere by proof or by reading the root chain). The root is a contract set, not an operator; its governor is the one trust position the decision creates. Spec 440 §C carries it; §5.6 below is superseded by it. N2–N6 and N8 stand. |
 | N8 | **Names never carry capability, protocol, provider, version or certification.** The one derived fact in a name is the agent type, checked on chain (ADR-0061). OWASP ANS v1's six-component name and ANS v2's `ans://v1.0.0.host` versioned form are refused for the reason Ring 0's response to NANDA gives: every one of those changes without the agent becoming a different agent. |
 
 ---
@@ -317,7 +317,12 @@ honest options and one dishonest one:
 
 Status: **designed**, not built; the naming root is the third root the projector would anchor (§7 item d).
 
-### 5.6 The opt-in federation root, recorded and not built
+### 5.6 The federation root — chosen 2026-10-14 (superseded by spec 440 §C)
+
+> The owner chose this path on 2026-10-14. The text below is kept as the reasoning that preceded the choice; the
+> decision of record, the ENS v2 crosswalk, how a resident of another chain owns a root-chain name, and the waves are
+> in `specs/440-shared-kms-federation-site-and-universal-naming.md` §C. Its precondition stands: custody propagation
+> to satellites (chains-and-estates §3.2 item 7) before a global name points at a satellite in production.
 
 If the owner later wants `alice.me` to be *one* person's on every chain, there is exactly one way to get it without a
 registrar: a typed root registry on public ground (the public L2 of spec 407 D-03), administered by nobody (the P4

@@ -14,14 +14,17 @@
     "test": "pnpm -r test",
     "typecheck": "pnpm -r typecheck",
     "build": "pnpm -r build",
-    "check": "pnpm typecheck && pnpm test && ap doctor && pnpm check:public-links",
+    "check": "pnpm typecheck && pnpm test && pnpm check:federation && ap doctor && pnpm check:public-links",
     "projector": "tsx apps/projector/bin/projector.mts",
     "live-gates": "ap test --live-gates live-gates.json",
     "conform:a2a": "ap conform a2a",
     "conform:mcp": "ap conform mcp",
     "upgrade:canary": "ap upgrade --canary",
     "upgrade:pin": "ap upgrade --pin",
-    "check:public-links": "node scripts/check-public-links.mjs"
+    "check:public-links": "node scripts/check-public-links.mjs",
+    "check:federation": "tsx scripts/check-federation.mts",
+    "site:deploy": "pnpm --filter @ap-federation/site deploy:faithnet",
+    "gate:site": "tsx scripts/gate-federation-site.mts"
   },
   "devDependencies": {
     "@agenticprimitives/a2a": "0.0.0-alpha.35",

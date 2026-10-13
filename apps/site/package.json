@@ -1,0 +1,23 @@
+{
+  "name": "@ap-federation/site",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The federation's site (spec 440 §B): the towns we have with live probes, the shared KMS operator record with its tenants, the universal name resolver over every town's naming service, and neutral ground. Public, read-only, keyless. It lists; it never grants.",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "dev": "wrangler dev",
+    "deploy:faithnet": "wrangler deploy --env faithnet"
+  },
+  "dependencies": {
+    "yaml": "2.8.1"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "4.20260605.1",
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.3",
+    "vitest": "^4.1.8",
+    "wrangler": "4.93.0"
+  }
+}

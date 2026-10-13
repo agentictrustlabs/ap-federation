@@ -13,6 +13,18 @@
       "env": {
         "FEDERATION_ESTATE": "imbnet"
       }
+    },
+    {
+      "id": "federation-site",
+      "script": "scripts/gate-federation-site.mts",
+      "spec": "specs/440 \u00a7B4",
+      "proves": "the federation site answers from the towns' live surfaces: the root-chain town is listed live with its estates, the KMS operator probe answers, a label resolves across every live town with every row qualified and carrying { name, chain } + a CAIP-10 identity.",
+      "twin": "no row is ever bare; a retired town is neither probed nor queried; the KMS record carries no secret-shaped value; a chain in the name is refused.",
+      "required": true,
+      "timeoutSec": 120,
+      "env": {
+        "FEDERATION_SITE_URL": "https://ap-federation.faithnet.io"
+      }
     }
   ]
 }

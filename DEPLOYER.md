@@ -12,6 +12,8 @@ runs against it:
 | --- | --- | --- | --- |
 | `EstateProjectionRegistry` | faithchain (34348) `0xb4E116F5C6915a4f1e649E0877e4a0A7a1c1147b` | Ring 0 `packages/contracts` (`script/DeployEstateProjectionRegistry.s.sol`); address in `deployments-faithchain.json` | 2026-10-13 |
 | `apps/projector` | **an operator's machine**, over `FEDERATION_RPC_URL` | ap-federation | 2026-10-13 |
+| `apps/site` — **ap-federation.faithnet.io** (spec 440 §B) | Cloudflare Worker `ap-federation-site`, env `faithnet`, custom domain on `faithnet.io` | ap-federation (`pnpm site:deploy`) | 2026-10-14 |
+| the shared KMS operator record (spec 440 §A) | `federation.yaml#kms` — the AKCS CVM in `RG-AKCS-PILOT-WESTUS`; code `agentictrustlabs/faithkms` | **operated**, not deployed, by the AKCS operator (one holder); recorded here | 2026-10-14 |
 | `apps/nanda-adapter` (F4) | per town | ap-federation | — |
 
 **The projector is not yet the estate's `.registry` service agent, and spec 439 §4 says it must be.** Today
@@ -24,6 +26,14 @@ and is refused — the failure direction is closed, but it is still a failure.
 Submissions and openings live in `.submissions/` (gitignored, 0600) on that same machine. Also the wrong
 place and said so in the code: the estate's copy belongs in the registry agent's vault and the holder's in
 the holder's (ADR-0055). It is a port, so moving it is a binding change.
+
+## Shared operators (spec 440 §A2)
+
+A shared operator is infrastructure more than one town reaches and no town owns: the KMS today. It is **recorded**
+here (`federation.yaml`), it is **declared by reference** in every town's manifest, and it is **operated** by a named
+role whose record on the operator's own machine is authoritative. It is not neutral ground (someone can pause it),
+not a root, and not required of any town. This repository deploys nothing into it; the operator runbook
+(`docs/runbooks/kms-tenant-for-an-estate.md`) is the only path that changes it.
 
 ## What this repository must never deploy
 

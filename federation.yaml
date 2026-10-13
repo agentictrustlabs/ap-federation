@@ -78,3 +78,105 @@ estates:
     governance: null
     governanceKind: none
     blocked: "no estate agent: `faithnet.estate` is unregistered and faithnet's people declare no `atl:estate`. Deploy the estate agent + register the name (ap-home scripts/add-estate-agent.mts, Ring 0 script/AddEstateName.s.sol), then set `governance` to its SA."
+
+# ── THE TOWNS (spec 440 §B) ───────────────────────────────────────────────────────────────────────────
+# Every town we have. A town is one chain and the estates on it (ap-town spec 429); its manifest is ITS record
+# (ap-town `towns/<chain>/town.yaml`, public), and this list only says where each town's public surfaces are so
+# the federation site can read them LIVE. Nothing here is copied from a manifest. A surface the site reads must be
+# a custom domain: a Worker cannot fetch a same-account workers.dev host (CF-1042).
+towns:
+  - id: faithchain
+    chainId: 34348
+    status: live
+    repo: agentictrustlabs/ap-town
+    manifest: https://raw.githubusercontent.com/agentictrustlabs/ap-town/master/towns/faithchain/town.yaml
+    agent: https://town.faithnet.io            # the town agent: /api/health · /api/town · /api/estates · /api/services · the card
+    portal: https://town.faithnet.io
+    naming: https://names.faithnet.io          # the naming read API (spec 430 §4) — the universal resolver asks it
+    registry: https://discovery-a2a.faithnet.io
+    rpc: https://rpc.faithnet.io
+  - id: base-sepolia
+    chainId: 84532
+    status: retired
+    repo: agentictrustlabs/ap-town
+    manifest: https://raw.githubusercontent.com/agentictrustlabs/ap-town/master/towns/base-sepolia/town.yaml
+    note: "The impact demos' town (ap-town spec 429 §12.3). Its discovery list was decommissioned 2026-10-13; the manifest stays as the record of what stood there. Not probed, not queried for names."
+
+# ── THE SHARED KMS OPERATOR (spec 440 §A) ─────────────────────────────────────────────────────────────
+# One AKCS operator at the federation scale; ONE TENANT PER ESTATE, ALWAYS — a tenant is the seed its keys derive
+# from (the vault's per-person KEKs, the runtime→vault MACs, the OIDC-custody seed), so sharing one dissolves the
+# estate. This is shared infrastructure with an operator of record: NOT neutral ground (someone can pause it), not a
+# root, not required (`key-custody` is a port). Nothing here is a key, a token, a seed or a caller credential; the
+# operator's record on the CVM is authoritative and this file says where it disagrees with itself.
+kms:
+  operator: ap-federation
+  operatorRole: "the AKCS operator (`akcs operator …` on the CVM via `az vm run-command`) — one holder today, the owner; a second holder is a posture item (spec 407 D10)"
+  repo: agentictrustlabs/faithkms
+  backend: akcs
+  host: akcs-pilot.faithnet.io
+  hostPlanned: kms.faithnet.io               # spec 440 A5 step 3 — a federation host, not a pilot name; the pilot host stays until no caller uses it
+  probe: https://akcs-pilot.faithnet.io/healthz
+  attestation: null                          # spec 440 A5 step 4 — the CVM attestation, published at the operator host; null until it is
+  azureResources:
+    - /subscriptions/5a656e13-849d-4b56-9101-53f987cf971b/resourceGroups/RG-AKCS-PILOT-WESTUS/providers/Microsoft.Compute/virtualMachines/vm-akcs-pilot-0
+    - /subscriptions/5a656e13-849d-4b56-9101-53f987cf971b/resourceGroups/RG-AKCS-PILOT-WESTUS/providers/Microsoft.Compute/virtualMachines/vm-akcs-tunnel-pilot
+  protectionLevels: [CVM_WRAPPED, CVM_DERIVED]
+  costRule: "a couple of HSM root keys are the whole Azure spend; every agent key derives from them for free. AZURE_HSM_DIRECT is a billable Key Vault HSM key per key and is never bound by default — a caller that needs one names the estate that pays (billedTo)."
+  tenants:
+    - tenant: faithnet
+      estate: faithnet
+      town: faithchain
+      backend: akcs
+      # The first tenant, bound before the per-Worker rule existed: faithnet's Workers, its second deployment
+      # (faithnet-b) and the service skills-a2a share its credential — spec 407 D10's finding, condition 1 OPEN.
+      callers: null
+      sharedCredential: true
+      note: "re-bind one caller per Worker (runbook step 2), then disable the shared credential; callers are recorded here as they are bound"
+    - tenant: imb
+      estate: imbnet
+      town: faithchain
+      backend: akcs
+      callers:
+        - subject: imb-vault-2
+          worker: imb-vault
+          operations: [data-key-generate, data-key-unwrap, mac-generate, key-create]
+          protectionLevels: [CVM_WRAPPED, CVM_DERIVED]
+          since: 2026-10-11
+        - subject: imb-runtime-2
+          worker: imb-runtime
+          operations: [mac-generate]
+          protectionLevels: [CVM_WRAPPED, CVM_DERIVED]
+          since: 2026-10-11
+      note: "bound with --audiences urn:mcp:server:person --purposes '*' (one KEK purpose per person); the -2 subjects replaced bindings made without audiences"
+  conditions:
+    - id: 1
+      condition: "No shared caller credential — one least-privilege bind-caller per Worker per estate (closes spec 407 D10)"
+      status: open
+      detail: "imbnet met (two callers, 2026-10-11); faithnet's pilot credential is still shared across its Workers — close before a third estate binds"
+    - id: 2
+      condition: "One tenant per estate; a tenant is never shared and an estate never has two"
+      status: met
+      detail: "checked by scripts/check-federation.mts over this record"
+    - id: 3
+      condition: "CVM protection levels only; AZURE_HSM_DIRECT never bound without a named payer"
+      status: met
+      detail: "protectionLevels above; the check refuses a caller with AZURE_HSM_DIRECT and no billedTo"
+    - id: 4
+      condition: "The CVM attestation document is published at the operator host and linked from this record"
+      status: open
+      detail: "operator action — spec 440 A5 step 4"
+
+# ── THE UNIVERSAL NAMESPACE (spec 440 §C) ─────────────────────────────────────────────────────────────
+# One namespace, rooted on ONE chain the way ENS v2 is rooted on Ethereum L1: the typed roots on the root chain are
+# the federation's names. Other chains join without a second registry — an estate's naming gate is named on the
+# root's priced roots (`setGate`), its residents own their names on the root chain by their own root-chain account,
+# address records are keyed by chain, a reverse claim per chain is honoured only with the forward, and other chains
+# resolve by proof or by reading the root chain. No town runs a parallel `.me`. The owner's decision of 2026-10-14;
+# it amends docs/architecture/federated-agent-naming.md N7.
+naming:
+  rootChain: 34348
+  rootRegistry: "0x60E949D52660A9D4143ecB0fdA56c0457f20aED9"      # AgentNameRegistry on faithchain (Ring 0 deployments-faithchain.json)
+  universalResolver: "0xF343054e046A4145ccae499ECB28197394eE0798" # AgentNameUniversalResolver (the one-chain round trip, spec 222)
+  roots: [me, org, team, svc, workspace, treasury, registry, church, circle, household, estate]
+  resolver: https://ap-federation.faithnet.io/api/names           # wave 1: over every live town's naming read API; later waves read the root chain and its proofs
+  note: "the priced roots' governor is naming.svc under the town clerk persona (ap-town spec 431) — the one trust position a shared root creates; spec 440 C7 names it, Ring 0 decides its council shape"

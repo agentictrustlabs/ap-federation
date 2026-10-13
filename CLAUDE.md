@@ -46,6 +46,7 @@ against the root it reads itself.
 | the principles, with the field's own sentences beside each | `docs/architecture/federation-principles.md` (P1–P10) |
 | **naming across towns and chains** | `docs/architecture/federated-agent-naming.md` — N1–N8: CAIP-10 is the identity; a handle is unique per town and never re-registered elsewhere; across towns a name is the pair `{ name, chain }` and is never shown bare; the DNS projection is a rented locator; trust is named signals; **no federation root** (an opt-in one on public ground is recorded, not built). §7 is the Ring 0 backlog |
 | what ERC-8004, ENS v2, the ANS family, AID, HCS-14, NANDA, AGNTCY actually say, dated | `docs/architecture/naming-landscape-crosswalk.md` |
+| the shared KMS operator, the site, the universal naming service | `specs/440-shared-kms-federation-site-and-universal-naming.md` — A1–A4 (one operator, one tenant per estate, four conditions), B1–B2 (the site reads the towns' own surfaces), C1–C4 (**one namespace rooted on faithchain, ENS v2 style**; other chains join by gate + satellite + chain-keyed records + proof) |
 | standards versions | Ring 0 `docs/standards-lock.json`. **This repo proposes entries; it never pins its own target** — the point of the lock is that an upgrade is reviewable by someone other than the adapter's author. |
 
 ### Drift triggers — STOP
@@ -72,9 +73,17 @@ against the root it reads itself.
   verifier `maxAge` — and know that the two pull against each other (`apps/projector/README.md` §3).
 - *"Say the cross-chain story is demonstrated."* **STOP.** F1 is CROSS-ESTATE on one chain. The id is
   chain-scoped by construction, which is a design property, not a demonstration.
-- *"Give the federation its own `.me` so names are unique everywhere."* **STOP.** A root is a trust domain every town
-  must join (spec 439 §0). Across towns a name is `{ name, chain }` and is displayed with its town; a federation root on
-  public ground is an opt-in recorded in `docs/architecture/federated-agent-naming.md` §5.6, after custody propagation.
+- *"Let this town run its own `.me` / create a second root."* **STOP.** There is ONE universal namespace, rooted on the
+  root chain (faithchain today; spec 440 C1, the owner's decision 2026-10-14). A town joins it — its estate's gate is
+  named on the root's priced roots, its residents own names there by their own root-chain account — and never runs a
+  parallel typed root. Across towns a name is still `{ name, chain }` and is still never shown bare.
+- *"Have the registry agent / the operator hold the name for a resident on the other chain."* **STOP.** The owner of a
+  root-chain name is the resident's own root-chain account (home or satellite, spec 440 C3). No satellite ⇒ no name,
+  not operator custody.
+- *"Share the KMS tenant — same operator anyway."* **STOP.** A tenant is a derivation root and an estate boundary. One
+  tenant per estate in every town; a second estate on one tenant changes every address the day custody moves.
+- *"Bind the new town's Workers with the pilot credential for now."* **STOP.** Condition 1 (spec 440 A3): one
+  least-privilege caller per Worker, never a shared credential; `check:federation` refuses the row.
 - *"Write `alice.me@faithchain` for the cross-town form."* **STOP.** `@` means context (spec 346 §3); the chain is a
   record beside the name, never a name component (Ring 0 refused ERC-7828 for this reason).
 - *"Put the capability / version / certification in the name so resolvers can filter."* **STOP.** The one derived fact

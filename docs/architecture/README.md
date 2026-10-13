@@ -10,6 +10,8 @@ private repository (`pnpm check:public-links`).
 | [`federated-agent-naming.md`](federated-agent-naming.md) | **the naming decision**: naming is a trust question answered in layers — CAIP-10 identity (no authority), a town handle unique per town (the ENS v2 principle per town), a town-qualified pair `{ name, chain }` across towns (the ERC-8004 reading: labels may recur, identities do not), the DNS projection as a rented locator that every DNS-anchored resolver can find, and trust as named signals, never a score. No federation root is created; an opt-in one on public ground is recorded. §7 is the backlog it asks of Ring 0 |
 | [`naming-landscape-crosswalk.md`](naming-landscape-crosswalk.md) | ERC-8004 · ENS v2 and the ENSIPs · ERC-7930/7828/7785 · CAIP · OWASP ANS v1 · IETF ANS v2 · the Linux Foundation's ANS · GoDaddy's ANS Registry · AID v2 · DNS-AID · DANE-DID · the CSA analysis · HCS-14/10/11 · NANDA and NandaIndex · AGNTCY ADS · SPKI/SDSI, petnames, Zooko — one row each, dated, with what we take, what we refuse, and what to pin |
 
+**Amended 2026-10-14:** the naming decision's N7 changed by the owner's choice — one universal namespace rooted on faithchain, ENS v2 style, other chains joining without a second registry. The decision of record is [`../../specs/440-shared-kms-federation-site-and-universal-naming.md`](../../specs/440-shared-kms-federation-site-and-universal-naming.md) §C; the naming document carries the amendment inline.
+
 Where the mechanism lives: Ring 0 spec 410 §4 and spec 439 (the architect-of-record for this repository);
 `apps/projector/README.md` for what F1 built and found; [`../runbooks/project-an-estate.md`](../runbooks/project-an-estate.md)
 to put an estate on neutral ground.
