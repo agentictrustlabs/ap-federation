@@ -10,3 +10,7 @@ live-gates-report.json
 # Every *.local.json is a local secret — a roster with private keys, a service-account file. Never committed.
 *.local.json
 .vercel/
+
+# The estate projection signers: one key per estate, never committed (federation.yaml carries only addresses).
+.secrets/
+.submissions/

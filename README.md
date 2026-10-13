@@ -58,9 +58,28 @@ neutral ground, or any conformance claim it has not earned. See spec 439 §8.
 
 ## Status
 
-**F0 — the repository shape.** Nothing is deployed yet; `DEPLOYER.md` says so. The three items this repo was
-created to finish are the ones spec 410 §4 left open: the projector job, the receiving runtime edge, and the
-two-chain live twin.
+**F1 — the projector, live (2026-10-13).** `EstateProjectionRegistry` is deployed on faithchain
+(`0xb4E116F5C6915a4f1e649E0877e4a0A7a1c1147b` — no admin, no pause, no upgrade), the **imbnet** estate is
+registered under `estateId 0xe96d2c36…` derived from its own agent `imbnet.estate`, and its live-grant root
+is anchored over real grants read under their holder's own session and pruned against the chain. A
+presentation verifies against the root read from the chain; one sequence later the same presentation is
+refused as stale. `scripts/gate-f1-projection.mts` is the gate and it is green.
+
+Three things F1 found, and none of them are footnotes:
+
+- **The projector is a collector, not a scraper** — the estate holds no key that can read its people's
+  records (ap-home deleted its HMAC bridge for that reason), so *inclusion is a submission and exclusion is
+  the chain*. `apps/projector/README.md` §1.
+- **`register` is first-come-wins**, so a verifier that trusts `signerOf` alone trusts whoever registered
+  first. F2 adds the estate-side declaration a verifier cross-checks (`atl:projectionSigner`); until then
+  every run prints the gap.
+- **faithnet cannot be federated yet.** It has no estate agent: `faithnet.estate` is unregistered and its
+  people declare no `atl:estate`, so it has no address that will still mean "faithnet" in a year, and an
+  estate id is permanent. `federation.yaml` carries the refusal and the fix.
+
+**And what F1 did NOT prove:** this is cross-*estate*, on one chain. The estate id is chain-scoped by
+construction, so a second chain changes one line of config and no verifier code — but a design property is
+not a demonstration. Next: F2, the receiving edge through `foreignEstateEvaluator`.
 
 ## Layout
 
@@ -68,7 +87,9 @@ two-chain live twin.
 | --- | --- |
 | `apps/*` | the product's deployables — each with its own `wrangler.toml` (see `wrangler.example.toml` for the env layout) |
 | `examples/*` | relying-app demonstrations of the product's ceremonies; each builds against published packages or is retired |
-| `scripts/` | ops scripts that operate THIS product's deployments (`set-cloudflare-secrets.sh`, provisioning, verify scripts) |
+| `federation.yaml` | the register: neutral ground, and the estates that project onto it (governance, signer, how each was determined, and why an estate is refused) |
+| `scripts/` | ops scripts and the live gates (`gate-f1-projection.mts`) |
+| `docs/runbooks/` | `project-an-estate.md` — putting an estate on neutral ground, end to end |
 | `live-gates.json` | the live-gates ledger (spec 392 shape) the nightly runs through `ap test --live-gates` |
 | `agentic.lock.json` | the coherent `@agenticprimitives/*` set, the rules-source digests, the doctor config |
 | `AGENTS.md`, `CLAUDE.md`, `.cursor/rules/` | projected from the pinned rules source — regenerate with `ap doctor --rules --write`, never edit the managed block |

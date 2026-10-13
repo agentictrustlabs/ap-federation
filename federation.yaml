@@ -1,0 +1,80 @@
+# ap-federation's register — the neutral ground, and the estates that project onto it (spec 439 F1).
+#
+# Nothing in this file grants anything. A row says an estate projects a commitment to its live set, and a
+# presentation against that root is EVIDENCE: whether the receiving estate lets an agent act is its own
+# mandate, verified per step (ADR-0056 / ADR-0057).
+federation: faithchain-neutral-ground
+
+# ── NEUTRAL GROUND ────────────────────────────────────────────────────────────────────────────────────
+# NEUTRAL IS A PROPERTY OF THE CONTRACT, NOT OF THE CHAIN IT SITS ON. `EstateProjectionRegistry` has no
+# admin, no pause and no upgrade, so the account that deployed it holds nothing over it and no estate can
+# redeploy the registry it proves itself against. That is the whole claim.
+#
+# AND THE HONEST LIMIT: this instance sits on faithchain, the one chain we run, beside both estates that
+# use it. So what is proven today is CROSS-ESTATE, not cross-chain. The id is `keccak256("eip155:<chainId>:
+# <governance>")` — chain-scoped by construction — so an estate on a second chain registers here unchanged
+# and the verifier's code does not move; until a second chain exists, nobody may claim it has been shown.
+registry:
+  chainId: 34348
+  chain: faithchain
+  address: "0xb4E116F5C6915a4f1e649E0877e4a0A7a1c1147b"
+  deployed: 2026-10-13
+  deployTx: script/DeployEstateProjectionRegistry.s.sol (Ring 0 packages/contracts)
+  # The RPC is read from this environment variable — never written here (it carries an app token).
+  rpcEnv: FEDERATION_RPC_URL
+  # Ring 0 `deployments-faithchain.json#estateProjectionRegistry` carries the same address. It is repeated
+  # here because the pinned `@agenticprimitives/contracts` release predates the deployment: when a release
+  # carries it, this field becomes a cross-check, not a source.
+  source: ring-0 deployments-faithchain.json (2026-10-13)
+
+# ── THE ESTATES ───────────────────────────────────────────────────────────────────────────────────────
+# `governance` is the address the estate id is derived from, and it is FOREVER: change it and the estate id
+# changes, which means re-registering and invalidating every reference a counterparty holds. So it is the
+# one identity an estate cannot rotate — its own agent's Smart Agent address (ADR-0010: canonical identity
+# persists, credentials rotate). An estate without such an agent is NOT registered here: minting a
+# permanent id from a provisional address is the kind of thing nobody can undo.
+estates:
+  - id: imbnet
+    chainId: 34348
+    home: https://www.impact-agent.me
+    a2a: https://a2a.impact-agent.io
+    governance: "0x4457aadf6ADeB31bA8F166fafcC0d0579ECd1015"
+    governanceKind: estate-agent
+    governanceName: imbnet.estate          # on-chain: AgentNameRegistry owner of `imbnet.estate`
+    # The key that anchors this estate's roots. `register` binds it once; `rotateSigner` moves it. The
+    # address is public by construction (the registry stores it); the key is this estate's own secret.
+    signer: "0xAdcd7257De9686061C0838154cA77790C79a9EfD"
+    signerKeyEnv: IMBNET_PROJECTION_SIGNER
+    # Revocation is read on the ESTATE'S chain, and this is the contract that answers (Ring 0
+    # `deployments-faithchain.json#delegationManager`). No address here means nothing can be pruned, and the
+    # projector then refuses to vouch for a set it cannot narrow.
+    delegationManager: "0x710cb1bF08C234Df397e0910331e0A29710EF4F7"
+    # Its chain endpoint. Omitted = neutral ground's, which is only correct while they share a chain. An
+    # estate on a second chain names its own here, and that is the only line that changes for it.
+    # WHY A VERIFIER MUST CROSS-CHECK THIS. `register(estateId, signer)` is first-come-wins — public ground
+    # cannot verify who governs an estate on another chain, so it cannot refuse a squatter. A verifier that
+    # trusts the registry's signer alone trusts whoever registered first. So the estate also declares its
+    # signer where its own chain says it: F2 registers an `atl:projectionSigner` predicate in Ring 0's
+    # OntologyTermRegistry and the estate agent writes it (a verifier on another chain reads that chain —
+    # public data, no trust required). Until then the declaration is this file and ap-town's town.yaml row,
+    # both public and reviewed, and the projector prints the gap on every run.
+    declaredOnChain: false
+
+  - id: faithnet
+    chainId: 34348
+    home: https://www.faithnet.me
+    a2a: https://a2a.faithnet.io
+    # NOT REGISTERED, AND THIS IS THE FINDING (2026-10-13, checked on chain, not assumed): faithnet has no
+    # estate agent. `faithnet.estate` does not exist in the AgentNameRegistry (`recordExists` false) and
+    # faithnet's people carry an empty `atl:estate` — the estate predates the mechanism and imbnet was the
+    # first to use it. It therefore has no address that will still mean "faithnet" in a year, and the
+    # projector REFUSES to register it rather than mint a permanent id from, say, its naming gate (a key,
+    # and keys rotate).
+    #
+    # The fix is the estate's own half of `ap-home scripts/add-estate-agent.mts` (deploy the agent at salt 2
+    # over the estate's interactions key, set `atl:homepage`) plus Ring 0's
+    # `script/AddEstateName.s.sol` for the name. It needs faithnet's interactions key, which is a
+    # Cloudflare secret and is not on this machine — so this is an owner action, not a code change.
+    governance: null
+    governanceKind: none
+    blocked: "no estate agent: `faithnet.estate` is unregistered and faithnet's people declare no `atl:estate`. Deploy the estate agent + register the name (ap-home scripts/add-estate-agent.mts, Ring 0 script/AddEstateName.s.sol), then set `governance` to its SA."

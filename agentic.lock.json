@@ -4,7 +4,8 @@
     "@agenticprimitives/devkit": "0.0.0-alpha.22",
     "@agenticprimitives/evaluation": "0.0.0-alpha.8",
     "@agenticprimitives/a2a": "0.0.0-alpha.35",
-    "@agenticprimitives/mcp-protocol": "0.0.0-alpha.4"
+    "@agenticprimitives/mcp-protocol": "0.0.0-alpha.4",
+    "@agenticprimitives/estate-projection": "0.0.0-alpha.9"
   },
   "rules": {
     "coordination-vs-orchestration": "sha256:f2754939240133643e020043fac5b7e97b2ca250e0824771d19ca578976defd6",
@@ -70,10 +71,10 @@
       "budget": {}
     },
     "custodianCoverage": {
-      "skip": "ap-federation carries no Home custody surface yet \u2014 enable when a Home moves in (specs 294/295)"
+      "skip": "ap-federation carries no Home custody surface yet — enable when a Home moves in (specs 294/295)"
     },
     "archetypeCatalog": {
-      "skip": "ap-federation carries no archetype catalog yet \u2014 enable when a Home moves in (spec 354 \u00a73)"
+      "skip": "ap-federation carries no archetype catalog yet — enable when a Home moves in (spec 354 §3)"
     },
     "capabilityVocabulary": {
       "homeGlobs": [
@@ -83,7 +84,7 @@
       "wireAllowed": []
     },
     "demoPersonOrgDistinct": {
-      "skip": "ap-federation carries no persona roster yet \u2014 enable when @agenticprimitives-demo/estate is consumed (spec 399 \u00a72.6)"
+      "skip": "ap-federation carries no persona roster yet — enable when @agenticprimitives-demo/estate is consumed (spec 399 §2.6)"
     },
     "rulesDrift": {
       "cursorRules": ".cursor/rules",

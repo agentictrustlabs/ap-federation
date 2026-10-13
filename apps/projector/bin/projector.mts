@@ -1,0 +1,164 @@
+#!/usr/bin/env tsx
+// THE PROJECTOR'S CLI (spec 439 F1) — one estate, one pass, everything said out loud.
+//
+//   projector status  [--estate <id>]                      what the register claims and what the chain holds
+//   projector register --estate <id>                       bind the estate id to its signer (ONCE, forever)
+//   projector submit  --estate <id> --set live-grant|membership --digest 0x… --subject 0x… [--expires <iso>]
+//   projector retire  --estate <id> --digest 0x… --reason "<why>" [--set live-grant|membership]
+//   projector project --estate <id> [--dry-run] [--refresh-after <seconds>]
+//   projector present --estate <id> --digest 0x… --audience <origin> [--nonce 0x…] [--out <file>]
+//   projector verify  --file <presentation.json> [--max-age <seconds>]
+//
+// Every command reads `federation.yaml` (the register) and `FEDERATION_RPC_URL` (neutral ground). The
+// anchoring key comes from the environment variable the estate's row names and is never printed.
+//
+// `verify` runs the same `verifyAuthorityPresentation` the receiving edge will run in F2, against the roots
+// READ FROM THE CHAIN here and now. It is the proof that an anchored root is usable, and it is deliberately
+// the only command that needs no key at all: a verifier holds nothing.
+import { readFileSync, writeFileSync } from 'node:fs';
+import { randomBytes } from 'node:crypto';
+import { makeAuthorityPresentation, verifyAuthorityPresentation, type AuthorityPresentationV1 } from '@agenticprimitives/estate-projection';
+import type { Address, Hex } from 'viem';
+import { estateById, loadFederation, registryRpc, requireProjectable, signerKey } from '../src/config.js';
+import { fileLedger } from '../src/ledger.js';
+import { registryClient } from '../src/anchor.js';
+import { buildForSequence, projectEstate } from '../src/project.js';
+import { isRevokedReader } from '../src/revocation.js';
+
+const argv = process.argv.slice(2);
+const cmd = argv[0] ?? 'status';
+const flag = (k: string): string | undefined => { const i = argv.indexOf(`--${k}`); return i >= 0 ? argv[i + 1] : undefined; };
+const has = (k: string) => argv.includes(`--${k}`);
+
+const REGISTER = flag('register-file') ?? 'federation.yaml';
+const f = loadFederation(REGISTER);
+const rpc = registryRpc(f);
+const registry = registryClient({ rpcUrl: rpc, chainId: f.registry.chainId, address: f.registry.address });
+const ledgerFor = (id: string) => fileLedger(flag('ledger') ?? `.submissions/${id}.json`);
+const REFRESH_AFTER = Number(flag('refresh-after') ?? process.env.FEDERATION_REFRESH_AFTER_SECONDS ?? 3600);
+
+// Annotated so TypeScript narrows after it: an unannotated arrow returning `never` does not.
+const die: (msg: string) => never = (msg) => { console.error(msg); process.exit(1); };
+const estateFlag = () => flag('estate') ?? die('--estate <id> is required');
+
+if (cmd === 'status') {
+  const only = flag('estate');
+  console.log(`register: ${REGISTER} · neutral ground: ${f.registry.address} on chain ${f.registry.chainId} (${f.registry.chain})`);
+  for (const row of f.estates) {
+    if (only && row.id !== only) continue;
+    console.log(`\n── ${row.id} ──`);
+    if (!row.governance) { console.log(`  NOT PROJECTABLE — ${row.blocked ?? 'the register gives no reason'}`); continue; }
+    const estate = requireProjectable(row);
+    console.log(`  governance ${estate.governance} (${row.governanceKind}${row.governanceName ? ` · ${row.governanceName}` : ''})`);
+    console.log(`  estateId   ${estate.estateId}`);
+    const onChain = await registry.estateIdOf(estate.chainId, estate.governance);
+    console.log(`  derivation ${onChain.toLowerCase() === estate.estateId.toLowerCase() ? 'agrees with the contract' : `DISAGREES with the contract (${onChain})`}`);
+    const signer = await registry.signerOf(estate.estateId);
+    console.log(`  signer     ${signer ?? 'not registered'}${signer && row.signer && signer.toLowerCase() !== row.signer.toLowerCase() ? `  ⚠ the register claims ${row.signer}` : ''}`);
+    const r = await registry.roots(estate.estateId);
+    if (r.never) console.log('  roots      nothing anchored yet (sequence 0)');
+    else console.log(`  roots      seq ${r.sequence} · live-grant ${r.liveGrantRoot.slice(0, 18)}… · membership ${r.membershipRoot.slice(0, 18)}… · anchored ${new Date(r.anchoredAt * 1000).toISOString()} (${Math.floor(Date.now() / 1000) - r.anchoredAt}s ago)`);
+    const rows = ledgerFor(row.id).list();
+    console.log(`  vouches    ${rows.filter((x) => !x.retired).length} live submission(s) in the ledger (${rows.length} ever)`);
+    if (!row.declaredOnChain) console.log('  ⚠ the signer is not declared on the estate\'s own chain — reviewable here, not yet chain-verifiable (spec 439 F2)');
+  }
+} else if (cmd === 'register') {
+  const estate = requireProjectable(estateById(f, estateFlag()));
+  if (!estate.signer) die(`estate ${estate.id} has no signer address in the register`);
+  const already = await registry.signerOf(estate.estateId);
+  if (already) die(already.toLowerCase() === estate.signer.toLowerCase()
+    ? `estate ${estate.id} is already registered to ${already} — registration happens once`
+    : `estate ${estate.id} is registered to ${already}, NOT to the ${estate.signer} in the register. \`register\` is first-come-wins; resolve this before anything anchors.`);
+  const key = signerKey(estate);
+  console.log(`registering ${estate.id}\n  estateId ${estate.estateId}\n  signer   ${estate.signer}\nThis binds the id to that signer permanently (only the signer can rotate it).`);
+  const tx = await registry.register(estate.estateId, estate.signer as Address, key);
+  const after = await registry.signerOf(estate.estateId);
+  console.log(`  tx ${tx}\n  signerOf now ${after}`);
+} else if (cmd === 'submit') {
+  const row = estateById(f, estateFlag());
+  const set = (flag('set') ?? 'live-grant') as 'live-grant' | 'membership';
+  if (set !== 'live-grant' && set !== 'membership') die('--set is live-grant or membership');
+  const digest = (flag('digest') ?? die('--digest 0x… is required')).toLowerCase() as Hex;
+  const subject = (flag('subject') ?? die('--subject 0x… (whom the leaf is about) is required')).toLowerCase() as Address;
+  if (!/^0x[0-9a-f]{64}$/.test(digest)) die('--digest must be 32 bytes');
+  if (!/^0x[0-9a-f]{40}$/.test(subject)) die('--subject must be an address');
+  const out = ledgerFor(row.id).add({
+    estate: row.id, set, digest, subject,
+    submittedBy: flag('by') ?? 'operator',
+    source: flag('source') ?? 'cli',
+    ...(flag('expires') ? { expiresAt: flag('expires')! } : {}),
+  });
+  console.log(out.added
+    ? `vouched for: ${set} ${digest} about ${subject}\n  the opening (digest + blind) is in the ledger; the holder needs it to present, and nobody else should have it`
+    : `not added — ${out.why}`);
+} else if (cmd === 'retire') {
+  // THE ESTATE STOPS VOUCHING. Not a revocation — the grant may well still be live on the chain — but a
+  // withdrawal of the estate's statement about it: the holder asked for it back, or an operator found a row
+  // that should never have been submitted. The row stays, with the reason, because a projection that
+  // stopped including something is exactly what an auditor comes looking for.
+  const row = estateById(f, estateFlag());
+  const digest = (flag('digest') ?? die('--digest 0x… is required')).toLowerCase() as Hex;
+  const set = (flag('set') ?? 'live-grant') as 'live-grant' | 'membership';
+  const reason = flag('reason') ?? die('--reason "<why>" is required: a withdrawal without a reason is indistinguishable from a bug');
+  console.log(ledgerFor(row.id).retire(set, digest, reason)
+    ? `retired: ${set} ${digest}\n  the next \`projector project\` will anchor a root without it (the chain still says whatever it says about the grant itself)`
+    : `nothing live to retire for ${set} ${digest}`);
+} else if (cmd === 'project') {
+  const estate = requireProjectable(estateById(f, estateFlag()));
+  const dry = has('dry-run');
+  const run = await projectEstate(estate, {
+    registry, ledger: ledgerFor(estate.id),
+    liveness: { isRevoked: await isRevokedReader(estate) },
+    refreshAfterSeconds: REFRESH_AFTER,
+    ...(dry ? {} : { signerKey: signerKey(estate) }),
+  });
+  for (const w of run.warnings) console.log(`⚠ ${w}`);
+  console.log(`${estate.id} · estateId ${run.estateId}`);
+  console.log(`  live-grant ${run.counts.liveGrant} leaf/leaves → ${run.projection.liveGrantRoot}`);
+  console.log(`  membership ${run.counts.membership} leaf/leaves → ${run.projection.membershipRoot}`);
+  for (const d of run.dropped) console.log(`  dropped ${d.set} ${d.digest.slice(0, 18)}… — ${d.reason}`);
+  console.log(`  anchored before: ${run.anchoredBefore.never ? 'never' : `seq ${run.anchoredBefore.sequence}`}`);
+  console.log(`  decision: ${run.decision.anchor ? `anchor at sequence ${run.decision.sequence}` : 'do not anchor'} — ${run.decision.why}`);
+  if (run.txHash) console.log(`  tx ${run.txHash}`);
+  else if (dry && run.decision.anchor) console.log('  (dry run: nothing was written)');
+} else if (cmd === 'present') {
+  const estate = requireProjectable(estateById(f, estateFlag()));
+  const digest = (flag('digest') ?? die('--digest 0x… is required')).toLowerCase() as Hex;
+  const audience = flag('audience') ?? die('--audience <the verifier\'s origin> is required: a presentation answers ONE challenge');
+  const nonce = (flag('nonce') ?? `0x${randomBytes(32).toString('hex')}`) as Hex;
+  const anchored = await registry.roots(estate.estateId);
+  if (anchored.never) die(`${estate.id} has nothing anchored — there is no root to prove against`);
+  // Built at the ANCHORED sequence, then checked against the anchored roots: if the set has moved since,
+  // the proof would be against a tree nobody can verify, and saying so beats handing over a dead proof.
+  const built = await buildForSequence(estate, { ledger: ledgerFor(estate.id), liveness: { isRevoked: await isRevokedReader(estate) }, sequence: anchored.sequence });
+  const set: 'live-grant' | 'membership' = built.kept.liveGrant.some((r) => r.digest === digest) ? 'live-grant'
+    : built.kept.membership.some((r) => r.digest === digest) ? 'membership'
+    : die(`${digest} is not in ${estate.id}'s live sets right now — nothing to present`);
+  const expect = set === 'live-grant' ? anchored.liveGrantRoot : anchored.membershipRoot;
+  const rebuilt = set === 'live-grant' ? built.projection.liveGrantRoot : built.projection.membershipRoot;
+  if (rebuilt.toLowerCase() !== expect.toLowerCase()) {
+    die(`the ${set} set has moved since sequence ${anchored.sequence} (rebuilt ${rebuilt}, anchored ${expect}). Re-anchor (\`projector project\`) and present again.`);
+  }
+  const pres = makeAuthorityPresentation(built.projection, set, digest, { nonce, audience });
+  if (!pres) die('the leaf is in the set but no proof could be made for it — that is a bug, not a refusal');
+  const file = flag('out') ?? `.submissions/presentation-${estate.id}-${digest.slice(2, 10)}.json`;
+  writeFileSync(file, `${JSON.stringify(pres, null, 2)}\n`, { mode: 0o600 });
+  console.log(`presentation for ${set} ${digest}\n  subject  ${pres!.subject}\n  sequence ${pres!.sequence}\n  audience ${audience}\n  written  ${file}`);
+  console.log('  It is EVIDENCE, not authority: it says this subject holds a live grant in this estate as of that sequence, and nothing more.');
+} else if (cmd === 'verify') {
+  const file = flag('file') ?? die('--file <presentation.json> is required');
+  const pres = JSON.parse(readFileSync(file, 'utf8')) as AuthorityPresentationV1;
+  const maxAgeSeconds = Number(flag('max-age') ?? 3600);
+  const anchored = await registry.roots(pres.estateId);
+  const verdict = verifyAuthorityPresentation(pres, {
+    estateId: pres.estateId, sequence: anchored.sequence,
+    liveGrantRoot: anchored.liveGrantRoot, membershipRoot: anchored.membershipRoot, anchoredAt: anchored.anchoredAt,
+  }, { subject: pres.subject, nonce: pres.nonce, audience: pres.audience, now: Math.floor(Date.now() / 1000), maxAgeSeconds });
+  console.log(`roots read from ${f.registry.address} (chain ${f.registry.chainId}) — not from the presentation`);
+  console.log(verdict.ok
+    ? `VERIFIED: ${verdict.subject} holds a live ${verdict.set} leaf in estate ${verdict.estateId} as of sequence ${verdict.sequence}.\n  This authorizes nothing. The receiving estate still decides, under its own mandate, per step.`
+    : `REFUSED (${verdict.code}): ${verdict.reason}`);
+  if (!verdict.ok) process.exit(2);
+} else {
+  die(`unknown command "${cmd}" — status | register | submit | retire | project | present | verify`);
+}

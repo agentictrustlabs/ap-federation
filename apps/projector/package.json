@@ -1,0 +1,26 @@
+{
+  "name": "@ap-federation/projector",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The estate projector (spec 439 F1): maintains an estate's live-grant and membership sets and anchors their roots on neutral ground under a monotonic sequence.",
+  "bin": {
+    "projector": "./bin/projector.mts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "projector": "tsx bin/projector.mts"
+  },
+  "dependencies": {
+    "@agenticprimitives/estate-projection": "0.0.0-alpha.9",
+    "viem": "2.52.2",
+    "yaml": "2.8.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3",
+    "vitest": "^4.1.8"
+  }
+}

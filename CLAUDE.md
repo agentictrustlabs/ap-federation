@@ -58,6 +58,17 @@ against the root it reads itself.
   (spec 346).
 - *"Call it a NANDA Town instance."* **STOP.** No general town certification or federation contract exists to
   claim conformance against. The earned claim is an interoperability *adapter*.
+- *"Let the projector read the person's grants and build the set itself."* **STOP.** The estate holds no key
+  that can read its people's records — ap-home deleted its HMAC bridge for exactly that reason (spec 341 §1).
+  Inclusion is a SUBMISSION made under the holder's own session; exclusion is the chain (`isRevoked`).
+- *"Use the naming gate (or any key) as `governance` so this estate can register."* **STOP.** The estate id is
+  `keccak256("eip155:<chainId>:<governance>")` and is permanent; keys rotate, Smart Agent addresses do not
+  (ADR-0010). An estate with no estate agent is refused, with the reason, in `federation.yaml`.
+- *"Re-anchor every run so the roots are always fresh."* **STOP.** A sequence spent on an unchanged
+  projection invalidates every presentation in flight. Anchor on change, plus a heartbeat below the shortest
+  verifier `maxAge` — and know that the two pull against each other (`apps/projector/README.md` §3).
+- *"Say the cross-chain story is demonstrated."* **STOP.** F1 is CROSS-ESTATE on one chain. The id is
+  chain-scoped by construction, which is a design property, not a demonstration.
 - *"Add a primitive here."* **STOP.** Anything a second product would need is a Ring-0 package API
   (spec 399 §4). This repo holds adapters, deployed jobs and gates.
 

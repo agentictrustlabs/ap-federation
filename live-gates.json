@@ -1,5 +1,18 @@
 {
-  "$comment": "The live-gates ledger (spec 392 shape): every verify script with the authority twin it carries, run nightly by `ap test --live-gates live-gates.json` through @agenticprimitives/evaluation's runner against HOME_URL. `required` gates fail the run; the rest report; `paced` gates are spaced for a metered model plan. Add a gate = one entry.",
+  "$comment": "The live-gates ledger (spec 392 shape): every verify script with the authority twin it carries, run nightly by `ap test --live-gates live-gates.json` through @agenticprimitives/evaluation's runner against HOME_URL. `required` gates fail the run; the rest report; `paced` gates are spaced for a metered model plan. Add a gate = one entry. F1's gate needs no HOME_URL and no key: it reads neutral ground over FEDERATION_RPC_URL and checks refusals by simulation.",
   "home": "https://<shadow-home>",
-  "gates": []
+  "gates": [
+    {
+      "id": "f1-projection",
+      "script": "scripts/gate-f1-projection.mts",
+      "spec": "specs/439 F1 (Ring 0)",
+      "proves": "the estate's roots are anchored on neutral ground, the sequence is monotonic, the roots rebuild from the estate's own record, and a presentation verifies against the root READ FROM THE CHAIN.",
+      "twin": "the same verifier refuses the same presentation one sequence behind (stale), about another subject (subject_mismatch), and answering another challenge (challenge_mismatch); and the contract refuses a replayed sequence.",
+      "required": true,
+      "timeoutSec": 120,
+      "env": {
+        "FEDERATION_ESTATE": "imbnet"
+      }
+    }
+  ]
 }
