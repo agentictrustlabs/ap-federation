@@ -102,6 +102,27 @@ if (!task) console.log('  origin result:', JSON.stringify(fwd.json ?? fwd.text).
 check('F3: the estate\'s own door admits the visitor as an agent asking as itself and answers with a task', fwd.effect === 'ADMIT' && !!fwd.receipt && !!task?.id, `origin answered ${fwd.status} ${task ? `task ${task.id} ${task.status?.state}` : JSON.stringify(fwd.json?.error ?? fwd.text.slice(0, 120))}`);
 check('F3: the task carries the door\'s receipt as VERIFIED evidence of standing — never as authority', task?.metadata?.foreignStanding?.verified === true && typeof task?.metadata?.foreignStanding?.standing?.estateId === 'string', JSON.stringify(task?.metadata?.foreignStanding ?? null));
 
+// ── §6's negative twin: the same visitor, admitted on the same standing, asks for an ACT that needs a mandate ──
+// It is refused AT THE AUTHORITY STAGE, by the estate's own harness, with what it would need named on the task
+// (TASK_STATE_AUTH_REQUIRED + the requirement). Admission said "has standing"; authority said "no mandate". The gap
+// between those two sentences is the whole architecture.
+const c2b = await challenge();
+const actBody = JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'SendMessage', params: { message: { messageId: crypto.randomUUID(), role: 'ROLE_USER', parts: [{ text: `Send a message to the agent at ${me.address} that says: hello from the federation. Then tell me it was sent.` }] } } });
+const act = await knock({ pres: present(c2b.nonce, c2b.audience), challengeHeader: c2b.header, path: '/a2a', originAudience, body: actBody });
+const actRes = act.json?.result as { task?: { id?: string; status?: { state?: string; message?: { parts?: Array<{ text?: string; data?: Record<string, unknown> }> } }; metadata?: { foreignStanding?: { verified?: boolean } } } } | undefined;
+const actTask = actRes?.task;
+const need = actTask?.status?.message?.parts?.find((pt) => pt.data)?.data as { requirement?: unknown; openToStewards?: boolean; runRef?: string } | undefined;
+const said = actTask?.status?.message?.parts?.find((pt) => pt.text)?.text ?? '';
+// Two honest shapes of the same refusal: the harness PARKS it (AUTH_REQUIRED, a mandate could later cover it — the
+// requirement rides on the task) or REJECTS it at plan admission (the capability needs a steward's mandate the caller
+// cannot derive — the text names the authority that is missing). Either is the authority stage speaking; neither is
+// the door.
+const refusedAtAuthority = actTask?.status?.state === 'TASK_STATE_AUTH_REQUIRED'
+  ? !!need && (need.requirement !== undefined || need.openToStewards === true)
+  : actTask?.status?.state === 'TASK_STATE_REJECTED' && /authority|mandate|steward/i.test(said);
+check('§6 twin: an act that needs a mandate is refused at the AUTHORITY stage, by the estate\'s own harness, with the missing authority named — standing is not a mandate', act.effect === 'ADMIT' && refusedAtAuthority, `door ${act.effect}; origin ${act.status} ${actTask ? `${actTask.status?.state} · "${said.slice(0, 120)}" · requirement ${need?.requirement ? 'named' : 'absent'}` : JSON.stringify(act.json?.error ?? act.text.slice(0, 160))}`);
+check('§6 twin: the parked act still carries the verified standing, so a steward reading it knows who asked and from where', actTask?.metadata?.foreignStanding?.verified === true, '');
+
 // ── twins ──
 const c3 = await challenge();
 const stale = { ...(present(c3.nonce, c3.audience) as Record<string, unknown>), sequence: Number(anchored[3]) - 1 };

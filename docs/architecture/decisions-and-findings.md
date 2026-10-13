@@ -41,6 +41,8 @@
 | F3.3 | ap-town's naming app reads `.estate` names as legacy/invalid; it should learn the root. | spec 439 §7.4 |
 | F3.4 | The visitor authenticates at the estate's own door with the scheme the runtime already had (an agent asking as itself); no new mechanism. The runtime verifies the door's receipt at the door and records standing on the task as evidence. | spec 439 §7.6; ap-home `agent-runtime` |
 | F3.5 | The twin runs both directions on one chain and prints that it is one chain. | `scripts/gate-f3-twin.mts` |
+| F3.6 | §6's negative twin: a visitor's act that needs a mandate is refused at the authority stage by the estate's own harness (`messaging.direct.send needs a steward at alice.me`), the task rejected with the missing authority named and the verified standing still on it. A first ask that named "your treasury" parked INPUT_REQUIRED instead: a stranger's read of the agent's relationships is bounded, so the resolver could not find the treasury — correct, and a reminder that the act must name its target. | spec 439 §7.7; `gate-f2-door` |
+| F3.7 | The runtime's refusal text is the spoken rendering ("alice dot me") on the A2A wire; the written form belongs there. Cosmetic; noted for ap-home. | ap-home `standard-a2a.ts` |
 
 ## The shared KMS operator, the site, the universal namespace (spec 440)
 
@@ -56,7 +58,7 @@
 
 | What | Needs |
 | --- | --- |
-| spec 439 §6's refused act (a visitor asks for something that needs a mandate; refused at the authority stage with the mandate named) | a presenter that is a resident with a real mandate at the receiving estate |
+| spec 439 §6's positive half with a real mandate (a visitor whose act IS covered by a standing wire a steward granted, run under it) | a resident presenter holding such a wire; today the visitor is the gate's test account |
 | the two-chain twin | a second chain |
 | receipts into the registry agent's vault; submissions out of `.submissions/` | the registry agent as the projector (spec 439 §4) |
 | F4, the NANDA adapter | NANDA's normative document digested into the standards lock |

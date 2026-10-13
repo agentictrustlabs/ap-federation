@@ -59,8 +59,21 @@ Gate: `scripts/gate-f3-twin.mts`. Runs Part 2 and Part 3 in both directions and 
 | no proof at all | generic 401 | a TLS connection authenticates no principal |
 | an act with no mandate at the estate | `AUTH_REQUIRED` at the runtime | admission is not authority |
 
+## The refused act, shown (spec 439 §6's negative twin)
+
+The same visitor, admitted on the same standing, asks the receiving agent to **send a message** on its behalf. The
+estate's own harness refuses at plan admission: *"the authority does not cover this: messaging.direct.send needs a
+steward at alice.me"*. The task is `TASK_STATE_REJECTED` with the missing authority named, and its metadata still
+carries the verified standing, so a steward reading it knows exactly who asked and from where. Admission said "has
+standing in faithnet at sequence 1"; authority said "no mandate here". The gap between those two sentences is the
+whole architecture, and `gate-f3-twin` now asserts it in both directions.
+
+Two shapes of that refusal are accepted by the gate, because the harness has two honest answers: **parked**
+(`TASK_STATE_AUTH_REQUIRED`, when a mandate could later cover the act and the requirement rides on the task) or
+**rejected** (when the capability needs a steward's mandate the caller cannot derive). Either is the authority stage
+speaking; neither is the door.
+
 ## What is not yet shown
 
-Spec 439 §6's second half: the visitor asks for something that needs a mandate and is refused **at the authority
-stage with the missing mandate named**. Today the visitor asks a question, which needs none. The refused act needs a
-presenter that is a resident with a real mandate at the receiving estate; it is the next piece.
+The two-chain twin. Everything above runs on faithchain; the estate id is chain-scoped by construction, so a second
+chain is one row in the register and one door, and no verifier code. A design property, not a demonstration.
