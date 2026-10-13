@@ -25,8 +25,9 @@
     "check:federation": "tsx scripts/check-federation.mts",
     "site:deploy": "pnpm --filter @ap-federation/site deploy:faithnet",
     "gate:site": "tsx scripts/gate-federation-site.mts",
-    "door:deploy": "pnpm --filter @ap-federation/door deploy:faithnet",
-    "gate:door": "tsx scripts/gate-f2-door.mts"
+    "door:deploy": "pnpm --filter @ap-federation/door deploy:imbnet && pnpm --filter @ap-federation/door deploy:faithnet",
+    "gate:door": "tsx scripts/gate-f2-door.mts",
+    "gate:twin": "tsx scripts/gate-f3-twin.mts"
   },
   "devDependencies": {
     "@agenticprimitives/a2a": "0.0.0-alpha.35",

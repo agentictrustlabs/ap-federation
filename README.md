@@ -125,7 +125,8 @@ pnpm check:public-links         # no link into a private repository (this repo i
 pnpm check:federation           # the register is fit to publish (towns, one tenant per estate, the root chain)
 pnpm site:deploy                # apps/site → ap-federation.faithnet.io
 pnpm door:deploy                # apps/door → door.ap-federation.faithnet.io (then set FEDERATION_RPC_URL + DOOR_SECRET)
-pnpm gate:door                  # F2: the door admits on evidence and refuses what it must
+pnpm gate:door                  # F2: the door admits on evidence and refuses what it must (FEDERATION_ESTATE, FEDERATION_DOOR_URL)
+pnpm gate:twin                  # F3 on one chain: both estates' standing at the other's door, both directions
 pnpm gate:site                  # the site answers from the towns' live surfaces (incl. the never-bare twin)
 pnpm doctor:rules               # drift between the projected rules and the pinned source
 pnpm upgrade:canary             # newest canary of every pin, one coherent set, then doctor

@@ -93,6 +93,10 @@ doors:
     url: https://door.ap-federation.faithnet.io
     target: maya-fernandes.me          # the receiving agent, through the estate's edge-addressed door
     since: 2026-10-14
+  - estate: faithnet
+    url: https://door-faithnet.ap-federation.faithnet.io
+    target: alice.me
+    since: 2026-10-14
 
 # ── THE TOWNS (spec 440 §B) ───────────────────────────────────────────────────────────────────────────
 # Every town we have. A town is one chain and the estates on it (ap-town spec 429); its manifest is ITS record

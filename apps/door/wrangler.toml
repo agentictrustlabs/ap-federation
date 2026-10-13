@@ -36,9 +36,34 @@ type = "Text"
 globs = ["**/*.yaml"]
 fallthrough = true
 
-[env.faithnet]
+# ── ONE ENV PER RECEIVING ESTATE. `imbnet` = the first door (Worker `ap-federation-door`, kept — a rename orphans its DO). ──
+[env.imbnet]
 name = "ap-federation-door"
 routes = [{ pattern = "door.ap-federation.faithnet.io", custom_domain = true }]
+[[env.imbnet.durable_objects.bindings]]
+name = "LEDGER"
+class_name = "DoorLedgerDO"
+[[env.imbnet.migrations]]
+tag = "v1"
+new_sqlite_classes = ["DoorLedgerDO"]
+[env.imbnet.vars]
+PUBLIC_ORIGIN = "https://door.ap-federation.faithnet.io"
+BOUNDARY_ID = "ap-federation-door:imbnet"
+RECEIVING_ESTATE = "imbnet"
+ORIGIN_A2A = "https://edge.impact-agent.io/api/a2a/maya-fernandes.me"
+TARGET_AGENT_ID = "eip155:34348:0x013fb41c28fe7919f9abfa03884110ef629006e5"
+TARGET_RUNTIME_ID = "urn:ap:runtime:imbnet:prod"
+CHAIN_ID = "34348"
+REGISTRY_ADDRESS = "0xb4E116F5C6915a4f1e649E0877e4a0A7a1c1147b"
+UNIVERSAL_SIGNATURE_VALIDATOR = "0xeDd56f500325D4701B9985A34e5Fa6EED6716137"
+MAX_AGE_SECONDS = "86400"
+PROFILE_RESOLVER = "0xB03F7C06ad3274F584AB72794406D639c02A45e1"
+
+# ── The door in front of FAITHNET (2026-10-14): the twin's other direction. Receiving agent alice.me through the
+# estate's edge-addressed door. Its own Worker, its own DO, its own DOOR_SECRET. ──
+[env.faithnet]
+name = "ap-federation-door-faithnet"
+routes = [{ pattern = "door-faithnet.ap-federation.faithnet.io", custom_domain = true }]
 [[env.faithnet.durable_objects.bindings]]
 name = "LEDGER"
 class_name = "DoorLedgerDO"
@@ -46,12 +71,12 @@ class_name = "DoorLedgerDO"
 tag = "v1"
 new_sqlite_classes = ["DoorLedgerDO"]
 [env.faithnet.vars]
-PUBLIC_ORIGIN = "https://door.ap-federation.faithnet.io"
-BOUNDARY_ID = "ap-federation-door:imbnet"
-RECEIVING_ESTATE = "imbnet"
-ORIGIN_A2A = "https://edge.impact-agent.io/api/a2a/maya-fernandes.me"
-TARGET_AGENT_ID = "eip155:34348:0x013fb41c28fe7919f9abfa03884110ef629006e5"
-TARGET_RUNTIME_ID = "urn:ap:runtime:imbnet:prod"
+PUBLIC_ORIGIN = "https://door-faithnet.ap-federation.faithnet.io"
+BOUNDARY_ID = "ap-federation-door:faithnet"
+RECEIVING_ESTATE = "faithnet"
+ORIGIN_A2A = "https://edge.faithnet.io/api/a2a/alice.me"
+TARGET_AGENT_ID = "eip155:34348:0xb0d11ce19b756a682e78b4904cd8d832303b3d11"
+TARGET_RUNTIME_ID = "urn:ap:runtime:faithnet:prod"
 CHAIN_ID = "34348"
 REGISTRY_ADDRESS = "0xb4E116F5C6915a4f1e649E0877e4a0A7a1c1147b"
 UNIVERSAL_SIGNATURE_VALIDATOR = "0xeDd56f500325D4701B9985A34e5Fa6EED6716137"

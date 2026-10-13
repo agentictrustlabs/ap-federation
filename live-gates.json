@@ -40,6 +40,19 @@
         "NODE_OPTIONS": "--dns-result-order=ipv4first"
       },
       "needs": "FEDERATION_RPC_URL + .secrets/f2-test-agent.env + .secrets/f2-test-wire.json (scripts/setup-f2-test-grant.mts, once)"
+    },
+    {
+      "id": "f3-twin",
+      "script": "scripts/gate-f3-twin.mts",
+      "spec": "specs/439 \u00a76 / \u00a77.5 (Ring 0)",
+      "proves": "standing anchored by one estate is admitted at the other estate's door, in both directions, on evidence read from neutral ground, with the signer cross-check agreeing; the same five refusals hold at each door.",
+      "twin": "each direction carries gate-f2-door's five refusals; the run prints that it is ONE chain \u2014 cross-estate, not cross-chain.",
+      "required": true,
+      "timeoutSec": 360,
+      "env": {
+        "NODE_OPTIONS": "--dns-result-order=ipv4first"
+      },
+      "needs": "FEDERATION_RPC_URL + both estates' leaves (scripts/setup-f2-test-grant.mts --estate imbnet | faithnet)"
     }
   ]
 }

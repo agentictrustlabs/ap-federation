@@ -14,7 +14,8 @@ runs against it:
 | `apps/projector` | **an operator's machine**, over `FEDERATION_RPC_URL` | ap-federation | 2026-10-13 |
 | `apps/site` — **ap-federation.faithnet.io** (spec 440 §B) | Cloudflare Worker `ap-federation-site`, env `faithnet`, custom domain on `faithnet.io` | ap-federation (`pnpm site:deploy`) | 2026-10-14 |
 | the shared KMS operator record (spec 440 §A) | `federation.yaml#kms` — the AKCS CVM in `RG-AKCS-PILOT-WESTUS`; code `agentictrustlabs/faithkms` | **operated**, not deployed, by the AKCS operator (one holder); recorded here | 2026-10-14 |
-| `apps/door` — **door.ap-federation.faithnet.io** (spec 439 F2, the receiving door in front of imbnet's A2A door) | Cloudflare Worker `ap-federation-door`, env `faithnet`, DO `DoorLedgerDO`; secrets `FEDERATION_RPC_URL`, `DOOR_SECRET` | ap-federation (`pnpm door:deploy`) | 2026-10-14 |
+| `apps/door` — **door.ap-federation.faithnet.io** (spec 439 F2, the receiving door in front of imbnet's A2A door) | Cloudflare Worker `ap-federation-door`, env `imbnet` (envs are keyed by the RECEIVING estate; the Worker name never changed), DO `DoorLedgerDO`; secrets `FEDERATION_RPC_URL`, `DOOR_SECRET` | ap-federation (`pnpm door:deploy`) | 2026-10-14 |
+| `apps/door` — **door-faithnet.ap-federation.faithnet.io** (the receiving door in front of faithnet's A2A door, target alice.me) | Cloudflare Worker `ap-federation-door-faithnet`, env `faithnet`, its own DO and `DOOR_SECRET` | ap-federation (`pnpm door:deploy`) | 2026-10-14 |
 | `apps/nanda-adapter` (F4) | per town | ap-federation | — |
 
 **The projector is not yet the estate's `.registry` service agent, and spec 439 §4 says it must be.** Today
