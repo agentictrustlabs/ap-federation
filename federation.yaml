@@ -237,18 +237,27 @@ kms:
       estate: imbnet
       town: faithchain
       backend: akcs
+      # Re-bound 2026-10-14 to the ESTATE PROFILES (ap-home spec 441 §4 / D5) — the same two shapes every estate
+      # gets, so the eleventh estate's callers are not derived by hand. The -2 pair is DISABLED; imbnet's four
+      # narrower operations were the local-aes shape, which stopped being right when its relay and interactions
+      # keys moved into this tenant (441 D3).
       callers:
-        - subject: imb-vault-2
+        - subject: imb-vault-3
           worker: imb-vault
-          operations: [data-key-generate, data-key-unwrap, mac-generate, key-create]
+          profile: estate-vault
+          operations: [status, data-key-generate, data-key-unwrap, mac-generate, mac-verify, key-create, key-read, key-public-key]
           protectionLevels: [CVM_WRAPPED, CVM_DERIVED]
-          since: 2026-10-11
-        - subject: imb-runtime-2
+          since: 2026-10-14
+        - subject: imb-runtime-3
           worker: imb-runtime
-          operations: [mac-generate]
+          profile: estate-runtime
+          operations: [status, mac-generate, mac-verify, key-read, key-public-key, key-sign]
           protectionLevels: [CVM_WRAPPED, CVM_DERIVED]
-          since: 2026-10-11
-      note: "bound with --audiences urn:mcp:server:person --purposes '*' (one KEK purpose per person); the -2 subjects replaced imb-vault / imb-runtime, which are DISABLED on the CVM; 7 logical keys"
+          since: 2026-10-14
+      # NO PRIVATE KEY IN A WORKER SECRET (441 D3): imbnet's relay and interactions-session keys are keys of this
+      # tenant now, and A2A_MASTER_PRIVATE_KEY / A2A_INTERACTIONS_SESSION_PRIVATE_KEY are deleted from its Worker.
+      rawDigestGrant: [imb-runtime-3]
+      note: "bound with --audiences urn:mcp:server:person --purposes '*' (one KEK purpose per person); 10 logical keys — 8 vault KEKs plus imb-relay and imb-interactions-session, both SIGNING/secp256k1/CVM_WRAPPED, created 2026-10-14"
   conditions:
     - id: 1
       condition: "No shared caller credential — one least-privilege bind-caller per Worker per estate (closes spec 407 D10)"
