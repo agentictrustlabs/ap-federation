@@ -10,7 +10,7 @@ pnpm nanda project --card https://town.faithnet.io/.well-known/agent-card.json \
 ```
 
 It prints. **It publishes nothing** — registering an entry is the estate's own act, under a domain the estate
-verified at the index, and is deliberately not automated here.
+verified at the index. `nanda register` does that act, and only when told to (see below).
 
 ## Why it is this small
 
@@ -53,3 +53,26 @@ own publisher, the shape it claims. Then a count, and then what none of it is ev
 nothing on the wire answers, and an entry's publisher is often not the host you fetch from. Neither is a fault of the
 index — it verifies that a publisher owns the domain in its URN, not that the domain serves the artifact — but a
 reader that conflates them has trusted a party nobody vouched for. We report it per entry and let it decide nothing.
+
+## Registering, when the estate decides to
+
+```
+pnpm nanda register --card https://town.faithnet.io/.well-known/agent-card.json \
+  --domain faithnet.io --name town --email <public contact> --estate faithnet --chain 34348
+```
+
+Prints the exact `POST /api/v1/orgs` body and **sends nothing**. Three flags send, each one its own decision and
+none implying the next: `--publish` creates the record (inactive, because the domain is unproven), `--challenge`
+asks for the DNS TXT value, `--verify-domain` activates it once that record resolves. Every one needs `--token`
+(or `NANDA_TOKEN`), and before any write it reads `/api/v1/me` so a stale token fails before a record is half-made.
+
+**The account, the e-mail verification and the password are the operator's, never this tool's.** The token comes
+from `POST /auth/login` at `https://api.nandaindex.org`; the password stays with the person. The token is never
+written to disk here.
+
+It warns, and does not refuse, when the card carries no signature: listing an unsigned card makes the agent one of
+the entries no reader can check (spec 439 §7.15), and whether to do it anyway is the estate's call.
+
+**One service that is not this one.** `nanda-registry.com` — a Django/JWT registry some earlier notes used — no
+longer resolves at all (NXDOMAIN from the gTLD servers, checked 2026-10-14). An account there reaches nothing. The
+live index is `api.nandaindex.org`, which is what Ring 0's `docs/standards-lock.json` pins as `nanda-index`.
