@@ -235,7 +235,19 @@ kms:
     - id: 1
       condition: "No shared caller credential — one least-privilege bind-caller per Worker per estate (closes spec 407 D10)"
       status: open
-      detail: "imbnet met (two callers, 2026-10-11); faithnet's pilot credential is still shared across its Workers — close before a third estate binds"
+      detail: >-
+        imbnet met (two callers, 2026-10-11). faithnet OPEN, and the 2026-10-14 attempt says why it is not a
+        five-minute change: `demo-a2a-faithnet` is bound with operations ["*"] and shared by the vault and the
+        runtime. Two narrowings were bound, deployed and REVERTED the same hour, each breaking alice's treasury
+        read ("Nothing matched a search for treasuries in your links") until the shared token was restored.
+        What was learned: imbnet's split is NOT transferable, because imbnet's person custody is local-aes while
+        faithnet's runtime is OIDC-custodied THROUGH the tenant, so faithnet needs derived-signer-resolve and
+        derived-signer-sign that imbnet never calls; and even with those, something else in the holdings path
+        still failed. The exact set must be derived from faithkms's per-route Operation mapping (all 14 are in
+        crates/akcs-domain/src/model.rs) against what each Worker actually calls — never copied from another
+        estate and never guessed. The destructive three (key-rotate, key-disable, key-schedule-destruction) are
+        what "*" wrongly grants a Worker and are the floor any replacement must exclude. Bound and unused
+        meanwhile: demo-mcp-faithnet-vault/-2/-3 and demo-a2a-faithnet-runtime/-2/-3.
     - id: 2
       condition: "One tenant per estate; a tenant is never shared and an estate never has two"
       status: met
