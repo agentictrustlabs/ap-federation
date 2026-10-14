@@ -37,7 +37,7 @@
 | # | Finding | Where |
 | --- | --- | --- |
 | F3.1 | faithnet's estate agent is persona-custodied (salt 2 over the demo-admin persona), by the owner's choice: one agent per estate typed `.estate`; the `.workspace` context agents stay the Pulse's. Two custody shapes exist and both are legitimate (ADR-0010). | spec 439 §7.4; `federation.yaml` |
-| F3.2 | `imb-estate.workspace` is custodied by a faithnet persona and so is a faithnet resident. Proposed, not decided: the Pulse's context agents become the `.estate` agents. | spec 439 §7.4 |
+| F3.2 | `imb-estate.workspace` is custodied by a faithnet persona and so is a faithnet resident. Proposed, not decided: the Pulse's context agents become the `.estate` agents. **Closed 2026-10-14** — see R1 below. | spec 439 §7.4 |
 | F3.3 | ap-town's naming app reads `.estate` names as legacy/invalid; it should learn the root. | spec 439 §7.4 |
 | F3.4 | The visitor authenticates at the estate's own door with the scheme the runtime already had (an agent asking as itself); no new mechanism. The runtime verifies the door's receipt at the door and records standing on the task as evidence. | spec 439 §7.6; ap-home `agent-runtime` |
 | F3.5 | The twin runs both directions on one chain and prints that it is one chain. | `scripts/gate-f3-twin.mts` |
@@ -78,8 +78,21 @@
 | P3 | A scheduled job is not a submitter. Its ledger is read-only by construction: `add` and `retire` throw, because inclusion is a submission someone made (F1.1) and a cron is not someone. | `worker/index.ts` `readOnlyLedger` |
 | P5 | The alarm that was missing: `gate:freshness` fails RED when any estate is within three hours of a verifier refusing it. An estate that cannot be proved is not a passing estate, so it is a failure and not a warning. | `scripts/gate-projector-freshness.mts` |
 | P4 | **§4's shape reached (2026-10-14):** `signerOf` is each estate's `.registry` service agent, custodied by a person of that estate and declaring `atl:estate`. The job holds a delegate key under a wire pinned to `setRoots` and nothing else; without the wire the key reverts, and revoking it on chain stops the job without touching the agent. | `apps/projector`; ap-home `charter-service-agent.mts`, `issue-anchoring-wire.mts`, `rotate-projection-signer.mts` |
-| P6 | An agent belongs to an estate, so a person of **that** estate should custody it. imbnet's registry agent was first chartered under the estate's interactions key — a runtime secret, not a person — and was re-chartered under maya through imbnet's own Home, with the custodian address recovered from a probe signature so her key never left it. The same error still stands in `imb-estate.workspace` (F3.2). | spec 439 §7.11 |
+| P6 | An agent belongs to an estate, so a person of **that** estate should custody it. imbnet's registry agent was first chartered under the estate's interactions key — a runtime secret, not a person — and was re-chartered under maya through imbnet's own Home, with the custodian address recovered from a probe signature so her key never left it. The same error stood in `imb-estate.workspace` until R1 below. | spec 439 §7.11 |
 | P7 | Rotating the signer broke the F2.5 cross-check until each estate agent's `atl:projectionSigner` was updated to match. The chain's signer and the estate's declaration have to move together, and the doors refuse while they disagree — which is the check working. | `set-projection-signer.mts`, `estate-agent-declare.mts` |
+
+## The last misplaced custody (2026-10-14)
+
+imbnet's Pulse context agent, `imb-estate.workspace` (`0xc0d82cdd…`), was custodied by demo-admin — a faithnet
+persona. The last instance of P6, and the one named twice above as unfixed.
+
+| # | Finding | Where |
+| --- | --- | --- |
+| R1 | **Closed.** maya is now its sole custodian and demo-admin is out, in one transaction, and the agent's address never changed: a credential rotated, the identity did not (ADR-0011). It also now declares `atl:estate = imbnet.estate`, which neither faithnet context agent does. The declaration was signed by maya through imbnet's own Home, which is the proof the rotation took: the write would have been refused if she were not a custodian. | `rotate-custodian.mts` tx `0x3ae65cd6…`; `estate-agent-declare.mts` tx `0xf43444b0…` |
+| R2 | A `removeCustodian` on its own is the wrong tool: it bumps the custody epoch and leaves every standing grant keyed to the old one. The ceremony is `add → retire → approveDigest×N` in ONE transaction (spec 410 §1), and that is the shape `rotate-custodian.mts` sends — a batch, never a sequence of transactions with a window in between. | ap-home `scripts/rotate-custodian.mts` |
+| R3 | **The epoch the doctrine turns on does not exist on this chain yet.** The live `AgentAccount` implementation (`0x8691bFE5…`, every account on faithchain) carries no `custodyEpoch()` and no `approveDigest(bytes32)` — generation 1, exactly as the readiness review records. So this retirement bumped nothing and invalidated nothing, and the ceremony's re-approval half is unrunnable here until the generation lands. The script reads the implementation and says so rather than reporting a clean rotation it did not perform. | `AgentAccount.sol` generation 1 vs spec 410 §1 |
+| R4 | None of the three Pulse context agents declares `atl:agentType`, though all three carry a `.workspace` suffix. ADR-0061 §5 makes the on-chain record the authority and the suffix a claim, so a typed resolution of any of them fails closed today; the town agent reaches them by forward record instead, which is why nothing has broken. Backlog, and ap-town's charter path owns it. | `imb-estate.workspace`, `faith-estate.workspace`, `faith-town.workspace` |
+| R5 | The imbnet Home's apex redirects to `www`, and a redirected POST drops its `Authorization` header — so `persona-sign` answered `session required` with a valid session in hand. An operator script must address the issuer host (`https://www.impact-agent.me`), not the apex. | `estate-agent-declare.mts --home` |
 
 ## Still owed
 
