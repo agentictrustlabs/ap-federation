@@ -46,6 +46,31 @@ akcs operator … bind-caller --tenant-id <t> --issuer https://akcs-pilot.faithn
   (`billedTo`). A caller bound without a level cannot make a billable key — that is the point.
 - A binding cannot be edited: `disable-caller --tenant-id <t> --caller-id <id>` and bind a `-2` subject.
 
+### If the estate's person custody runs THROUGH the tenant (the faithnet shape)
+
+The two lines above are the **local-aes** shape (imbnet): the person's vault key is wrapped locally and the tenant is
+only asked for envelopes and MACs. An estate whose person custody is OIDC-derived in the CVM needs more, and copying
+imbnet's split into it breaks every read it serves. faithnet's two, 2026-10-14:
+
+```
+--operations status,data-key-generate,data-key-unwrap,derived-signer-resolve,derived-signer-sign,\
+mac-generate,mac-verify,key-create,key-read,key-public-key,key-sign \
+--signing-purposes EIP712,ERC4337_USER_OPERATION,EIP7702_AUTHORIZATION,PERSONAL_SIGN_DIGEST,RAW_32_BYTE_DIGEST
+```
+
+- **`--signing-purposes none` allows nothing.** It reads like "this caller does not sign" and is right only for a
+  caller that truly never signs; the runbook's template above says it because those two callers do not.
+- **`RAW_32_BYTE_DIGEST` must be listed EXPLICITLY.** It is disabled by default and a `*` does not enable it
+  (faithkms `crates/akcs-auth/src/binding.rs` `check_signing_purpose`). A caller that signs a raw digest anywhere —
+  faithnet's runtime does, on the playbook read — loses that path the moment it is replaced by a caller listing only
+  the typed purposes, and **loses it silently**: no Worker log line, no gate failure, only
+  `plannerTrace.playbookUnreadable` inside an ask reply, after which the harness asks a plausible domain question
+  ("You have no treasury to be paying from"). If a narrowing breaks something, read `playbookUnreadable` FIRST.
+- The exact operation set is derived from faithkms's per-route `Operation` mapping (all fourteen in
+  `crates/akcs-domain/src/model.rs`) against what that Worker calls — never copied from another estate. The floor is
+  per-Worker credentials and the exclusion of `key-rotate`, `key-disable` and `key-schedule-destruction`, which `*`
+  wrongly grants a Worker.
+
 ## 3. Mint the caller tokens, hand them to the estate
 
 ```

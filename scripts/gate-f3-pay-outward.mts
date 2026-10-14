@@ -106,7 +106,9 @@ if (need) {
   if (derived.ok) {
     reply = await ask(payMessage, runRef, derived.presented as unknown[]);
     const after = await balance(payee);
-    check('the same run continues under the presented chain and the payment lands — her own harness verified every link before the money moved', reply.kind === 'done' || reply.kind === 'effect', `${reply.kind ?? '?'} · "${String(reply.text ?? reply.summary ?? '').slice(0, 110)}"`);
+    // `error` LAST but never omitted: a refusal carries its reason there and nowhere else, and reading only `text`
+    // printed `refused · ""` for a spent wire — the enforcer had said limit 9, spent 9, requested 3 all along.
+    check('the same run continues under the presented chain and the payment lands — her own harness verified every link before the money moved', reply.kind === 'done' || reply.kind === 'effect', `${reply.kind ?? '?'} · "${String(reply.text ?? reply.summary ?? reply.error ?? '').slice(0, 220)}"`);
     check(`3 ${symbol} actually moved to the OTHER estate's treasury`, after - before === amount, `payee ${formatUnits(before, 6)} → ${formatUnits(after, 6)} ${symbol}`);
 
     // ONE INTENT, ONE PAYMENT — the same words are the same intent, so the chain refuses the second redemption.

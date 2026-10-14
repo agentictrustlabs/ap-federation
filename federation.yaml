@@ -234,20 +234,25 @@ kms:
   conditions:
     - id: 1
       condition: "No shared caller credential — one least-privilege bind-caller per Worker per estate (closes spec 407 D10)"
-      status: open
+      status: met
       detail: >-
-        imbnet met (two callers, 2026-10-11). faithnet OPEN, and the 2026-10-14 attempt says why it is not a
-        five-minute change: `demo-a2a-faithnet` is bound with operations ["*"] and shared by the vault and the
-        runtime. Two narrowings were bound, deployed and REVERTED the same hour, each breaking alice's treasury
-        read ("Nothing matched a search for treasuries in your links") until the shared token was restored.
-        What was learned: imbnet's split is NOT transferable, because imbnet's person custody is local-aes while
-        faithnet's runtime is OIDC-custodied THROUGH the tenant, so faithnet needs derived-signer-resolve and
-        derived-signer-sign that imbnet never calls; and even with those, something else in the holdings path
-        still failed. The exact set must be derived from faithkms's per-route Operation mapping (all 14 are in
-        crates/akcs-domain/src/model.rs) against what each Worker actually calls — never copied from another
-        estate and never guessed. The destructive three (key-rotate, key-disable, key-schedule-destruction) are
-        what "*" wrongly grants a Worker and are the floor any replacement must exclude. Bound and unused
-        meanwhile: demo-mcp-faithnet-vault/-2/-3 and demo-a2a-faithnet-runtime/-2/-3.
+        imbnet met 2026-10-11 (two callers). faithnet met 2026-10-14: the vault is
+        `demo-mcp-faithnet-vault-5` and the runtime `demo-a2a-faithnet-runtime-6`, each with eleven named
+        operations, and the shared `demo-a2a-faithnet` caller bound with operations ["*"] is DISABLED along with
+        the nine narrowings tried on the way. Both estates' gates are green with it off (gate:pay-outward,
+        gate:vault-record, f1, f2-door, federation-site, projector-freshness, f3-twin).
+        WHAT ACTUALLY BLOCKED IT, after a day of wrong guesses: `RAW_32_BYTE_DIGEST`. It is disabled by default in
+        faithkms and must be listed EXPLICITLY — a `*` in allowed_signing_purposes does not enable it
+        (crates/akcs-auth/src/binding.rs check_signing_purpose), so the old caller had it spelled out and every
+        replacement that listed only the typed purposes lost it. The loss was invisible: it surfaced nowhere in the
+        Worker's logs and nowhere in the gate's own output, only as `plannerTrace.playbookUnreadable` inside an ask
+        reply, after which the run asked "You have no treasury to be paying from" — a credential error wearing a
+        domain question's clothes. Operations were never the cause; three attempts added operations and failed.
+        RESIDUAL, named not hidden: the runtime still holds RAW_32_BYTE_DIGEST, which is a signature over bytes
+        whose meaning nothing can check. What signs a raw digest on the playbook-read path should be moved to a
+        typed purpose and the grant then dropped. Each Worker also still holds a superset of what it calls; the
+        floor this condition asserts is per-Worker credentials and no key-rotate, key-disable or
+        key-schedule-destruction, which "*" wrongly granted.
     - id: 2
       condition: "One tenant per estate; a tenant is never shared and an estate never has two"
       status: met
