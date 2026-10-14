@@ -89,11 +89,62 @@ Everything in this repository is a consequence of that sentence.
 | faithnet | `faithnet.estate`, anchored at sequence 1, signer declared |
 | a door in front of each | `door.ap-federation.faithnet.io` (imbnet), `door-faithnet.ap-federation.faithnet.io` (faithnet) |
 | the site | `ap-federation.faithnet.io`: towns, KMS, names, doors, neutral ground |
-| the proof | `pnpm gate:twin`: each estate's standing admitted at the other's door, a question answered, an act refused at the authority stage with the missing mandate named, and at faithnet a payment **run under a steward's standing wire** derived by the visitor, with the money landing in the visitor's treasury; plus the five door refusals |
+| the proof | `pnpm gate:twin`: in both directions, the visitor's standing admitted at the other estate's door, a question answered, an act refused at the authority stage with the missing mandate named, a payment **run under a steward's standing wire** derived by the visitor with the money landing in the visitor's treasury, and the five door refusals |
 
 **What is not live:** a second chain. The estate id is chain-scoped by construction, so a second chain is one row
 in the register and one door, and no verifier code. Until one exists, that is a design property, not a
 demonstration, and every document here says so.
+
+## A worked use case: a visiting agent is paid at faithnet
+
+This is the scenario the gates run every night, with real accounts on faithchain. It is small on purpose: one visitor,
+one resident, one payment, and the two refusals that sit beside it.
+
+**The parties**
+
+| Who | What they are | Where they live |
+| --- | --- | --- |
+| **the visitor** | an agent of the imbnet estate (it holds a live grant there, from maya) | imbnet, with its own treasury on faithchain |
+| **alice** | a resident of faithnet; a steward of her treasury `alice2.treasury` | faithnet |
+| **alice's agent** | the agent that acts for alice, behind faithnet's A2A door | faithnet's runtime |
+| **the door** | the federation's receiving door in front of faithnet | `door-faithnet.ap-federation.faithnet.io` |
+| **neutral ground** | the registry both estates anchor to | `EstateProjectionRegistry` on faithchain |
+
+**Before anything crosses** (done once, by each side)
+
+1. imbnet's projector collects the leaf for maya's grant to the visitor, prunes it against the chain, and anchors
+   imbnet's roots on neutral ground at sequence 3.
+2. alice decides, at her Home, that this visitor may be paid from her treasury: up to 10 USDC per payment, for thirty
+   days, into the visitor's treasury. She signs that **standing wire** once. It is revocable on chain at any moment.
+
+**The crossing** (every time)
+
+| # | Interaction | What is checked | What it proves |
+| --- | --- | --- | --- |
+| 1 | The visitor asks the door for a **challenge** for its own account. | — | the presentation it builds next cannot be replayed elsewhere |
+| 2 | The visitor builds a **presentation**: its leaf and Merkle path at imbnet's anchored sequence, bound to the nonce and the door's origin. | — | "I hold a live grant in imbnet as of sequence 3" |
+| 3 | The visitor sends the request with a **signed request proof** and the presentation. | the door spends the replay id, verifies the signature on chain, reads imbnet's root **from neutral ground now**, verifies the path, the sequence, the age, the challenge, the subject; cross-checks imbnet's declared signer | **standing in imbnet** — evidence, written to a receipt |
+| 4 | The door **forwards** the request to alice's door with the receipt reference and the standing in headers. | — | the estate can see what the door saw |
+| 5 | alice's door asks **who is calling**, separately: the visitor's caller assertion, signed by its own key. | verified through the universal validator; spent once | the visitor is an authenticated agent asking as itself |
+| 6 | The runtime fetches the door's receipt **from the door** and records the standing on the task as evidence. | the receipt names this caller, admitted | a steward later reading the task knows who asked and from where |
+| 7 | The visitor asks: *"Pay 5 USDC from alice2.treasury to my treasury."* | the harness plans the payment and finds no mandate | the task **parks**, saying exactly what it would need |
+| 8 | The visitor **derives the child mandate** for that intent from alice's standing wire and continues the same task presenting the chain. | payee, asset, amount and window are a subset of the wire; the child is bound to this intent and plan | the resident's one decision covers this act and nothing wider |
+| 9 | The harness verifies every link and runs the step. 5 USDC moves from alice's treasury to the visitor's. | the chain enforces the caveats at redemption | **authority stayed at faithnet**, with alice, the whole time |
+
+**The two refusals beside it** (also run every time)
+
+- The visitor asks alice's agent to **send a message** on its behalf. No wire covers that. The harness refuses at
+  the authority stage: *"messaging.direct.send needs a steward at alice.me."* Standing is not a mandate.
+- The visitor asks for a payment to **a different payee**. The wire names one payee; the child is not a subset;
+  nothing derives; the run stays parked for alice.
+
+**What each party learned, and what none of them had to trust**
+
+- The door learned that the visitor has a live grant in imbnet. It never saw the grant, or anyone else in imbnet.
+- alice's agent learned that the door admitted this caller, and that alice's own wire covers this payment. It
+  trusted neither the door nor the visitor for that: it read the receipt itself and verified the chain itself.
+- imbnet learned nothing about faithnet, and faithnet nothing about imbnet, beyond one root each on neutral ground.
+- No bridge carried authority. No grant was re-issued. No assertion was accepted on its issuer's word.
 
 ## Where to go next
 
