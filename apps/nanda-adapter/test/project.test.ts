@@ -92,3 +92,51 @@ describe('reading one back', () => {
     expect(read.says).toMatch(/not evidence|estate/);
   });
 });
+
+// ─── Reading the index back (spec 439 §5's discovery row) ───────────────────────────────────────────
+
+describe('assessing a listing the way a stranger would', () => {
+  const entry = {
+    identifier: 'urn:air:sunrisetours.com:agent:booking',
+    displayName: 'Sunrise Tours Booking Agent',
+    type: NANDA_MEDIA_TYPE.a2aAgentCard,
+    url: 'https://agentcards.host39.org/sunrisetours.com/booking.json',
+    publisher: { identifier: 'sunrisetours.com', displayName: 'Sunrise Tours', identityType: 'domain' as const },
+  };
+  it('names the publisher from the URN and the host from the URL, and says when they differ', async () => {
+    const { assessResolution } = await import('../src/resolve');
+    const a = assessResolution(entry, { ok: true, status: 200, body: { name: 'Sunrise Tours Booking Agent' } });
+    expect(a.publisherDomain).toBe('sunrisetours.com');
+    expect(a.servedBy).toBe('agentcards.host39.org');
+    expect(a.servedByPublisher).toBe(false);
+    expect(a.notes.join(' ')).toContain('did not vouch for');
+  });
+  it('says an unsigned card is not authenticated, however reachable it is', async () => {
+    const { assessResolution } = await import('../src/resolve');
+    const a = assessResolution(entry, { ok: true, status: 200, body: { name: 'x' } });
+    expect(a.reachable).toBe(true);
+    expect(a.signed).toBe(false);
+    expect(a.notes.join(' ')).toMatch(/reachability is not authenticity/);
+  });
+  it('says a listing outlives what it lists', async () => {
+    const { assessResolution } = await import('../src/resolve');
+    const a = assessResolution(entry, { ok: false, status: 404, body: null });
+    expect(a.reachable).toBe(false);
+    expect(a.signed).toBeNull();
+    expect(a.notes.join(' ')).toMatch(/outlives/);
+  });
+  it('always says what it is not evidence of, starting with authority', async () => {
+    const { assessResolution } = await import('../src/resolve');
+    for (const f of [null, { ok: true, status: 200, body: { name: 'x', signatures: [{}] } }]) {
+      const a = assessResolution(entry, f as never);
+      expect(a.saysNothingAbout[0]).toMatch(/may do anything|ADR-0056/);
+    }
+  });
+  it('a survey counts and never ranks', async () => {
+    const { assessResolution, surveyResolutions } = await import('../src/resolve');
+    const rows = [assessResolution(entry, { ok: true, status: 200, body: { name: 'a' } }), assessResolution(entry, { ok: false, status: 404, body: null })];
+    const s = surveyResolutions(rows);
+    expect(s).toMatchObject({ total: 2, reachable: 1, signed: 0, servedByPublisher: 0 });
+    expect(s.says).toMatch(/nothing here ranks/i);
+  });
+});

@@ -38,3 +38,18 @@ The sources were read before the design (spec 439 §7.9, digests in Ring 0's `do
 Six codes, each with where to read the thing instead: `signature-not-carried`, `canonical-identity-not-carried`,
 `authority-not-carried` (always), `estate-not-carried`, `skill-detail-not-carried`, `capabilities-not-carried`. The
 codes are mirrored into the entry, so a reader of the index can see that something was left behind.
+
+## Reading the index back
+
+```
+pnpm nanda read [--index https://api.nandaindex.org/api/v1/index] [--limit 29] [--urn urn:air:…]
+```
+
+It fetches the listings, fetches what they list, and says per entry what it checked: reachable, signed, served by its
+own publisher, the shape it claims. Then a count, and then what none of it is evidence of — starting with authority.
+
+**What the live index looked like on 2026-10-14** (all 29 A2A-card entries): 21 answered, **2 carried a signature**,
+17 were served by their own publisher. So for most entries "is this the card its agent published?" is a question
+nothing on the wire answers, and an entry's publisher is often not the host you fetch from. Neither is a fault of the
+index — it verifies that a publisher owns the domain in its URN, not that the domain serves the artifact — but a
+reader that conflates them has trusted a party nobody vouched for. We report it per entry and let it decide nothing.
