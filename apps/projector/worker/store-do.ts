@@ -6,10 +6,13 @@
 // deleted: a retirement is a field, because a projection that stopped including something is exactly what an
 // auditor comes looking for.
 //
-// HONEST LIMIT, unchanged from the runbook: this is serving-plane storage, not a vault. The estate's copy belongs in
-// its registry agent's vault and the holder's in the holder's (ADR-0055, spec 439 §4). A Durable Object is a better
-// place than an operator's laptop — one writer, survives the laptop, readable by the job that needs it — and it is
-// still not the place. The interface is the same `SubmissionLedger` port, so moving it again is a binding change.
+// RESOLVED 2026-10-14: the estate's copy is now its registry agent's VAULT record
+// (`federation.projection-submission:<set>:<digest>`, bound to `apest:ProjectionSubmission` — ontology
+// `tbox/estate.ttl`), and this Durable Object is what ADR-0055 says a DO is for: the serving projection, mirrored
+// from those records before every rebuild and never their only copy. `/mirror` replaces an estate's rows wholesale,
+// because a row the vault does not have is a stale projection rather than a second opinion. An estate with no vault
+// credentials on this deployment still vouches from here, and the run's output says so instead of passing quietly.
+// The holder's own copy is still owed (they hold their blind; they hold no record of the vouch).
 export interface StoredRow { estate: string; set: string; digest: string; blind: string; subject: string; submittedBy: string; source: string; submittedAt: string; expiresAt?: string; retired?: { at: string; reason: string } }
 
 export class SubmissionStoreDO {
@@ -52,6 +55,18 @@ export class SubmissionStoreDO {
       const n = this.sql.exec(`UPDATE rows_ SET retired_at = ?, retired_reason = ? WHERE estate = ? AND set_ = ? AND lower(digest) = lower(?) AND retired_at IS NULL`,
         b.at, b.reason, b.estate, b.set, b.digest).rowsWritten;
       return json({ retired: n > 0 });
+    }
+    if (req.method === 'POST' && url.pathname === '/mirror') {
+      // REPLACE this estate's rows with what its vault said. A mirror, never a merge: the vault is the record
+      // (ADR-0055), so a row here that the vault does not have is a stale projection and not a second opinion —
+      // keeping it would let a retired or vanished leaf go on being vouched for from the cache.
+      const b = (await req.json()) as { estate: string; rows: StoredRow[] };
+      this.sql.exec(`DELETE FROM rows_ WHERE estate = ?`, b.estate);
+      for (const r of b.rows) {
+        this.sql.exec(`INSERT OR REPLACE INTO rows_ (estate, set_, digest, blind, subject, submitted_by, source, submitted_at, expires_at, retired_at, retired_reason) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          b.estate, r.set, r.digest.toLowerCase(), r.blind, r.subject.toLowerCase(), r.submittedBy, r.source, r.submittedAt, r.expiresAt ?? null, r.retired?.at ?? null, r.retired?.reason ?? null);
+      }
+      return json({ mirrored: b.rows.length, estate: b.estate });
     }
     return json({ error: 'not_found' }, 404);
   }

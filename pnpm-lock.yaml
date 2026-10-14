@@ -93,6 +93,9 @@ importers:
 
   apps/projector:
     dependencies:
+      '@agenticprimitives/delegation':
+        specifier: 1.0.0-alpha.34
+        version: 1.0.0-alpha.34(@agenticprimitives/agent-account@1.0.0-alpha.34(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.34)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.34)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.34))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.34)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/key-custody@1.0.0-alpha.34(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.34))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.34)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.34)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.34)(viem@2.52.2(typescript@5.9.3))
       '@agenticprimitives/estate-projection':
         specifier: 0.0.0-alpha.9
         version: 0.0.0-alpha.9(@agenticprimitives/verifiable-credentials@0.0.0-alpha.31(@agenticprimitives/ontology@1.0.0-alpha.34)(@agenticprimitives/types@1.0.0-alpha.34)(viem@2.52.2(typescript@5.9.3)))(typescript@5.9.3)

@@ -1,70 +1,82 @@
 {
-  "$comment": "The live-gates ledger (spec 392 shape): every verify script with the authority twin it carries, run nightly by `ap test --live-gates live-gates.json` through @agenticprimitives/evaluation's runner against HOME_URL. `required` gates fail the run; the rest report; `paced` gates are spaced for a metered model plan. Add a gate = one entry. F1's gate needs no HOME_URL and no key: it reads neutral ground over FEDERATION_RPC_URL and checks refusals by simulation.",
-  "home": "https://<shadow-home>",
-  "gates": [
-    {
-      "id": "f1-projection",
-      "script": "scripts/gate-f1-projection.mts",
-      "spec": "specs/439 F1 (Ring 0)",
-      "proves": "the estate's roots are anchored on neutral ground, the sequence is monotonic, the roots rebuild from the estate's own record, and a presentation verifies against the root READ FROM THE CHAIN.",
-      "twin": "the same verifier refuses the same presentation one sequence behind (stale), about another subject (subject_mismatch), and answering another challenge (challenge_mismatch); and the contract refuses a replayed sequence.",
-      "required": true,
-      "timeoutSec": 120,
-      "env": {
-        "FEDERATION_ESTATE": "imbnet"
-      }
-    },
-    {
-      "id": "federation-site",
-      "script": "scripts/gate-federation-site.mts",
-      "spec": "specs/440 \u00a7B4",
-      "proves": "the federation site answers from the towns' live surfaces: the root-chain town is listed live with its estates, the KMS operator probe answers, a label resolves across every live town with every row qualified and carrying { name, chain } + a CAIP-10 identity.",
-      "twin": "no row is ever bare; a retired town is neither probed nor queried; the KMS record carries no secret-shaped value; a chain in the name is refused.",
-      "required": true,
-      "timeoutSec": 120,
-      "env": {
-        "FEDERATION_SITE_URL": "https://ap-federation.faithnet.io"
-      }
-    },
-    {
-      "id": "f2-door",
-      "script": "scripts/gate-f2-door.mts",
-      "spec": "specs/439 F2 (Ring 0); Ring 0 spec 410 \u00a74.2",
-      "proves": "the receiving door admits a foreign presentation on a principal-signed request proof and a leaf proved against the root READ FROM NEUTRAL GROUND, writes a hash-chained receipt naming only the acting account and the boundary, and forwards the admitted bytes to the estate's A2A door with the standing in headers.",
-      "twin": "a presentation one sequence behind (stale), one answering another door's challenge, one about another subject, a replayed proof, and no proof are each refused; a request with no presentation is admitted as nobody-foreign with no standing.",
-      "required": true,
-      "timeoutSec": 180,
-      "env": {
-        "FEDERATION_DOOR_URL": "https://door.ap-federation.faithnet.io",
-        "FEDERATION_ESTATE": "imbnet",
-        "NODE_OPTIONS": "--dns-result-order=ipv4first"
-      },
-      "needs": "FEDERATION_RPC_URL + .secrets/f2-test-agent.env + .secrets/f2-test-wire.json (scripts/setup-f2-test-grant.mts, once)"
-    },
-    {
-      "id": "f3-twin",
-      "script": "scripts/gate-f3-twin.mts",
-      "spec": "specs/439 \u00a76 / \u00a77.5 (Ring 0)",
-      "proves": "standing anchored by one estate is admitted at the other estate's door, in both directions, on evidence read from neutral ground, with the signer cross-check agreeing; the same five refusals hold at each door.",
-      "twin": "each direction carries gate-f2-door's five refusals; the run prints that it is ONE chain \u2014 cross-estate, not cross-chain.",
-      "required": true,
-      "timeoutSec": 360,
-      "env": {
-        "NODE_OPTIONS": "--dns-result-order=ipv4first"
-      },
-      "needs": "FEDERATION_RPC_URL + both estates' leaves (scripts/setup-f2-test-grant.mts --estate imbnet | faithnet)"
-    },
-    {
-      "id": "projector-freshness",
-      "script": "scripts/gate-projector-freshness.mts",
-      "spec": "specs/439 \u00a74 / \u00a77.10 (Ring 0)",
-      "proves": "every projecting estate's anchor is fresh enough that a verifier will still accept a presentation against it, and the scheduled projector is the thing keeping it so.",
-      "twin": "an estate whose anchor is past the shortest verifier window is RED, not a warning \u2014 an estate that cannot be proved is not a passing estate.",
-      "required": true,
-      "timeoutSec": 120,
-      "env": {
-        "FEDERATION_PROJECTOR_URL": "https://projector.ap-federation.faithnet.io"
-      }
-    }
-  ]
+ "$comment": "The live-gates ledger (spec 392 shape): every verify script with the authority twin it carries, run nightly by `ap test --live-gates live-gates.json` through @agenticprimitives/evaluation's runner against HOME_URL. `required` gates fail the run; the rest report; `paced` gates are spaced for a metered model plan. Add a gate = one entry. F1's gate needs no HOME_URL and no key: it reads neutral ground over FEDERATION_RPC_URL and checks refusals by simulation.",
+ "home": "https://<shadow-home>",
+ "gates": [
+  {
+   "id": "f1-projection",
+   "script": "scripts/gate-f1-projection.mts",
+   "spec": "specs/439 F1 (Ring 0)",
+   "proves": "the estate's roots are anchored on neutral ground, the sequence is monotonic, the roots rebuild from the estate's own record, and a presentation verifies against the root READ FROM THE CHAIN.",
+   "twin": "the same verifier refuses the same presentation one sequence behind (stale), about another subject (subject_mismatch), and answering another challenge (challenge_mismatch); and the contract refuses a replayed sequence.",
+   "required": true,
+   "timeoutSec": 120,
+   "env": {
+    "FEDERATION_ESTATE": "imbnet"
+   }
+  },
+  {
+   "id": "federation-site",
+   "script": "scripts/gate-federation-site.mts",
+   "spec": "specs/440 \u00a7B4",
+   "proves": "the federation site answers from the towns' live surfaces: the root-chain town is listed live with its estates, the KMS operator probe answers, a label resolves across every live town with every row qualified and carrying { name, chain } + a CAIP-10 identity.",
+   "twin": "no row is ever bare; a retired town is neither probed nor queried; the KMS record carries no secret-shaped value; a chain in the name is refused.",
+   "required": true,
+   "timeoutSec": 120,
+   "env": {
+    "FEDERATION_SITE_URL": "https://ap-federation.faithnet.io"
+   }
+  },
+  {
+   "id": "f2-door",
+   "script": "scripts/gate-f2-door.mts",
+   "spec": "specs/439 F2 (Ring 0); Ring 0 spec 410 \u00a74.2",
+   "proves": "the receiving door admits a foreign presentation on a principal-signed request proof and a leaf proved against the root READ FROM NEUTRAL GROUND, writes a hash-chained receipt naming only the acting account and the boundary, and forwards the admitted bytes to the estate's A2A door with the standing in headers.",
+   "twin": "a presentation one sequence behind (stale), one answering another door's challenge, one about another subject, a replayed proof, and no proof are each refused; a request with no presentation is admitted as nobody-foreign with no standing.",
+   "required": true,
+   "timeoutSec": 180,
+   "env": {
+    "FEDERATION_DOOR_URL": "https://door.ap-federation.faithnet.io",
+    "FEDERATION_ESTATE": "imbnet",
+    "NODE_OPTIONS": "--dns-result-order=ipv4first"
+   },
+   "needs": "FEDERATION_RPC_URL + .secrets/f2-test-agent.env + .secrets/f2-test-wire.json (scripts/setup-f2-test-grant.mts, once)"
+  },
+  {
+   "id": "f3-twin",
+   "script": "scripts/gate-f3-twin.mts",
+   "spec": "specs/439 \u00a76 / \u00a77.5 (Ring 0)",
+   "proves": "standing anchored by one estate is admitted at the other estate's door, in both directions, on evidence read from neutral ground, with the signer cross-check agreeing; the same five refusals hold at each door.",
+   "twin": "each direction carries gate-f2-door's five refusals; the run prints that it is ONE chain \u2014 cross-estate, not cross-chain.",
+   "required": true,
+   "timeoutSec": 360,
+   "env": {
+    "NODE_OPTIONS": "--dns-result-order=ipv4first"
+   },
+   "needs": "FEDERATION_RPC_URL + both estates' leaves (scripts/setup-f2-test-grant.mts --estate imbnet | faithnet)"
+  },
+  {
+   "id": "projector-freshness",
+   "script": "scripts/gate-projector-freshness.mts",
+   "spec": "specs/439 \u00a74 / \u00a77.10 (Ring 0)",
+   "proves": "every projecting estate's anchor is fresh enough that a verifier will still accept a presentation against it, and the scheduled projector is the thing keeping it so.",
+   "twin": "an estate whose anchor is past the shortest verifier window is RED, not a warning \u2014 an estate that cannot be proved is not a passing estate.",
+   "required": true,
+   "timeoutSec": 120,
+   "env": {
+    "FEDERATION_PROJECTOR_URL": "https://projector.ap-federation.faithnet.io"
+   }
+  },
+  {
+   "id": "vault-record",
+   "script": "scripts/gate-vault-record.mts",
+   "spec": "specs/439 \u00a77.13 (Ring 0); ADR-0055; spec 410 \u00a74",
+   "proves": "each estate's submissions \u2014 the openings behind its public roots \u2014 are records in ITS OWN registry agent's vault: the agent's vault takes the record, a read under the same grant sees it, and the blind round-trips unchanged.",
+   "twin": "a write-only credential would list nothing and a read-only one would be refused the write, so a gate that passes proves both halves of the grant rather than one; and the leaf it writes is retired before it exits, so the gate never leaves a vouch in a real estate's ledger.",
+   "required": true,
+   "timeoutSec": 180,
+   "env": {
+    "FEDERATION_VAULT_SECRET_DIR": ".secrets"
+   }
+  }
+ ]
 }

@@ -24,6 +24,7 @@ import { registryClient, readDeclaredSigner, type AnchoringWireV1 } from '../src
 import { projectEstate } from '../src/project.js';
 import { isRevokedReader } from '../src/revocation.js';
 import type { SubmissionLedger, SubmissionV1 } from '../src/ledger.js';
+import { loadSubmissions, writeSubmission, type VaultCredentials } from '../src/vault-ledger.js';
 import federationYaml from '../../../federation.yaml';
 export { SubmissionStoreDO } from './store-do.js';
 
@@ -40,6 +41,25 @@ interface Env {
   /** Guards the ops routes (submit / retire / project-now). A read of `/status` needs none. */
   OPS_TOKEN?: string;
   REFRESH_AFTER_SECONDS?: string;
+  /** ONE SECRET PER ESTATE — `VAULT_CREDENTIALS_<ESTATE>`, as `issue-self-host-vault-credentials.mts` wrote it: the
+   *  registry agent, its Home's vault, THAT estate's interactions service, the scoped grant, the DEL-001 leaf and the
+   *  delegate key. Per estate and not one map because a Cloudflare secret caps near 5 kB and one pair is 3.3 kB.
+   *  Absent for an estate ⇒ that estate has no vault yet, which the status says rather than hides. */
+  [k: `VAULT_CREDENTIALS_${string}`]: string | undefined;
+}
+
+/** The estate's vault credentials, or `null` when this deployment holds none for it. */
+function vaultFor(env: Env, estate: string): VaultCredentials | null {
+  const raw = env[`VAULT_CREDENTIALS_${estate.toUpperCase().replace(/[^A-Z0-9]/g, '_')}` as `VAULT_CREDENTIALS_${string}`];
+  if (!raw) return null;
+  const d = JSON.parse(raw) as Record<string, unknown>;
+  return {
+    agent: d.agent as `0x${string}`, agentName: String(d.agentName ?? `${estate}.registry`),
+    vaultUrl: String(d.vaultUrl ?? d.home), interactionsService: d.interactionsService as `0x${string}`,
+    chainId: Number(d.chainId ?? 34348), ...(d.audience ? { audience: String(d.audience) } : {}),
+    grant: d.grant as VaultCredentials['grant'], leaf: (d.sessionLeaf ?? d.leaf) as VaultCredentials['leaf'],
+    signerKey: d.signerKey as `0x${string}`,
+  };
 }
 
 interface EstateRow { id: string; chainId: number; governance: string | null; signer?: string; delegationManager?: string; profileResolver?: string; rpcUrl?: string; blocked?: string }
@@ -50,6 +70,10 @@ const projectable = (f: Register): EstateRow[] => f.estates.filter((e) => e.gove
 const json = (b: unknown, status = 200, maxAge = 10) =>
   new Response(JSON.stringify(b, null, 2), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': `public, max-age=${maxAge}`, 'access-control-allow-origin': '*' } });
 
+// THE DURABLE OBJECT IS THE SERVING PROJECTION (ADR-0055). The RECORD is the estate's registry agent's vault, and
+// the two reads below are deliberately different: a rebuild reads the vault, because anchoring a root from a cache
+// would anchor whatever the cache last happened to hold; `/status` reads the DO, because a status page that cannot
+// answer while a Home is down is a worse status page and it is not vouching for anything.
 const store = (env: Env) => {
   const stub = env.STORE.get(env.STORE.idFromName('submissions'));
   return {
@@ -61,6 +85,19 @@ const store = (env: Env) => {
     call: (path: string, body: unknown) => stub.fetch(new Request(`https://store${path}`, { method: 'POST', body: JSON.stringify(body), headers: { 'content-type': 'application/json' } })),
   };
 };
+
+/** What a rebuild vouches from. From the VAULT when this deployment holds the estate's credentials, mirrored into the
+ *  DO on the way through so the projection stays warm; from the DO only for an estate with no vault yet, and that
+ *  case says so in the run's output rather than passing silently for the other kind. */
+async function rowsOfRecord(env: Env, estate: string): Promise<{ rows: SubmissionV1[]; from: 'vault' | 'durable-object' }> {
+  const c = vaultFor(env, estate);
+  if (!c) return { rows: await store(env).rows(estate), from: 'durable-object' };
+  const rows = await loadSubmissions(c);
+  // Mirror, never merge: the vault said what the estate vouches for, so a DO row the vault does not have is a stale
+  // projection and not a second opinion. `/mirror` replaces the estate's rows wholesale.
+  await store(env).call('/mirror', { estate, rows });
+  return { rows, from: 'vault' };
+}
 
 /** The ledger a projection run reads. READ-ONLY on purpose: a scheduled job vouches for nothing on its own — adding a
  *  leaf is a submission someone made, and this job is not someone. */
@@ -76,7 +113,8 @@ async function projectOne(env: Env, estate: EstateRow, f: Register): Promise<Rec
   const anchoringWire = wires[estate.id];
   const rpc = env.FEDERATION_RPC_URL!;
   const registry = registryClient({ rpcUrl: rpc, chainId: f.registry.chainId, address: f.registry.address as `0x${string}` });
-  const rows = await store(env).rows(estate.id);
+  const record = await rowsOfRecord(env, estate.id);
+  const rows = record.rows;
   const declaredSigner = await readDeclaredSigner({ rpcUrl: rpc, chainId: estate.chainId, governance: estate.governance as `0x${string}`, profileResolver: (estate.profileResolver ?? '0xB03F7C06ad3274F584AB72794406D639c02A45e1') as `0x${string}` }).catch(() => undefined);
   const run = await projectEstate(
     { ...estate, governance: estate.governance as `0x${string}`, estateId: await registry.estateIdOf(estate.chainId, estate.governance as `0x${string}`) } as never,
@@ -92,6 +130,8 @@ async function projectOne(env: Env, estate: EstateRow, f: Register): Promise<Rec
   return {
     estate: estate.id, estateId: run.estateId, anchored: run.decision.anchor, sequence: run.decision.sequence, changed: run.decision.changed, why: run.decision.why,
     counts: run.counts, dropped: run.dropped.length, ...(run.txHash ? { txHash: run.txHash } : {}),
+    vouchedFrom: record.from,
+    ...(record.from === 'durable-object' ? { note2: `${estate.id} has no vault credentials on this deployment — vouched from the serving projection, which ADR-0055 says is not the record` } : {}),
     anchorsAs: anchoringWire ? `${estate.id}'s registry agent, under a wire it signed` : 'the key itself (pre-§4 shape)',
     ...(signerKey ? {} : { note: 'no key for this estate on this deployment — reported what it would do, wrote nothing' }),
     ...(run.warnings.length ? { warnings: run.warnings } : {}),
@@ -133,14 +173,36 @@ export default {
           estate: e.id, estateId, sequence: r.sequence, anchoredAt: r.never ? null : new Date(r.anchoredAt * 1000).toISOString(),
           ageSeconds: r.never ? null : now - r.anchoredAt,
           live: rows.filter((x) => !x.retired).length, ever: rows.length,
+          // Where this estate's submissions actually live. `/status` reads the projection either way and says which
+          // one is the record, so a reader is never left thinking a DO row is the estate's own copy.
+          recordIn: vaultFor(env, e.id) ? 'the registry agent vault' : 'the durable object (no vault credentials here)',
           // The number a reader actually needs: how long until a verifier with a 24-hour window refuses every
           // presentation against this estate. Said, not implied.
           staleInSeconds: r.never ? null : 86_400 - (now - r.anchoredAt),
         };
       }));
-      return json({ ok: true, service: 'ap-federation-projector', refreshAfterSeconds: Number(env.REFRESH_AFTER_SECONDS ?? 21_600), estates, says: 'what is anchored and how old it is. It holds the anchoring keys and no vault; a leaf enters only by a submission someone made.' });
+      return json({ ok: true, service: 'ap-federation-projector', refreshAfterSeconds: Number(env.REFRESH_AFTER_SECONDS ?? 21_600), estates, says: 'what is anchored and how old it is. A leaf enters only by a submission someone made; the estate\'s copy of it lives in its registry agent\'s vault and the durable object is the projection.' });
     }
 
+    // ONE-WAY MIGRATION, run once per estate before anything rebuilds from the vault. The rows were minted in the
+    // Durable Object and the vault has never seen them, so a rebuild that read the vault first would mirror an empty
+    // record over the live projection and anchor a tree with nothing in it. This copies DO → vault; after it, the
+    // vault is the record and `/mirror` runs the other way for good. Idempotent: a record key is `<set>:<digest>`,
+    // so re-running rewrites the same rows rather than duplicating them.
+    if (req.method === 'POST' && p === '/ops/backfill-vault') {
+      if (!ops()) return json({ error: 'unauthorized' }, 401);
+      const body = (await req.json().catch(() => null)) as { estate?: string } | null;
+      if (!body?.estate) return json({ error: 'estate is required' }, 400);
+      const c = vaultFor(env, body.estate);
+      if (!c) return json({ error: `no vault credentials for ${body.estate} on this deployment` }, 400);
+      const rows = await store(env).rows(body.estate);
+      const landed: string[] = []; const refused: Array<{ digest: string; error: string }> = [];
+      for (const row of rows) {
+        try { await writeSubmission(c, row); landed.push(`${row.set}:${row.digest}`); }
+        catch (e) { refused.push({ digest: row.digest, error: e instanceof Error ? e.message : String(e) }); }
+      }
+      return json({ estate: body.estate, into: `${c.agentName}'s vault`, rows: rows.length, landed: landed.length, keys: landed, ...(refused.length ? { refused } : {}) }, refused.length ? 502 : 200);
+    }
     if (req.method === 'POST' && p === '/ops/project') {
       if (!ops()) return json({ error: 'unauthorized' }, 401);
       return json({ runs: await runAll(env) });
@@ -149,8 +211,21 @@ export default {
       if (!ops()) return json({ error: 'unauthorized' }, 401);
       const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;
       if (!body?.estate || !body.set || !body.digest) return json({ error: 'estate, set and digest are required' }, 400);
+      const estate = String(body.estate);
+      // THE VAULT FIRST, and nothing mirrored if it refuses. The other order would leave a leaf the projection
+      // vouches for and the estate's own record has never heard of — which is the whole failure ADR-0055 names.
       const r = await store(env).call(p === '/ops/submit' ? '/add' : '/retire', { ...body, ...(p === '/ops/retire' ? { at: new Date().toISOString() } : { submittedAt: new Date().toISOString() }) });
-      return json(await r.json(), r.status);
+      const out = (await r.json()) as { added?: boolean; row?: SubmissionV1; retired?: boolean };
+      const c = vaultFor(env, estate);
+      if (!c) return json({ ...out, recordIn: 'the durable object', warning: `${estate} has no vault credentials on this deployment, so this submission has no record outside the projection (ADR-0055)` }, r.status);
+      // The DO minted the row (and its blind) — now the vault keeps it. A retirement rewrites the same record.
+      const rows = await store(env).rows(estate);
+      const row = out.row ?? rows.find((x) => x.set === body.set && x.digest.toLowerCase() === String(body.digest).toLowerCase());
+      if (!row) return json({ ...out, recordIn: 'nothing written: the projection has no such row to record' }, r.status);
+      try { await writeSubmission(c, row); } catch (e) {
+        return json({ ...out, error: e instanceof Error ? e.message : String(e), recordIn: 'REFUSED — the projection has the row and the vault does not; re-run this submission' }, 502);
+      }
+      return json({ ...out, recordIn: `${c.agentName}'s vault`, recordType: `federation.projection-submission:${body.set}:${String(body.digest).toLowerCase()}` }, r.status);
     }
     return json({ error: 'not_found' }, 404);
   },

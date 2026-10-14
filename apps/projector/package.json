@@ -14,6 +14,7 @@
     "deploy:faithnet": "wrangler deploy --env faithnet"
   },
   "dependencies": {
+    "@agenticprimitives/delegation": "1.0.0-alpha.34",
     "@agenticprimitives/estate-projection": "0.0.0-alpha.9",
     "viem": "2.52.2",
     "yaml": "2.8.1"
