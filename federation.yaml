@@ -268,7 +268,21 @@ kms:
     - id: 4
       condition: "The CVM attestation document is published at the operator host and linked from this record"
       status: open
-      detail: "operator action — spec 440 A5 step 4"
+      detail: >-
+        operator action — spec 440 A5 step 4. Scouted 2026-10-14, so the next attempt starts informed.
+        THE HARDWARE IS REAL: vm-akcs-pilot-0 is a Standard_DC4as_v5 and the guest itself says so — "Memory
+        Encryption Features active: AMD SEV" and systemd's "Detected confidential virtualization sev-snp" — with
+        secure boot and a vTPM at /dev/tpm0.
+        BUT THE DIRECT REPORT PATH IS CLOSED on this kernel (6.17.0-azure-fde): there is no /dev/sev-guest, no
+        sev-guest module to load, and /sys/kernel/config/tsm/report refuses a report directory with ENXIO, so
+        configfs-TSM has no provider bound. A report must therefore come the way Azure's own guest attestation
+        takes it — through the vTPM, via the AttestationClient package, which is not installed — and the MAA JWT
+        it returns is what gets published.
+        TWO BLOCKERS, AND THEY ARE INDEPENDENT. The attestation needs a package installed on the CVM. The host
+        move needs DNS for kms.faithnet.io, and this machine's Cloudflare credential is zone:read only (wrangler's
+        OAuth session scopes; a dns_records write returns Invalid API Token), so that half needs the owner or a
+        Zone.DNS:Edit token. Publishing at the CURRENT host (akcs-pilot.faithnet.io/.well-known/attestation) would
+        meet this condition as written and does not wait for DNS; the rename then only changes a URL.
 
 # ── THE UNIVERSAL NAMESPACE (spec 440 §C) ─────────────────────────────────────────────────────────────
 # One namespace, rooted on ONE chain the way ENS v2 is rooted on Ethereum L1: the typed roots on the root chain are
