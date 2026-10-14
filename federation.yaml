@@ -154,6 +154,20 @@ towns:
 kms:
   operator: ap-federation
   operatorRole: "the AKCS operator (`akcs operator …` on the CVM via `az vm run-command`) — one holder today, the owner; a second holder is a posture item (spec 407 D10)"
+  # WHAT THE OPERATOR ACTUALLY CUSTODIES — corrected 2026-10-14 (ap-home spec 441 §6), because the claim this
+  # record carried was not reproducible. Spec 440 A4 said residents who sign in with Google, email or phone have
+  # their custody seed in their estate's tenant, "so the operator custodies some residents of every town that opts
+  # in". That is NOT the configuration either estate runs: both set `A2A_CUSTODY_KMS_BACKEND = "local-aes"`, so
+  # custody derives from `A2A_CUSTODY_ROOT_KEY`, a Worker secret of the estate, and no resident's custody seed is
+  # in any tenant. The key exists and is unused: faithnet's tenant holds exactly ONE `oidc-custodian` envelope key,
+  # provisioned and never selected; imbnet's holds none. A4 is therefore a CONDITIONAL caveat — true the day an
+  # estate flips custody to its tenant, which ap-home spec 441 D4 says no estate does until that cost is decided.
+  # What the operator does hold for faithnet beyond vault KEKs: its `relay` and `interactions-session` signing keys.
+  custodyToday:
+    personCustody: local-aes            # on EVERY estate; the estate's own Worker secret, never the tenant
+    inTenant: [vault-kek, relay, interactions-session, service-agent-delegate, content-signer, attestation-signer]
+    provisionedUnused: [oidc-custodian] # faithnet only, 1 key — the A4 path, built and not taken
+    checked: 2026-10-14                 # `akcs operator status` keys grouped by kind+purpose, and both estates' wrangler vars
   repo: agentictrustlabs/faithkms
   backend: akcs
   host: akcs-pilot.faithnet.io
