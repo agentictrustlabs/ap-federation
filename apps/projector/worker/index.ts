@@ -20,7 +20,7 @@
 // Worker secret here. That is better than an operator's laptop and is not the destination; `DEPLOYER.md` says so.
 import { parse as parseYaml } from 'yaml';
 import type { Hex } from 'viem';
-import { registryClient, readDeclaredSigner } from '../src/anchor.js';
+import { registryClient, readDeclaredSigner, type AnchoringWireV1 } from '../src/anchor.js';
 import { projectEstate } from '../src/project.js';
 import { isRevokedReader } from '../src/revocation.js';
 import type { SubmissionLedger, SubmissionV1 } from '../src/ledger.js';
@@ -30,8 +30,13 @@ export { SubmissionStoreDO } from './store-do.js';
 interface Env {
   STORE: DurableObjectNamespace;
   FEDERATION_RPC_URL?: string;
-  /** `{"imbnet":"0x…","faithnet":"0x…"}` — one anchoring key per estate this deployment projects. */
+  /** `{"imbnet":"0x…","faithnet":"0x…"}` — one key per estate. Under spec 439 §4 these are DELEGATE keys: each one
+   *  can call `setRoots` for its estate only while that estate's registry agent's wire says so, and the estate ends
+   *  that with one on-chain revocation. Before §4 they were the registered signers themselves. */
   PROJECTION_SIGNER_KEYS?: string;
+  /** `{"imbnet":{…wire…}}` — the anchoring wire per estate, as `issue-anchoring-wire.mts` wrote it. Absent for an
+   *  estate ⇒ its key is assumed to be the registered signer, which is the shape §4 says to leave behind. */
+  ANCHORING_WIRES?: string;
   /** Guards the ops routes (submit / retire / project-now). A read of `/status` needs none. */
   OPS_TOKEN?: string;
   REFRESH_AFTER_SECONDS?: string;
@@ -66,7 +71,9 @@ function readOnlyLedger(rows: SubmissionV1[]): SubmissionLedger {
 
 async function projectOne(env: Env, estate: EstateRow, f: Register): Promise<Record<string, unknown>> {
   const keys = JSON.parse(env.PROJECTION_SIGNER_KEYS ?? '{}') as Record<string, string>;
+  const wires = JSON.parse(env.ANCHORING_WIRES ?? '{}') as Record<string, AnchoringWireV1>;
   const signerKey = keys[estate.id];
+  const anchoringWire = wires[estate.id];
   const rpc = env.FEDERATION_RPC_URL!;
   const registry = registryClient({ rpcUrl: rpc, chainId: f.registry.chainId, address: f.registry.address as `0x${string}` });
   const rows = await store(env).rows(estate.id);
@@ -79,12 +86,14 @@ async function projectOne(env: Env, estate: EstateRow, f: Register): Promise<Rec
       refreshAfterSeconds: Number(env.REFRESH_AFTER_SECONDS ?? 21_600),
       ...(declaredSigner ? { declaredSigner } : {}),
       ...(signerKey ? { signerKey: signerKey as Hex } : {}),
+      ...(anchoringWire ? { anchoringWire } : {}),
     },
   );
   return {
     estate: estate.id, estateId: run.estateId, anchored: run.decision.anchor, sequence: run.decision.sequence, changed: run.decision.changed, why: run.decision.why,
     counts: run.counts, dropped: run.dropped.length, ...(run.txHash ? { txHash: run.txHash } : {}),
-    ...(signerKey ? {} : { note: 'no signer key for this estate on this deployment — reported what it would do, wrote nothing' }),
+    anchorsAs: anchoringWire ? `${estate.id}'s registry agent, under a wire it signed` : 'the key itself (pre-§4 shape)',
+    ...(signerKey ? {} : { note: 'no key for this estate on this deployment — reported what it would do, wrote nothing' }),
     ...(run.warnings.length ? { warnings: run.warnings } : {}),
   };
 }

@@ -14,7 +14,7 @@
 //   · a set that never changes must STILL be re-anchored, or every presentation against it ages out;
 //   · therefore the heartbeat interval must sit below the shortest `maxAge` any counterparty uses, and a
 //     presentation is deliberately short-lived. That is the cost of "a stale root is a refusal".
-import { createPublicClient, createWalletClient, http, keccak256, toHex, type Address, type Hex } from 'viem';
+import { createPublicClient, createWalletClient, encodeFunctionData, http, keccak256, toHex, type Address, type Hex } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 
 export const ESTATE_PROJECTION_REGISTRY_ABI = [
@@ -29,6 +29,28 @@ export const ESTATE_PROJECTION_REGISTRY_ABI = [
     { name: 'estateId', type: 'bytes32' }, { name: 'liveGrantRoot', type: 'bytes32' }, { name: 'membershipRoot', type: 'bytes32' },
     { name: 'charterHash', type: 'bytes32' }, { name: 'sequence', type: 'uint64' }], outputs: [] },
 ] as const;
+
+/** `DelegationManager.redeemDelegation` — hand-authored (the SDK publishes no ABI for it), so the projector can
+ *  anchor THROUGH the estate's registry agent instead of as a key of its own. */
+export const DELEGATION_MANAGER_ABI = [
+  { type: 'function', name: 'redeemDelegation', stateMutability: 'nonpayable', inputs: [
+    { name: 'delegations', type: 'tuple[]', components: [
+      { name: 'delegator', type: 'address' }, { name: 'delegate', type: 'address' }, { name: 'authority', type: 'bytes32' },
+      { name: 'caveats', type: 'tuple[]', components: [{ name: 'enforcer', type: 'address' }, { name: 'terms', type: 'bytes' }, { name: 'args', type: 'bytes' }] },
+      { name: 'salt', type: 'uint256' }, { name: 'signature', type: 'bytes' }] },
+    { name: 'target', type: 'address' }, { name: 'value', type: 'uint256' }, { name: 'data', type: 'bytes' }], outputs: [] },
+] as const;
+
+/** The wire a projector anchors under (spec 439 §4): the estate's registry agent delegating `setRoots` to one key. */
+export interface AnchoringWireV1 {
+  type: 'ap.anchoring-wire.v1';
+  chainId: number;
+  delegationManager: Address;
+  registry: Address;
+  digest: Hex;
+  wire: { delegator: Address; delegate: Address; authority: Hex; caveats: Array<{ enforcer: Address; terms: Hex; args?: Hex }>; salt: string; signature: Hex };
+  validUntil: number;
+}
 
 export const ZERO_32 = `0x${'00'.repeat(32)}` as Hex;
 
@@ -64,7 +86,7 @@ export interface RegistryClient {
   roots(estateId: Hex): Promise<AnchoredState>;
   estateIdOf(chainId: number, governance: Address): Promise<Hex>;
   register(estateId: Hex, signer: Address, key: Hex): Promise<Hex>;
-  setRoots(input: { estateId: Hex; liveGrantRoot: Hex; membershipRoot: Hex; charterHash?: Hex; sequence: number }, key: Hex): Promise<Hex>;
+  setRoots(input: { estateId: Hex; liveGrantRoot: Hex; membershipRoot: Hex; charterHash?: Hex; sequence: number }, key: Hex, wire?: AnchoringWireV1): Promise<Hex>;
 }
 
 export function registryClient(opts: { rpcUrl: string; chainId: number; address: Address }): RegistryClient {
@@ -92,11 +114,29 @@ export function registryClient(opts: { rpcUrl: string; chainId: number; address:
       await pub.waitForTransactionReceipt({ hash });
       return hash;
     },
-    async setRoots(input, key) {
-      const hash = await wallet(key).writeContract({
-        ...base, functionName: 'setRoots',
-        args: [input.estateId, input.liveGrantRoot, input.membershipRoot, input.charterHash ?? ZERO_32, BigInt(input.sequence)],
-      });
+    async setRoots(input, key, wire) {
+      const args = [input.estateId, input.liveGrantRoot, input.membershipRoot, input.charterHash ?? ZERO_32, BigInt(input.sequence)] as const;
+      // TWO WAYS TO BE THE SIGNER, and the chain can tell them apart (spec 439 §4).
+      //
+      //   with a wire — the registry agent IS `signerOf(estateId)`, and this key merely holds a revocable permission
+      //   to call `setRoots` on its behalf. The manager executes through the agent's account, so the registry sees
+      //   `msg.sender == the agent`. Revoking the wire stops this key anchoring, at once, without touching the agent.
+      //
+      //   without one — the key itself is the registered signer. That is what F1 shipped and what §4 said to leave
+      //   behind: a secret that IS the estate's voice rather than something the estate lent.
+      //
+      // Not a fallback (ADR-0013): the deployment says which, and a wire that does not verify fails rather than
+      // quietly writing as the bare key.
+      if (wire) {
+        const d = { ...wire.wire, salt: BigInt(wire.wire.salt), caveats: wire.wire.caveats.map((c) => ({ ...c, args: c.args ?? '0x' })) };
+        const hash = await wallet(key).writeContract({
+          address: wire.delegationManager, abi: DELEGATION_MANAGER_ABI, functionName: 'redeemDelegation',
+          args: [[d], opts.address, 0n, encodeFunctionData({ abi: ESTATE_PROJECTION_REGISTRY_ABI, functionName: 'setRoots', args })],
+        });
+        await pub.waitForTransactionReceipt({ hash });
+        return hash;
+      }
+      const hash = await wallet(key).writeContract({ ...base, functionName: 'setRoots', args });
       await pub.waitForTransactionReceipt({ hash });
       return hash;
     },

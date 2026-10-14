@@ -43,8 +43,16 @@ estates:
     governanceName: imbnet.estate          # on-chain: AgentNameRegistry owner of `imbnet.estate`
     # The key that anchors this estate's roots. `register` binds it once; `rotateSigner` moves it. The
     # address is public by construction (the registry stores it); the key is this estate's own secret.
-    signer: "0xAdcd7257De9686061C0838154cA77790C79a9EfD"
-    signerKeyEnv: IMBNET_PROJECTION_SIGNER
+    # THE SIGNER IS THE ESTATE'S REGISTRY AGENT (spec 439 §4, 2026-10-14) — a Smart Agent custodied by a person OF THIS
+    # ESTATE (maya, through impact-agent.me), declaring `atl:estate: imbnet.estate`. `signerOf` on neutral ground is
+    # this account, so anchoring is an act of the estate's own agent, not of a key somebody holds.
+    signer: "0x432FE71eAB5442220Cb0CBb6974f741093De8Bd7"
+    signerKind: registry-agent
+    signerCustodian: "maya (a person of this estate, via its Home)"
+    # The key the projector holds is a DELEGATE under a wire this agent signed: `setRoots` on the registry, nothing
+    # else, time-bounded, revocable on chain in one transaction without touching the agent (ADR-0019).
+    anchorDelegateKeyEnv: IMBNET_PROJECTION_SIGNER
+    anchoringWire: .secrets/anchoring-wire-imbnet.json
     # Revocation is read on the ESTATE'S chain, and this is the contract that answers (Ring 0
     # `deployments-faithchain.json#delegationManager`). No address here means nothing can be pruned, and the
     # projector then refuses to vouch for a set it cannot narrow.
@@ -79,8 +87,13 @@ estates:
     governanceKind: estate-agent
     governanceName: faithnet.estate         # on-chain: AgentNameRegistry owner of `faithnet.estate`
     governanceCustody: "demo-admin persona (demo/personas.local.json), the owner's choice 2026-10-14"
-    signer: "0x9d0C710b73a9E0CD103A1A7034F871C852d8657e"
-    signerKeyEnv: FAITHNET_PROJECTION_SIGNER
+    # As imbnet: the signer is this estate's registry agent, custodied by demo-admin (a person of this estate),
+    # declaring `atl:estate: faithnet.estate`. The projector's key is a revocable delegate under its wire.
+    signer: "0xdfdAE0a37D35b72D8E2a4E3464087d43d0eB0b5b"
+    signerKind: registry-agent
+    signerCustodian: "demo-admin (a person of this estate)"
+    anchorDelegateKeyEnv: FAITHNET_PROJECTION_SIGNER
+    anchoringWire: .secrets/anchoring-wire-faithnet.json
     delegationManager: "0x710cb1bF08C234Df397e0910331e0A29710EF4F7"
     profileResolver: "0xB03F7C06ad3274F584AB72794406D639c02A45e1"
     declaredOnChain: true

@@ -77,13 +77,15 @@
 | P2 | The projector now runs as a Worker on a six-hourly cron, with the submissions in a Durable Object (`pnpm projector push` moved them off the operator's `.submissions/`). It prunes and rebuilds before every anchor and never re-asserts a root it did not just rebuild — a heartbeat that did would extend the life of a revoked grant. | `apps/projector/worker` |
 | P3 | A scheduled job is not a submitter. Its ledger is read-only by construction: `add` and `retire` throw, because inclusion is a submission someone made (F1.1) and a cron is not someone. | `worker/index.ts` `readOnlyLedger` |
 | P5 | The alarm that was missing: `gate:freshness` fails RED when any estate is within three hours of a verifier refusing it. An estate that cannot be proved is not a passing estate, so it is a failure and not a warning. | `scripts/gate-projector-freshness.mts` |
-| P4 | Still not spec 439 §4's shape: the anchoring keys are Worker secrets, not keys the registry agent holds, and the store is serving-plane rather than that agent's vault. Better than a laptop; not the destination. | `DEPLOYER.md` |
+| P4 | **§4's shape reached (2026-10-14):** `signerOf` is each estate's `.registry` service agent, custodied by a person of that estate and declaring `atl:estate`. The job holds a delegate key under a wire pinned to `setRoots` and nothing else; without the wire the key reverts, and revoking it on chain stops the job without touching the agent. | `apps/projector`; ap-home `charter-service-agent.mts`, `issue-anchoring-wire.mts`, `rotate-projection-signer.mts` |
+| P6 | An agent belongs to an estate, so a person of **that** estate should custody it. imbnet's registry agent was first chartered under the estate's interactions key — a runtime secret, not a person — and was re-chartered under maya through imbnet's own Home, with the custodian address recovered from a probe signature so her key never left it. The same error still stands in `imb-estate.workspace` (F3.2). | spec 439 §7.11 |
+| P7 | Rotating the signer broke the F2.5 cross-check until each estate agent's `atl:projectionSigner` was updated to match. The chain's signer and the estate's declaration have to move together, and the doors refuse while they disagree — which is the check working. | `set-projection-signer.mts`, `estate-agent-declare.mts` |
 
 ## Still owed
 
 | What | Needs |
 | --- | --- |
 | the two-chain twin | a second chain |
-| receipts and submissions into the registry agent's **vault** (both are in Durable Objects now, which is serving plane) | the registry agent as the projector (spec 439 §4) |
+| receipts and submissions into the registry agent's **vault** (both are in Durable Objects; the agent now exists and signs, but holds no vault) | the registry agent running the harness (spec 433's Service Host) |
 | F4, the NANDA adapter | NANDA's normative document digested into the standards lock |
 | KMS conditions #1 and #4; the host move | the owner, on the CVM |

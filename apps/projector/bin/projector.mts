@@ -21,7 +21,7 @@ import { makeAuthorityPresentation, verifyAuthorityPresentation, type AuthorityP
 import type { Address, Hex } from 'viem';
 import { estateById, loadFederation, registryRpc, requireProjectable, signerKey } from '../src/config.js';
 import { fileLedger } from '../src/ledger.js';
-import { readDeclaredSigner, registryClient, type DeclaredSigner } from '../src/anchor.js';
+import { readDeclaredSigner, registryClient, type AnchoringWireV1, type DeclaredSigner } from '../src/anchor.js';
 import { buildForSequence, projectEstate } from '../src/project.js';
 import { isRevokedReader } from '../src/revocation.js';
 
@@ -33,6 +33,12 @@ const has = (k: string) => argv.includes(`--${k}`);
 const REGISTER = flag('register-file') ?? 'federation.yaml';
 const f = loadFederation(REGISTER);
 const rpc = registryRpc(f);
+/** `.secrets/anchoring-wire-<estate>.json`, when the operator has one. Absent is not an error here: an estate whose
+ *  signer is still a bare key anchors the old way, and `projector status` says which it is. */
+const anchoringWire = (estate: string): AnchoringWireV1 | null => {
+  const p = `.secrets/anchoring-wire-${estate}.json`;
+  try { return JSON.parse(readFileSync(p, 'utf8')) as AnchoringWireV1; } catch { return null; }
+};
 /** The estate agent's own declaration (spec 439 F2.5), read from the estate's chain — neutral ground's RPC while they share one. */
 const declaredSignerFor = (estate: { chainId: number; governance: Address; profileResolver?: Address }): Promise<DeclaredSigner> =>
   readDeclaredSigner({ rpcUrl: rpc, chainId: estate.chainId, governance: estate.governance, profileResolver: estate.profileResolver ?? ('0xB03F7C06ad3274F584AB72794406D639c02A45e1' as Address) });
@@ -118,6 +124,9 @@ if (cmd === 'status') {
     liveness: { isRevoked: await isRevokedReader(estate) },
     refreshAfterSeconds: REFRESH_AFTER,
     ...(dry ? {} : { signerKey: signerKey(estate) }),
+    // The wire the estate's registry agent lent this key (spec 439 §4), when this operator holds one. Without it the
+    // key anchors as itself, which only works while it is still the registered signer.
+    ...(anchoringWire(estate.id) ? { anchoringWire: anchoringWire(estate.id)! } : {}),
   });
   for (const w of run.warnings) console.log(`⚠ ${w}`);
   console.log(`${estate.id} · estateId ${run.estateId}`);

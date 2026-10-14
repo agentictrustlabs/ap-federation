@@ -19,17 +19,25 @@ runs against it:
 | `apps/door` — **door-faithnet.ap-federation.faithnet.io** (the receiving door in front of faithnet's A2A door, target alice.me) | Cloudflare Worker `ap-federation-door-faithnet`, env `faithnet`, its own DO and `DOOR_SECRET` | ap-federation (`pnpm door:deploy`) | 2026-10-14 |
 | `apps/nanda-adapter` (F4) | per town | ap-federation | — |
 
-**The projector runs on a schedule now, and still is not the estate's `.registry` service agent** (spec 439 §4 says it
-must be). Since 2026-10-14 a Worker ticks every six hours: it reads the submissions, prunes every leaf against the
-chain, rebuilds the roots and anchors them when they changed or when the last anchor is older than six hours. That
-closes the failure this file predicted and nobody had felt — on the morning of 2026-10-14 both estates' anchors were
-ten hours old against the doors' twenty-four-hour window, about thirteen hours from refusing every presentation.
-What is still wrong: the anchoring keys are Worker secrets, not a key the registry agent holds, and the job is a cron
-rather than that agent's own schedule.
+**The projector anchors as each estate's registry agent, on a schedule** (spec 439 §4). Since 2026-10-14
+`signerOf(estateId)` on neutral ground is the estate's own `.registry` service agent — a Smart Agent custodied by a
+person **of that estate** (faithnet's by demo-admin, imbnet's by maya through its own Home), each declaring
+`atl:estate`. The job holds a **delegate key** under a wire that agent signed: `setRoots` on the registry, nothing
+else, time-bounded. Without the wire the key reverts; revoking it on chain stops the job without touching the agent,
+its name, or anything else it may later hold. A Worker ticks every six hours: read the submissions, prune every leaf
+against the chain, rebuild, anchor on change or on age.
 
-Submissions and openings live in `.submissions/` (gitignored, 0600) on that same machine. Also the wrong
-place and said so in the code: the estate's copy belongs in the registry agent's vault and the holder's in
-the holder's (ADR-0055). It is a port, so moving it is a binding change.
+That closes both halves of what this file used to warn about. The staleness: on the morning of 2026-10-14 both
+estates' anchors were ten hours old against the doors' twenty-four-hour window, about thirteen hours from refusing
+every presentation. And the custody: the anchoring keys *were* the estates' voices, two secrets on one Worker that
+anyone with that account could have spoken with.
+
+Submissions and openings now live in the Worker's Durable Object (`pnpm projector push` moved them off the operator's
+`.submissions/`, which remains the local ledger for building a presentation). A Durable Object is a better place than
+a laptop — one writer, survives the laptop, readable by the job that needs it — and it is still not the place: the
+estate's copy belongs in the registry agent's **vault** and the holder's in the holder's (ADR-0055). The agent now
+exists and signs; giving it a vault is spec 433's Service Host, and is the piece left. It is a port, so moving it is
+a binding change.
 
 ## Shared operators (spec 440 §A2)
 

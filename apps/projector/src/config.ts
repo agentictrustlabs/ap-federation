@@ -33,7 +33,13 @@ export interface EstateRow {
   governanceKind: 'estate-agent' | 'none' | string;
   governanceName?: string;
   signer?: Address;
+  /** The env var holding the key that WRITES. Under spec 439 §4 that key is a DELEGATE under the registry agent's
+   *  wire, not the signer itself — `anchorDelegateKeyEnv` is the name for that, and `signerKeyEnv` is the older
+   *  shape kept for an estate that has not moved yet. One of them, never both. */
   signerKeyEnv?: string;
+  anchorDelegateKeyEnv?: string;
+  signerKind?: 'key' | 'registry-agent';
+  anchoringWire?: string;
   /** The estate's own chain endpoint, when it is not neutral ground's. An estate on a second chain MUST name it. */
   rpcEnv?: string;
   /** Where revocation is read from on the estate's chain (`DelegationManager`). No address ⇒ nothing prunes ⇒ nothing is vouched for. */
@@ -93,8 +99,9 @@ export function registryRpc(f: Federation, env: NodeJS.ProcessEnv = process.env)
 
 /** The estate's anchoring key, from the environment its row names. */
 export function signerKey(row: EstateRow, env: NodeJS.ProcessEnv = process.env): Hex {
-  if (!row.signerKeyEnv) throw new Error(`estate ${row.id} names no signerKeyEnv, so nothing here can anchor for it`);
-  const k = (env[row.signerKeyEnv] ?? '').trim();
-  if (!/^0x[0-9a-fA-F]{64}$/.test(k)) throw new Error(`${row.signerKeyEnv} is not set to a 32-byte key — that key is the estate's voice on neutral ground`);
+  const name = row.anchorDelegateKeyEnv ?? row.signerKeyEnv;
+  if (!name) throw new Error(`estate ${row.id} names no anchorDelegateKeyEnv (or signerKeyEnv), so nothing here can anchor for it`);
+  const k = (env[name] ?? '').trim();
+  if (!/^0x[0-9a-fA-F]{64}$/.test(k)) throw new Error(`${name} is not set to a 32-byte key — ${row.anchorDelegateKeyEnv ? "it is the key this estate's registry agent lent the right to anchor" : "that key is the estate's voice on neutral ground"}`);
   return k as Hex;
 }

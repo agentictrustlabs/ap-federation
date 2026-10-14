@@ -17,7 +17,7 @@
 // re-anchor to refresh a root it did not rebuild; or claim a live-grant root it did not prune. The empty
 // set's root is `0x00…00`, which is also what an estate that has never anchored reads as — an ambiguity
 // that is safe in exactly one direction, since every presentation against it fails inclusion.
-import type { DeclaredSigner } from './anchor.js';
+import type { AnchoringWireV1, DeclaredSigner } from './anchor.js';
 import { buildProjection, type EstateProjectionV1 } from '@agenticprimitives/estate-projection';
 import type { Hex } from 'viem';
 import { anchorDecision, type AnchorDecision, type AnchoredState, type RegistryClient } from './anchor.js';
@@ -49,6 +49,9 @@ export interface ProjectDeps {
   signerKey?: Hex;
   /** What the estate agent declares on its own chain (spec 439 F2.5), when the run read it. */
   declaredSigner?: DeclaredSigner;
+  /** The wire the estate's registry agent lent this key to anchor under (spec 439 §4). Absent ⇒ the key is the
+   *  registered signer itself, which is what §4 says to leave behind. */
+  anchoringWire?: AnchoringWireV1;
 }
 
 /**
@@ -132,6 +135,6 @@ export async function projectEstate(estate: ProjectableEstate, deps: ProjectDeps
     liveGrantRoot: projection.liveGrantRoot,
     membershipRoot: projection.membershipRoot,
     sequence: decision.sequence,
-  }, deps.signerKey);
+  }, deps.signerKey, deps.anchoringWire);
   return run;
 }
