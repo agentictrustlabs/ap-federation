@@ -57,6 +57,16 @@
 | N1 | Naming is a trust question answered per layer: CAIP-10 identity; a typed handle unique per registry; across towns the pair `{ name, chain }`, never bare; the DNS projection as a rented locator; trust as named signals. | `federated-agent-naming.md` |
 | N2 | **One universal namespace rooted on faithchain, ENS v2 style**, other chains joining without a second registry (the owner's decision 2026-10-14; amends N7). `atl:accounts` (accounts by chain) and `FederatedAgentNameV1` are built; the satellite claim path and the naming root wait for a second chain. | spec 440 §C; `federated-agent-naming.md` |
 
+## F4 — the NANDA adapter (2026-10-14)
+
+| # | Decision or finding | Where |
+| --- | --- | --- |
+| F4.1 | The lock entries came first and were read, not asserted: `nanda-index` and `nanda-agentfacts`, both with real digests. | Ring 0 `docs/standards-lock.json`; spec 439 §7.9 |
+| F4.2 | **The index is live and converged on ARD.** `api.nandaindex.org` answers; identifiers are ARD URNs and the entry shape is the AI Catalog shape — already pinned as `ard` — so the adapter adds no vocabulary. `application/a2a-agent-card+json` is first class, so an AP agent is indexed as itself. | spec 439 §7.9 |
+| F4.3 | **AgentFacts has no signature, proof or credential field** (verified against the live draft-07 schema) and has not moved since 2025-06-17 while the index moved this week; `spec.projectnanda.org` does not resolve. Project into it with a loss report; never read one as evidence. | spec 439 §7.9 |
+| F4.4 | The adapter is a **pure projection with a loss report** and three refusals (never authority, never an invented vocabulary, never membership). It prints; publishing is the estate's own act under its own verified domain. | `apps/nanda-adapter` |
+| F4.5 | Running it against the live town card surfaced that the card carries **no JWS signature** — spec 347 says a released card is signed, and the town agent's is not. The projection says so by omitting the signature loss line rather than inventing one. | `apps/nanda-adapter`; ap-town backlog |
+
 ## Still owed
 
 | What | Needs |

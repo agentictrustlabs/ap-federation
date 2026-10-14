@@ -1,0 +1,18 @@
+{
+  "name": "@ap-federation/nanda-adapter",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The NANDA interoperability adapter (spec 439 F4): a pure projection from an AP agent's released A2A card into a NANDA index entry, with a loss report for everything the index cannot carry. It lists; it never grants, never invents a vocabulary, and never claims membership.",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "project": "tsx bin/nanda.mts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3",
+    "vitest": "^4.1.8"
+  }
+}
