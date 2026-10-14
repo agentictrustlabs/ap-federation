@@ -31,7 +31,8 @@
     "nanda": "pnpm --filter @ap-federation/nanda-adapter project",
     "projector:deploy": "pnpm --filter @ap-federation/projector deploy:faithnet",
     "gate:freshness": "tsx scripts/gate-projector-freshness.mts",
-    "gate:vault-record": "tsx scripts/gate-vault-record.mts"
+    "gate:vault-record": "tsx scripts/gate-vault-record.mts",
+    "gate:pay-outward": "tsx scripts/gate-f3-pay-outward.mts"
   },
   "devDependencies": {
     "@agenticprimitives/a2a": "0.0.0-alpha.35",

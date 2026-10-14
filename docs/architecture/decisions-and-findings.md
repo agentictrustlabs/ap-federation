@@ -127,6 +127,20 @@ ADR-0055's test, applied to the three stores this federation runs, separated the
 | N3 | Its own OpenAPI declares **no security scheme at all**, while `POST /auth/login` returns `{token}` and the write routes plainly need it. So the auth is a bearer that the document does not describe — read the routes, not the schema's `security` field. | `api.nandaindex.org/docs/json` |
 | N4 | `nanda register` does the act in three steps that do not imply one another, needs a token for any of them, and reads `/api/v1/me` before any write so a stale token fails before a record is half-made. The account, the mailbox and the password stay with the operator. | `apps/nanda-adapter/src/register.ts` |
 
+## Paying outward (2026-10-14) — the other direction, and the rule it makes legible
+
+§6's positive half had a visitor PAID from a resident's treasury: the money was the resident's, so her wire
+authorized it. This is the reverse, and the asymmetry is the whole point.
+
+| # | Finding | Where |
+| --- | --- | --- |
+| O1 | **A resident of one estate paid a treasury in the other, under her own permission, and 3 USDC moved** (alice's faithnet treasury → maya's imbnet treasury, 75 → 78). No door, no presentation, no foreign standing: none of that machinery is involved, because nothing foreign is trusted. The permission was issued at her own home, for her own treasury, by her own custodian, and redeemed by her own harness. | `gate:pay-outward`, 8 checks |
+| O2 | **THE RULE, proven rather than asserted:** the other estate's own valid, signed standing wire derives NOTHING against this payer's requirement — "the run needs an act of 0x5ef5…; this wire is 0xdd16…". Neither estate honours a spending permission issued by the other, and the refusal is a subset check on the delegator, not a policy anyone had to write. | the gate's third check |
+| O3 | **Receiving needs no authority at all**, which is why this direction works today with a payee that has none of the setup a payer needs. The receiving estate checks one thing: that the money arrived. | the doctrine |
+| O4 | The wire's own bounds hold in this direction too: another payee and an over-cap amount derive nothing, and the identical intent repeated is refused on chain as a reused nonce (`0x435fd071`). One intent, one payment. | the gate's last three checks |
+| O5 | **maya cannot yet PAY from her treasury**, which is why the demonstration runs faithnet → imbnet rather than the reverse. Her treasury carries a `displayName` and nothing else: no `atl:agentType`, so it is not typed as a treasury, and no modelled relationship to her, so her agent answers "You have no treasury to be paying from." Receiving into it works regardless. Provisioning, not architecture. | `0xdd16de81…` |
+| O6 | Still one chain. Both treasuries are on faithchain, so the money never crosses chains. Paying from a treasury on chain A to one on chain B needs a way to move value between them, which stays open (spec 243 reserves it). | the honest limit |
+
 ## Still owed
 
 | What | Needs |

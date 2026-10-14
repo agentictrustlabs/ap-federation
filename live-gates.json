@@ -77,6 +77,18 @@
    "env": {
     "FEDERATION_VAULT_SECRET_DIR": ".secrets"
    }
+  },
+  {
+   "id": "pay-outward",
+   "script": "scripts/gate-f3-pay-outward.mts",
+   "spec": "specs/439 \u00a76 / \u00a77.16 (Ring 0)",
+   "proves": "the OTHER payment direction: a resident pays a treasury in the other estate under HER OWN permission, issued at her own home for her own treasury, redeemed by her own harness. The receiving estate grants nothing and checks only that the money arrived.",
+   "twin": "the other estate's own valid, signed standing wire derives NOTHING against this payer's requirement \u2014 neither estate honours a spending permission issued by the other. Plus the wire's own bounds: another payee and an over-cap amount derive nothing, and the identical intent repeated is refused on chain as a reused nonce.",
+   "required": true,
+   "timeoutSec": 420,
+   "env": {
+    "FEDERATION_PAYER_HOME": "https://www.faithnet.me"
+   }
   }
  ]
 }
