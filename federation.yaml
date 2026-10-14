@@ -188,13 +188,14 @@ kms:
       estate: faithnet
       town: faithchain
       backend: akcs
-      # The first tenant, bound before the per-Worker rule existed: faithnet's Workers, its second deployment
-      # (faithnet-b) and the service skills-a2a share its credential — spec 407 D10's finding, condition 1 OPEN.
-      # From `akcs operator status` on 2026-10-14 (non-secret metadata). The first caller holds `*` — every operation
-      # — which is the shared, over-broad credential of spec 407 D10; it is tolerated by the check ONLY because
-      # this row says so (`sharedCredential: true`). 423 logical keys, all CVM_WRAPPED.
+      # Re-bound 2026-10-14 (condition 1): the Home's two Workers hold SEPARATE credentials and the shared
+      # `demo-a2a-faithnet` caller with operations ["*"] is DISABLED, with the nine narrowings tried on the way.
+      # Nine ACTIVE callers of twenty rows — a disabled row is never deleted, so the history of who could do what
+      # stays readable. The seven key-public-key/key-sign callers are services that only sign for themselves.
+      # From `akcs operator status` on the CVM (non-secret metadata). 423 logical keys, all CVM_WRAPPED.
       callers:
-        - { subject: demo-a2a-faithnet, worker: demo-a2a-faithnet, operations: ["*"], protectionLevels: [CVM_WRAPPED] }
+        - { subject: demo-mcp-faithnet-vault-5, worker: demo-mcp-faithnet, operations: [status, data-key-generate, data-key-unwrap, mac-generate, mac-verify, key-create, key-read, key-public-key, key-sign, derived-signer-resolve, derived-signer-sign], protectionLevels: [CVM_WRAPPED] }
+        - { subject: demo-a2a-faithnet-runtime-6, worker: demo-a2a-faithnet, operations: [status, data-key-generate, data-key-unwrap, derived-signer-resolve, derived-signer-sign, mac-generate, mac-verify, key-create, key-read, key-public-key, key-sign], protectionLevels: [CVM_WRAPPED] }
         - { subject: skills-a2a-faithnet, worker: skills-a2a, operations: [key-public-key, key-sign], protectionLevels: [CVM_WRAPPED] }
         - { subject: field-a2a-faithnet, worker: field-a2a-faithnet, operations: [key-public-key, key-sign], protectionLevels: [CVM_WRAPPED] }
         - { subject: gather27-a2a-faithnet, worker: gather27-a2a-faithnet, operations: [key-public-key, key-sign], protectionLevels: [CVM_WRAPPED] }
@@ -202,8 +203,11 @@ kms:
         - { subject: demo-bible-mcp-faithnet, worker: demo-bible-mcp-faithnet, operations: [key-public-key, key-sign], protectionLevels: [CVM_WRAPPED] }
         - { subject: scripture-validator, operations: [key-public-key, key-sign], protectionLevels: [CVM_WRAPPED] }
         - { subject: coach-a2a-faithnet, worker: coach-a2a-faithnet, operations: [key-public-key, key-sign], protectionLevels: [CVM_WRAPPED] }
-      sharedCredential: true
-      note: "demo-a2a-faithnet is bound with operations * — re-bind it per operation (runbook step 2) and disable it; gather27-churchglobal-faithnet is already DISABLED and not listed"
+      # The runtime still holds RAW_32_BYTE_DIGEST (condition 1's residual): the relayer signs EIP-155 transaction
+      # digests that no purpose in the enum describes, and the interactions-session key signs a 32-byte DEL-001 leaf
+      # that is really EIP-712. Neither is the custody key.
+      rawDigestGrant: [demo-a2a-faithnet-runtime-6]
+      note: "faithnet-b, the second deployment, has no caller of its own yet — it is the next thing this tenant owes (spec 366 R5)"
     - tenant: impact
       estate: impact
       town: base-sepolia
