@@ -249,8 +249,12 @@ kms:
         reply, after which the run asked "You have no treasury to be paying from" — a credential error wearing a
         domain question's clothes. Operations were never the cause; three attempts added operations and failed.
         RESIDUAL, named not hidden: the runtime still holds RAW_32_BYTE_DIGEST, which is a signature over bytes
-        whose meaning nothing can check. What signs a raw digest on the playbook-read path should be moved to a
-        typed purpose and the grant then dropped. Each Worker also still holds a superset of what it calls; the
+        whose meaning nothing can check. Two sites need it today (ap-home apps/agent-runtime): the relayer, which
+        signs EIP-155 transaction digests that no purpose in the enum describes, and the interactions-session key,
+        which signs the 32-byte DEL-001 leaf digest. The first wants a typed `EIP155_TRANSACTION` purpose in
+        faithkms; the second is an EIP-712 digest and should say so. Then the grant drops. Until then the custody
+        key and the relay key are deliberately separate, so the blast radius of the raw grant is the relayer's own
+        key and the session-leaf key, not a person's. Each Worker also still holds a superset of what it calls; the
         floor this condition asserts is per-Worker credentials and no key-rotate, key-disable or
         key-schedule-destruction, which "*" wrongly granted.
     - id: 2
