@@ -131,7 +131,10 @@ one resident, one payment, and the two refusals that sit beside it.
 | 8 | The visitor **derives the child mandate** for that intent from alice's standing wire and continues the same task presenting the chain. | payee, asset, amount and window are a subset of the wire; the child is bound to this intent and plan | the resident's one decision covers this act and nothing wider |
 | 9 | The harness verifies every link and runs the step. 5 USDC moves from alice's treasury to the visitor's. | the chain enforces the caveats at redemption | **authority stayed at faithnet**, with alice, the whole time |
 
-**The two refusals beside it** (also run every time)
+**The three refusals beside it** (also run every time)
+
+- The visitor repeats **the identical ask**. Same intent, same nonce: the chain refuses the second redemption as a
+  reuse. One intent is one payment, whatever the visitor sends twice.
 
 - The visitor asks alice's agent to **send a message** on its behalf. No wire covers that. The harness refuses at
   the authority stage: *"messaging.direct.send needs a steward at alice.me."* Standing is not a mandate.

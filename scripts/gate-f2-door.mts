@@ -144,7 +144,13 @@ if (existsSync(standingFile)) {
   if (!/^0x[0-9a-f]{40}$/.test(payee)) throw new Error('the standing wire names no payee');
   const before = (await pub.readContract({ address: SHQ, abi: ERC20, functionName: 'balanceOf', args: [payee] })) as bigint;
   const c3a = await challenge();
-  const ask = await knock({ pres: present(c3a.nonce, c3a.audience), challengeHeader: c3a.header, path: '/a2a', originAudience, text: `Pay 5 ${symbol} from ${standing.treasuryName ?? 'your treasury'} to ${payee}.` });
+  // ONE INTENT, ONE PAYMENT. The enforcer's nonce is derived from the intent digest (spec 336 §8.3), so the same ask is
+  // the same payment and the chain refuses it twice (NonceReused). Each run is a distinct intent by its reference —
+  // and the identical ask, repeated below, is §6 step 4: handled as a duplicate, never a second payment.
+  const reference = `federation-gate ${new Date().toISOString().slice(0, 16)} ${Math.random().toString(36).slice(2, 6)}`;
+  // The payee address stays LAST in the sentence: the planner has twice glued the words after it into the payee.
+  const askText = `Memo ${reference}: pay 5 ${symbol} from ${standing.treasuryName ?? 'your treasury'} to ${payee}`;
+  const ask = await knock({ pres: present(c3a.nonce, c3a.audience), challengeHeader: c3a.header, path: '/a2a', originAudience, text: askText });
   const askTask = (ask.json?.result as { task?: { id?: string; status?: { state?: string; message?: { parts?: Array<{ text?: string; data?: Record<string, unknown> }> } }; metadata?: { runRef?: string } } } | undefined)?.task;
   const parkedData = askTask?.status?.message?.parts?.find((pt) => pt.data)?.data;
   const need = parkedNeedOf(parkedData);
@@ -162,6 +168,24 @@ if (existsSync(standingFile)) {
       check('§6 positive: the same task continues under the presented chain and COMPLETES — the estate\'s harness verified every link before the money moved', doneTask?.status?.state === 'TASK_STATE_COMPLETED', `${doneTask?.status?.state ?? cont.status} · "${said.slice(0, 120)}"`);
       check('§6 positive: 5 ' + symbol + ' actually moved from the treasury to the wire\'s payee', after - before === 5_000_000n, `payee balance ${Number(before) / 1e6} → ${Number(after) / 1e6} ${symbol}`);
       check('§6 positive: the completed act still carries the verified foreign standing and names its run', doneTask?.metadata?.foreignStanding?.verified === true && typeof doneTask?.metadata?.runRef === 'string', doneTask?.metadata?.runRef ?? '');
+      // §6 step 4 — THE SAME INTENT AGAIN. Same words, same reference ⇒ the same intent digest ⇒ the same nonce. The
+      // run parks and the child derives like before; the chain refuses the redemption as a reuse. One intent, one payment.
+      const c3d = await challenge();
+      const again = await knock({ pres: present(c3d.nonce, c3d.audience), challengeHeader: c3d.header, path: '/a2a', originAudience, text: askText });
+      const againTask = (again.json?.result as { task?: { id?: string; status?: { state?: string; message?: { parts?: Array<{ data?: Record<string, unknown> }> } } } } | undefined)?.task;
+      const needAgain = parkedNeedOf(againTask?.status?.message?.parts?.find((pt) => pt.data)?.data);
+      let againState = againTask?.status?.state ?? String(again.status); let againSaid = '';
+      if (needAgain && againTask?.id) {
+        const d2 = await deriveFromStanding(standing, needAgain, (digest) => me.signMessage({ message: { raw: digest } }));
+        if (d2.ok) {
+          const c3e = await challenge();
+          const cont2 = await knock({ pres: present(c3e.nonce, c3e.audience), challengeHeader: c3e.header, path: '/a2a', originAudience, text: 'Here is the mandate for that payment.', taskId: againTask.id, metadata: { presented: d2.presented } });
+          const t2 = (cont2.json?.result as { task?: { status?: { state?: string; message?: { parts?: Array<{ text?: string }> } } } } | undefined)?.task;
+          againState = t2?.status?.state ?? String(cont2.status); againSaid = t2?.status?.message?.parts?.find((pt) => pt.text)?.text ?? '';
+        }
+      }
+      const afterAgain = (await pub.readContract({ address: SHQ, abi: ERC20, functionName: 'balanceOf', args: [payee] })) as bigint;
+      check('§6 step 4: the identical intent repeated is handled as a DUPLICATE — the chain refuses the reused nonce and no second payment moves', againState === 'TASK_STATE_REJECTED' && /nonce|reverted|reused/i.test(againSaid) && afterAgain === after, `${againState} · "${againSaid.slice(0, 90)}" · payee still ${Number(afterAgain) / 1e6} ${symbol}`);
     }
   }
   // the twin: the wire names ONE payee; a payment to anyone else is not a subset and derives nothing

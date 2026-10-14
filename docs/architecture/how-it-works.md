@@ -87,7 +87,8 @@ treasury's custodian and revocable on chain like any delegation.
 | 21 | **The visitor derives the child for that intent** from the standing wire (`deriveFromStanding`): a subset check on payee, asset, amount, window; a digest binding to the intent and the plan; signed with the visitor's key. | `@agenticprimitives/delegation` |
 | 22 | The visitor continues **the same task**, presenting `[child, standing]` in the message's metadata. | A2A `SendMessage` with `taskId` |
 | 23 | The estate's harness re-enters the run, verifies every link of the chain and the intent binding, and the step runs: *"Done — make payments: done, on chain."* 5 USDC lands in the visitor's treasury. | ap-home `resumeAsAgent`, `mandate-verifier` |
-| 24 | **The twin:** the same wire, a payment to any other payee — not a subset, nothing derives, the run stays parked for the steward. | `gate-f2-door` |
+| 24 | **The duplicate (spec 439 §6 step 4):** the identical ask again. Same words, same reference, so the same intent digest and the same nonce; the run parks and the child derives as before; **the chain refuses the redemption as a reused nonce** and no second payment moves. One intent, one payment. | `PaymentEnforcer` `NonceReused` |
+| 25 | **The twin:** the same wire, a payment to any other payee — not a subset, nothing derives, the run stays parked for the steward. | `gate-f2-door` |
 
 Three rules the building enforced on the way, all correct and all recorded:
 
@@ -98,6 +99,9 @@ Three rules the building enforced on the way, all correct and all recorded:
   profile, and the wire names it.
 - **The asset is the treasury's rail.** The ask said "SHQ"; the treasury pays USDC; the wire had to name USDC or
   derivation refused the subset. A standing wire names the asset the treasury actually pays in.
+- **One intent is one payment.** The gate first repeated its own ask word for word every run and the chain refused the
+  second redemption with `NonceReused`. Each run now carries a distinct memo, and the identical ask is asserted as a
+  duplicate on purpose.
 
 ## What is not yet shown
 
