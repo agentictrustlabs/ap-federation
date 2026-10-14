@@ -10,7 +10,8 @@
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
-    "projector": "tsx bin/projector.mts"
+    "projector": "tsx bin/projector.mts",
+    "deploy:faithnet": "wrangler deploy --env faithnet"
   },
   "dependencies": {
     "@agenticprimitives/estate-projection": "0.0.0-alpha.9",
@@ -21,6 +22,8 @@
     "@types/node": "^22.10.0",
     "tsx": "^4.19.2",
     "typescript": "^5.7.3",
-    "vitest": "^4.1.8"
+    "vitest": "^4.1.8",
+    "@cloudflare/workers-types": "4.20260605.1",
+    "wrangler": "4.93.0"
   }
 }

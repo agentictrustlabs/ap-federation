@@ -28,7 +28,8 @@
     "door:deploy": "pnpm --filter @ap-federation/door deploy:imbnet && pnpm --filter @ap-federation/door deploy:faithnet",
     "gate:door": "tsx scripts/gate-f2-door.mts",
     "gate:twin": "tsx scripts/gate-f3-twin.mts",
-    "nanda": "pnpm --filter @ap-federation/nanda-adapter project"
+    "nanda": "pnpm --filter @ap-federation/nanda-adapter project",
+    "projector:deploy": "pnpm --filter @ap-federation/projector deploy:faithnet"
   },
   "devDependencies": {
     "@agenticprimitives/a2a": "0.0.0-alpha.35",

@@ -166,6 +166,28 @@ if (cmd === 'status') {
     ? `VERIFIED: ${verdict.subject} holds a live ${verdict.set} leaf in estate ${verdict.estateId} as of sequence ${verdict.sequence}.\n  This authorizes nothing. The receiving estate still decides, under its own mandate, per step.`
     : `REFUSED (${verdict.code}): ${verdict.reason}`);
   if (!verdict.ok) process.exit(2);
+} else if (cmd === 'push') {
+  // PUSH THE LOCAL LEDGER TO THE DEPLOYED STORE — the one-time migration off `.submissions/`, and the way an operator
+  // vouches for a leaf once the scheduled projector is the one anchoring. The rows are the same rows; the opening
+  // (digest + blind) travels because the deployed job needs it to rebuild the tree, and it goes over TLS to one
+  // Worker, authenticated by the ops token. It is still not a vault (ADR-0055) — see DEPLOYER.md.
+  const row = estateById(f, estateFlag());
+  const to = (flag('to') ?? process.env.FEDERATION_PROJECTOR_URL ?? die('--to <https://projector…> (or FEDERATION_PROJECTOR_URL) is required')).replace(/\/$/, '');
+  const token = process.env.FEDERATION_OPS_TOKEN ?? die('FEDERATION_OPS_TOKEN is required — the deployed store takes writes only from the operator');
+  const rows = ledgerFor(row.id).list();
+  if (!rows.length) die(`nothing in the local ledger for ${row.id}`);
+  let added = 0, already = 0, retired = 0;
+  for (const r of rows) {
+    const res = await fetch(`${to}/ops/submit`, { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` }, body: JSON.stringify(r) });
+    const b = (await res.json().catch(() => ({}))) as { added?: boolean };
+    if (!res.ok) die(`${to} refused ${r.digest.slice(0, 12)}…: HTTP ${res.status}`);
+    b.added ? added++ : already++;
+    if (r.retired) {
+      await fetch(`${to}/ops/retire`, { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` }, body: JSON.stringify({ estate: r.estate, set: r.set, digest: r.digest, reason: r.retired.reason }) });
+      retired++;
+    }
+  }
+  console.log(`${row.id} → ${to}: ${added} added, ${already} already there, ${retired} retirement(s) carried over (${rows.length} row(s) local)`);
 } else {
-  die(`unknown command "${cmd}" — status | register | submit | retire | project | present | verify`);
+  die(`unknown command "${cmd}" — status | register | submit | retire | project | present | verify | push`);
 }

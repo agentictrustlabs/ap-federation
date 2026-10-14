@@ -35,6 +35,26 @@ pnpm projector verify --file <presentation.json>
 Submissions and openings live in `.submissions/` on the operator's machine. Both belong in the estate's registry
 agent's vault; the port exists and moving it is a binding change (`DEPLOYER.md`).
 
+## The scheduled projector
+
+```
+pnpm projector:deploy                       # apps/projector → projector.ap-federation.faithnet.io
+GET  <projector>/status                     # per estate: sequence, anchor age, live leaves, seconds until a verifier refuses it
+POST <projector>/ops/project                # run now (ops token)
+POST <projector>/ops/submit | /ops/retire   # write to the deployed store (ops token)
+pnpm projector push --estate <id> --to <projector>   # move a local ledger into the deployed store
+```
+
+A tick every six hours prunes each estate's leaves against the chain, rebuilds the roots, and anchors them when they
+changed **or** when the last anchor is older than six hours. It never re-anchors roots it did not just rebuild: a
+heartbeat that re-asserted a stale root would extend the life of a grant the chain had already revoked. Secrets:
+`FEDERATION_RPC_URL`, `PROJECTION_SIGNER_KEYS` (a JSON map estate → key), `OPS_TOKEN`.
+
+**Why the cadence is two numbers.** Anchoring invalidates every presentation in flight, so a short refresh window
+costs sequences and a long one lets anchors age out past a verifier's `maxAge`. Six hours against the doors'
+twenty-four keeps the anchor under a quarter of the window. **A deployment that changes either number must check it
+against the shortest verifier window it serves.**
+
 ## The doors
 
 | Door | Worker | In front of | Target agent |

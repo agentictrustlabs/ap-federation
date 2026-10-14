@@ -105,6 +105,7 @@ not a demonstration. Next is that second chain, faithnet's estate agent, and the
 | `apps/*` | the product's deployables — each with its own `wrangler.toml` (see `wrangler.example.toml` for the env layout) |
 | `examples/*` | relying-app demonstrations of the product's ceremonies; each builds against published packages or is retired |
 | `federation.yaml` | the register: neutral ground and the estates that project onto it; **the towns** and where their public surfaces are; **the shared KMS operator** (tenants, callers, the four conditions); **the universal namespace** (root chain, roots, resolver) |
+| `apps/projector` | the projection job: a CLI for submitting and presenting, and **projector.ap-federation.faithnet.io**, a Worker that prunes, rebuilds and anchors every six hours so no estate's roots age out |
 | `apps/nanda-adapter` | **F4** — a pure projection from a released card into a NANDA index entry, with a loss report; it prints, it never publishes, and it never carries authority |
 | `apps/door` | **door.ap-federation.faithnet.io** — the receiving door (spec 439 F2): proof → admission with the foreign-estate evaluator → receipt → forward |
 | `apps/site` | **ap-federation.faithnet.io** — towns · KMS · names · neutral ground; public, read-only, keyless (spec 440 §B) |

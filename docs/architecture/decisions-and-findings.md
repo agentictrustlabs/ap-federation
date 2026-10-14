@@ -69,11 +69,20 @@
 | F4.7 | A six-card sample said "none are signed"; the full 29 said two. The module's comment was corrected before it shipped, and the check is per entry regardless — the adapter never generalises from a count. | `apps/nanda-adapter/src/resolve.ts` |
 | F4.5 | Running it against the live town card surfaced that the card carries **no JWS signature** — spec 347 says a released card is signed, and the town agent's is not. The projection says so by omitting the signature loss line rather than inventing one. | `apps/nanda-adapter`; ap-town backlog |
 
+## The projector on a schedule (2026-10-14)
+
+| # | Finding | Where |
+| --- | --- | --- |
+| P1 | **The predicted failure was arriving.** On the morning of 2026-10-14 imbnet's anchor was 10.5 hours old and faithnet's 9.6, against the doors' 24-hour window: about thirteen hours from refusing every presentation at both doors. Nothing was broken; nobody had run the job. | `DEPLOYER.md` had predicted exactly this |
+| P2 | The projector now runs as a Worker on a six-hourly cron, with the submissions in a Durable Object (`pnpm projector push` moved them off the operator's `.submissions/`). It prunes and rebuilds before every anchor and never re-asserts a root it did not just rebuild — a heartbeat that did would extend the life of a revoked grant. | `apps/projector/worker` |
+| P3 | A scheduled job is not a submitter. Its ledger is read-only by construction: `add` and `retire` throw, because inclusion is a submission someone made (F1.1) and a cron is not someone. | `worker/index.ts` `readOnlyLedger` |
+| P4 | Still not spec 439 §4's shape: the anchoring keys are Worker secrets, not keys the registry agent holds, and the store is serving-plane rather than that agent's vault. Better than a laptop; not the destination. | `DEPLOYER.md` |
+
 ## Still owed
 
 | What | Needs |
 | --- | --- |
 | the two-chain twin | a second chain |
-| receipts into the registry agent's vault; submissions out of `.submissions/` | the registry agent as the projector (spec 439 §4) |
+| receipts and submissions into the registry agent's **vault** (both are in Durable Objects now, which is serving plane) | the registry agent as the projector (spec 439 §4) |
 | F4, the NANDA adapter | NANDA's normative document digested into the standards lock |
 | KMS conditions #1 and #4; the host move | the owner, on the CVM |

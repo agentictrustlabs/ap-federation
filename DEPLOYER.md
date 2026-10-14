@@ -11,19 +11,21 @@ runs against it:
 | Thing | Where | Deployer / runner of record | Since |
 | --- | --- | --- | --- |
 | `EstateProjectionRegistry` | faithchain (34348) `0xb4E116F5C6915a4f1e649E0877e4a0A7a1c1147b` | Ring 0 `packages/contracts` (`script/DeployEstateProjectionRegistry.s.sol`); address in `deployments-faithchain.json` | 2026-10-13 |
-| `apps/projector` | **an operator's machine**, over `FEDERATION_RPC_URL` | ap-federation | 2026-10-13 |
+| `apps/projector` — **projector.ap-federation.faithnet.io** | Cloudflare Worker `ap-federation-projector`, env `faithnet`, cron every 6h, DO `SubmissionStoreDO`; secrets `FEDERATION_RPC_URL`, `PROJECTION_SIGNER_KEYS`, `OPS_TOKEN` | ap-federation (`pnpm projector:deploy`) | 2026-10-14 |
+| `apps/projector` CLI | an operator's machine, for submitting and presenting | ap-federation | 2026-10-13 |
 | `apps/site` — **ap-federation.faithnet.io** (spec 440 §B) | Cloudflare Worker `ap-federation-site`, env `faithnet`, custom domain on `faithnet.io` | ap-federation (`pnpm site:deploy`) | 2026-10-14 |
 | the shared KMS operator record (spec 440 §A) | `federation.yaml#kms` — the AKCS CVM in `RG-AKCS-PILOT-WESTUS`; code `agentictrustlabs/faithkms` | **operated**, not deployed, by the AKCS operator (one holder); recorded here | 2026-10-14 |
 | `apps/door` — **door.ap-federation.faithnet.io** (spec 439 F2, the receiving door in front of imbnet's A2A door) | Cloudflare Worker `ap-federation-door`, env `imbnet` (envs are keyed by the RECEIVING estate; the Worker name never changed), DO `DoorLedgerDO`; secrets `FEDERATION_RPC_URL`, `DOOR_SECRET` | ap-federation (`pnpm door:deploy`) | 2026-10-14 |
 | `apps/door` — **door-faithnet.ap-federation.faithnet.io** (the receiving door in front of faithnet's A2A door, target alice.me) | Cloudflare Worker `ap-federation-door-faithnet`, env `faithnet`, its own DO and `DOOR_SECRET` | ap-federation (`pnpm door:deploy`) | 2026-10-14 |
 | `apps/nanda-adapter` (F4) | per town | ap-federation | — |
 
-**The projector is not yet the estate's `.registry` service agent, and spec 439 §4 says it must be.** Today
-it is a CLI holding the estate's anchoring key on a workstation, which is honest for F1 and is exactly the
-shape to retire: a key that anchors an estate's roots belongs with that estate's other secrets, and the job
-belongs on a schedule that keeps the anchor fresh (see `apps/projector/README.md` on why freshness costs
-sequences). Until then, if the operator stops running it, every presentation against that estate ages out
-and is refused — the failure direction is closed, but it is still a failure.
+**The projector runs on a schedule now, and still is not the estate's `.registry` service agent** (spec 439 §4 says it
+must be). Since 2026-10-14 a Worker ticks every six hours: it reads the submissions, prunes every leaf against the
+chain, rebuilds the roots and anchors them when they changed or when the last anchor is older than six hours. That
+closes the failure this file predicted and nobody had felt — on the morning of 2026-10-14 both estates' anchors were
+ten hours old against the doors' twenty-four-hour window, about thirteen hours from refusing every presentation.
+What is still wrong: the anchoring keys are Worker secrets, not a key the registry agent holds, and the job is a cron
+rather than that agent's own schedule.
 
 Submissions and openings live in `.submissions/` (gitignored, 0600) on that same machine. Also the wrong
 place and said so in the code: the estate's copy belongs in the registry agent's vault and the holder's in

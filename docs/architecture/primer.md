@@ -89,6 +89,7 @@ Everything in this repository is a consequence of that sentence.
 | faithnet | `faithnet.estate`, anchored at sequence 1, signer declared |
 | a door in front of each | `door.ap-federation.faithnet.io` (imbnet), `door-faithnet.ap-federation.faithnet.io` (faithnet) |
 | the site | `ap-federation.faithnet.io`: towns, KMS, names, doors, neutral ground |
+| kept fresh by | a projector on a six-hourly cron at `projector.ap-federation.faithnet.io` — a verifier accepts only a fresh anchored sequence, so an estate whose projector stops running stops being provable |
 | the proof | `pnpm gate:twin`: in both directions, the visitor's standing admitted at the other estate's door, a question answered, an act refused at the authority stage with the missing mandate named, a payment **run under a steward's standing wire** derived by the visitor with the money landing in the visitor's treasury, and the five door refusals |
 
 **What is not live:** a second chain. The estate id is chain-scoped by construction, so a second chain is one row

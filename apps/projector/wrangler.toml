@@ -1,0 +1,41 @@
+# The projector on a schedule (spec 439 §4): a tick every 6 hours that prunes, rebuilds and anchors each estate's
+# roots, so a verifier is never refused for staleness nobody noticed. The register is bundled; the anchoring keys are
+# secrets; the submissions live in a Durable Object, which is better than an operator's laptop and is still not the
+# registry agent's vault (DEPLOYER.md).
+#
+# Secrets (never here): FEDERATION_RPC_URL, PROJECTION_SIGNER_KEYS (a JSON map estate → key), OPS_TOKEN.
+name = "ap-federation-projector"
+main = "worker/index.ts"
+compatibility_date = "2026-09-01"
+compatibility_flags = ["nodejs_compat"]
+
+[[rules]]
+type = "Text"
+globs = ["**/*.yaml"]
+fallthrough = true
+
+[[durable_objects.bindings]]
+name = "STORE"
+class_name = "SubmissionStoreDO"
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["SubmissionStoreDO"]
+
+[vars]
+REFRESH_AFTER_SECONDS = "21600"
+
+[env.faithnet]
+name = "ap-federation-projector"
+routes = [{ pattern = "projector.ap-federation.faithnet.io", custom_domain = true }]
+# Every 6 hours. The anchor's age stays under ~6h against the doors' 24h `MAX_AGE_SECONDS`; a deployment that
+# lengthens either must check it against the SHORTEST verifier window it serves (F1 §7.1d).
+[env.faithnet.triggers]
+crons = ["17 */6 * * *"]
+[[env.faithnet.durable_objects.bindings]]
+name = "STORE"
+class_name = "SubmissionStoreDO"
+[[env.faithnet.migrations]]
+tag = "v1"
+new_sqlite_classes = ["SubmissionStoreDO"]
+[env.faithnet.vars]
+REFRESH_AFTER_SECONDS = "21600"

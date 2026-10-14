@@ -98,6 +98,17 @@ doors:
     target: alice.me
     since: 2026-10-14
 
+# ── THE SCHEDULED PROJECTOR (spec 439 §4) ─────────────────────────────────────────────────────────────
+# The job that keeps every estate's roots fresh: a tick every six hours that prunes against the chain, rebuilds and
+# anchors on change or on age. A verifier accepts only a fresh anchored sequence, so an estate whose projector stops
+# running stops being provable — this is what stops that. It holds the anchoring keys as Worker secrets and no vault;
+# the destination is still the estate's own `.registry` service agent (DEPLOYER.md).
+projector:
+  url: https://projector.ap-federation.faithnet.io
+  cron: "17 */6 * * *"
+  refreshAfterSeconds: 21600          # < the shortest verifier `maxAge` (the doors' 86400)
+  since: 2026-10-14
+
 # ── THE TOWNS (spec 440 §B) ───────────────────────────────────────────────────────────────────────────
 # Every town we have. A town is one chain and the estates on it (ap-town spec 429); its manifest is ITS record
 # (ap-town `towns/<chain>/town.yaml`, public), and this list only says where each town's public surfaces are so
