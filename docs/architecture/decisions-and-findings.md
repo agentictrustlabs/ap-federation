@@ -118,6 +118,15 @@ ADR-0055's test, applied to the three stores this federation runs, separated the
 | S3 | The private key never reaches the Worker: the ceremony runs offline and verifies the binding on chain before writing, and the Worker serves the release verbatim. Serving a card rebuilt per request would put a signature made for one set of bytes over whatever the manifest said that minute. Drift is reported in a header and never resolved. | `card:release` |
 | S4 | **A green gate lied twice before it was right.** Its foreign-key refusal was skipped because the malformed key made the import throw, and its wrong-agent refusal was answered by a shape check before any read. Both now run: a real generated second key, and the binding restated for the other agent so the shape agrees and the CHAIN is the thing that refuses. | `gate:card-signature`, 12 checks, 4 refusals |
 
+## The registry that is not there any more (2026-10-14)
+
+| # | Finding | Where |
+| --- | --- | --- |
+| N1 | **`nanda-registry.com` does not resolve.** NXDOMAIN, confirmed against a public resolver with authority from the gTLD servers — no A record, no NS. An account created there (a Django/DRF service with JWT auth and a `servers` collection) reaches nothing today. It is not the index this adapter targets and never was. | checked 2026-10-14 |
+| N2 | The live index is `api.nandaindex.org`, which is what Ring 0's `docs/standards-lock.json` pins as `nanda-index`, and its identifiers are ARD URNs over a **verified domain**, not a JWT account. Two NANDA-adjacent services with similar names, one alive; the lock is what keeps the distinction. | spec 439 §7.9 |
+| N3 | Its own OpenAPI declares **no security scheme at all**, while `POST /auth/login` returns `{token}` and the write routes plainly need it. So the auth is a bearer that the document does not describe — read the routes, not the schema's `security` field. | `api.nandaindex.org/docs/json` |
+| N4 | `nanda register` does the act in three steps that do not imply one another, needs a token for any of them, and reads `/api/v1/me` before any write so a stale token fails before a record is half-made. The account, the mailbox and the password stay with the operator. | `apps/nanda-adapter/src/register.ts` |
+
 ## Still owed
 
 | What | Needs |
