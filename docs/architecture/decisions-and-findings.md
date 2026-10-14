@@ -109,6 +109,15 @@ ADR-0055's test, applied to the three stores this federation runs, separated the
 | V7 | `wrangler secret put --name X --env Y` writes to `X-Y`, not to `X` — so two secrets landed on a worker that did not exist until they created it, and the projector went on reporting no credentials. Put secrets with `--env` alone when the env block keeps the base name. The phantom worker was deleted. | ops |
 | V8 | The gate owns exactly ONE record and rewrites it, because it cannot tidy up after itself: the grant has no `delete` scope on purpose, since submissions are retired and never deleted. Earlier runs left three stray retired leaves, which the rebuild correctly drops and which stay as untidiness rather than risk. | `scripts/gate-vault-record.mts` |
 
+## Before listing anywhere: our own card was not signed (2026-10-14)
+
+| # | Finding | Where |
+| --- | --- | --- |
+| S1 | **F4's own numbers decided the order of work.** Of 29 A2A-card entries in the live index, 2 carried a signature. Ours carried none, so registering would have made us the 28th entry nobody can check, while publishing an adapter whose report says exactly that about everyone else. Spec 347 says a released card is signed; this was our gap, not the index's. | `nanda read`; spec 439 §7.15 |
+| S2 | **A signature alone would not have closed it.** A JWS proves whoever holds a key signed these bytes; with a self-published key that answers "did someone sign this?" and not "whose card is this?" So three documents are served and a reader needs all three: the signed card, the public key set (a thumbprint in a `kid` is not key material), and the agent's own EIP-712 `SmartAgentCardBindingV1` over both digests and that thumbprint, validated through ERC-1271. The binding is what makes the key the agent's. | ap-town `town.faithnet.io/.well-known/*` |
+| S3 | The private key never reaches the Worker: the ceremony runs offline and verifies the binding on chain before writing, and the Worker serves the release verbatim. Serving a card rebuilt per request would put a signature made for one set of bytes over whatever the manifest said that minute. Drift is reported in a header and never resolved. | `card:release` |
+| S4 | **A green gate lied twice before it was right.** Its foreign-key refusal was skipped because the malformed key made the import throw, and its wrong-agent refusal was answered by a shape check before any read. Both now run: a real generated second key, and the binding restated for the other agent so the shape agrees and the CHAIN is the thing that refuses. | `gate:card-signature`, 12 checks, 4 refusals |
+
 ## Still owed
 
 | What | Needs |
