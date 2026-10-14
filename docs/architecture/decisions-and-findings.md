@@ -76,6 +76,7 @@
 | P1 | **The predicted failure was arriving.** On the morning of 2026-10-14 imbnet's anchor was 10.5 hours old and faithnet's 9.6, against the doors' 24-hour window: about thirteen hours from refusing every presentation at both doors. Nothing was broken; nobody had run the job. | `DEPLOYER.md` had predicted exactly this |
 | P2 | The projector now runs as a Worker on a six-hourly cron, with the submissions in a Durable Object (`pnpm projector push` moved them off the operator's `.submissions/`). It prunes and rebuilds before every anchor and never re-asserts a root it did not just rebuild — a heartbeat that did would extend the life of a revoked grant. | `apps/projector/worker` |
 | P3 | A scheduled job is not a submitter. Its ledger is read-only by construction: `add` and `retire` throw, because inclusion is a submission someone made (F1.1) and a cron is not someone. | `worker/index.ts` `readOnlyLedger` |
+| P5 | The alarm that was missing: `gate:freshness` fails RED when any estate is within three hours of a verifier refusing it. An estate that cannot be proved is not a passing estate, so it is a failure and not a warning. | `scripts/gate-projector-freshness.mts` |
 | P4 | Still not spec 439 §4's shape: the anchoring keys are Worker secrets, not keys the registry agent holds, and the store is serving-plane rather than that agent's vault. Better than a laptop; not the destination. | `DEPLOYER.md` |
 
 ## Still owed

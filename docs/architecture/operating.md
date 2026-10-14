@@ -96,6 +96,7 @@ fetches everything else live, so a register change needs a redeploy and a town c
 | F1 projection | `npx tsx scripts/gate-f1-projection.mts` | anchor, monotonic sequence, presentation verifies against the chain, four refusals | RPC |
 | F2 door | `pnpm gate:door` (`FEDERATION_ESTATE`, `FEDERATION_DOOR_URL`) | admission on evidence, receipt by reference, signer cross-check, five refusals, the estate's own door admits the visitor with verified standing on the task | RPC, the presenter's grant |
 | F3 twin | `pnpm gate:twin` | F2 in both directions, on one chain | both estates' grants |
+| freshness | `pnpm gate:freshness` | every projecting estate is still provable: the scheduled projector answers, its refresh window is shorter than the shortest verifier window, and no estate is within three hours of being refused | nothing |
 | site | `pnpm gate:site` | the site answers from the towns' live surfaces, never a bare name | nothing |
 
 All are in `live-gates.json` for the nightly. On this machine set `NODE_OPTIONS=--dns-result-order=ipv4first`.

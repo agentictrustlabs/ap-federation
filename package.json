@@ -29,7 +29,8 @@
     "gate:door": "tsx scripts/gate-f2-door.mts",
     "gate:twin": "tsx scripts/gate-f3-twin.mts",
     "nanda": "pnpm --filter @ap-federation/nanda-adapter project",
-    "projector:deploy": "pnpm --filter @ap-federation/projector deploy:faithnet"
+    "projector:deploy": "pnpm --filter @ap-federation/projector deploy:faithnet",
+    "gate:freshness": "tsx scripts/gate-projector-freshness.mts"
   },
   "devDependencies": {
     "@agenticprimitives/a2a": "0.0.0-alpha.35",
