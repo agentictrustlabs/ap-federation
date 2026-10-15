@@ -82,6 +82,10 @@ A one-click deployer is mostly a list of these, encoded. Every one cost real tim
     and viem reported "unknown error". Bind callers from the current profile, and name the purposes explicitly.
 12. **The estate's gateway token must write.** A runtime that relays userOps needs `writeRps > 0`; a read-only row fails the
     same way as 11, in front of it.
+    *Encoded 2026-10-15:* ap-town `check:town` compares `chain.generation` with the pinned contracts release's record (a pin
+    without the record warns, never passes); ap-home `check:estate-shape` reports `chain-record` drift for CHAIN_ID,
+    CONTRACTS_GENERATION and every address; `estate-new.mts` names the runtime's signing purposes explicitly (11) and has a
+    `gateway-token` step (12).
 13. **Standing wires, treasuries and the registry agent's credentials are chain-bound.** None of them move with the estate;
     each is re-issued on the new chain by its owner, and the registry agent is a trust position (owner's ceremony).
 
