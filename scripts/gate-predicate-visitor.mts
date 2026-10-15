@@ -4,6 +4,10 @@
 // her holder secret and the door's origin), the proof hides the issuer key and the device key, and the receipt names a
 // facet, a predicate program, a nullifier grade and a status sequence — never a claim, never her person agent.
 //
+// NEXT (zkID Z5, not in this gate yet): the same knock also proves "and I am a member of your organization" — a `member`
+// claim in a credential the ORGANIZATION's own issuer facet issued, a second predicate in the same policy; the door learns
+// it issued her a membership and nothing about which member. Until then this gate proves age only.
+//
 // The holder half (scripts/lib/predicate-holder.mts): the door's published policy → the proof request; her standing
 // `credential.present` wire → the child mandate for THIS statement → the presentation release that judges it inside
 // every device-key signature; Prepare once, Show per challenge; a nullifier for this audience; the issuer's status
