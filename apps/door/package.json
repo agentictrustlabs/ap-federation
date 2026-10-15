@@ -12,10 +12,10 @@
     "deploy:impact-agent": "wrangler deploy --env impact-agent"
   },
   "dependencies": {
-    "@agenticprimitives/admission": "0.0.0-alpha.13",
-    "@agenticprimitives/delegation": "1.0.0-alpha.36",
-    "@agenticprimitives/estate-projection": "0.0.0-alpha.9",
-    "@agenticprimitives/privacy-credentials": "0.0.0-alpha.13",
+    "@agenticprimitives/admission": "0.0.0-alpha.14",
+    "@agenticprimitives/delegation": "1.0.0-alpha.37",
+    "@agenticprimitives/estate-projection": "0.0.0-alpha.12",
+    "@agenticprimitives/privacy-credentials": "0.0.0-alpha.14",
     "@cloudflare/containers": "0.3.7",
     "viem": "2.52.2",
     "yaml": "2.8.1"

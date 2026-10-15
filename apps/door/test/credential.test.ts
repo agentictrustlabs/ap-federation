@@ -5,28 +5,29 @@
 import { describe, expect, it } from 'vitest';
 import { compileOpenAcPredicates } from '@agenticprimitives/privacy-credentials';
 import { intentDigest } from '@agenticprimitives/delegation';
-import { credentialVerify, parsePresentationHeader, predicateDigestOf, presentationRef, proofRequestFor, verifierClient, type DoorCredentialPolicy } from '../src/credential';
+import { credentialVerify, parsePresentation, parsePresentationRef, predicateDigestOf, presentationRef, proofRequestFor, verifierClient, type DoorCredentialPolicy } from '../src/credential';
 
 const policy: DoorCredentialPolicy = { predicates: [{ claim: 'age', op: 'gte', value: 18 }], claimSchema: ['age', 'roc_birthday'], vcSize: '1k', acceptedVersions: ['0.1.0'], nullifier: { require: true, grade: 'asserted' }, status: 'required' };
 const ORIGIN = 'https://door.example';
 const b64url = (o: unknown) => Buffer.from(JSON.stringify(o)).toString('base64url');
 const presentation = (payload: Record<string, unknown>) => ({ type: 'PrivatePresentationV1', suite: 'openac-sd-jwt-p256', payload: JSON.stringify({ v: 1, issuerKeyId: 'issuer-key:sd-jwt:x-1', audience: ORIGIN, nonce: '0xab', bundle: 'AAAA', ...payload }) });
 
-describe('the credential presentation header', () => {
+describe('the credential presentation, POSTed ahead of the knock', () => {
   it('is parsed strictly: the suite, the shape, the issuer key id', () => {
-    const ok = parsePresentationHeader(b64url({ presentation: presentation({ nullifier: { audience: ORIGIN, value: '0x01', grade: 'asserted' } }) }));
-    expect(ok && ok.ok && ok.issuerKeyId).toBe('issuer-key:sd-jwt:x-1');
-    expect(ok && ok.ok && ok.nullifier?.value).toBe('0x01');
-    expect(parsePresentationHeader(null)).toBeNull();
-    expect(parsePresentationHeader('not-base64url-json')).toEqual({ ok: false, code: 'malformed' });
-    expect(parsePresentationHeader(b64url({ presentation: { ...presentation({}), suite: 'es256-sd-jwt' } }))).toEqual({ ok: false, code: 'suite' });
-    expect(parsePresentationHeader(b64url({ presentation: { ...presentation({}), payload: '{"v":1}' } }))).toEqual({ ok: false, code: 'malformed' });
+    const ok = parsePresentation({ presentation: presentation({ nullifier: { audience: ORIGIN, value: '0x01', grade: 'asserted' } }) });
+    expect(ok.ok && ok.issuerKeyId).toBe('issuer-key:sd-jwt:x-1');
+    expect(parsePresentation(null)).toEqual({ ok: false, code: 'malformed' });
+    expect(parsePresentation({ presentation: { ...presentation({}), suite: 'es256-sd-jwt' } })).toEqual({ ok: false, code: 'suite' });
+    expect(parsePresentation({ presentation: { ...presentation({}), payload: '{"v":1}' } })).toEqual({ ok: false, code: 'malformed' });
   });
-  it('derives a reference the evaluator can resolve back, keyed by the issuer facet', async () => {
+  it('derives a reference the evaluator can resolve back, keyed by the issuer facet; the knock header carries that reference only', async () => {
     const p = presentation({});
     const ref = await presentationRef('issuer-key:sd-jwt:x-1', p as never);
     expect(ref).toMatch(/^credential:issuer-key:sd-jwt:x-1:presentation:[0-9a-f]{32}$/);
     expect(await presentationRef('issuer-key:sd-jwt:x-1', p as never)).toBe(ref);
+    expect(parsePresentationRef(ref)).toEqual({ ref, issuerKeyId: 'issuer-key:sd-jwt:x-1' });
+    expect(parsePresentationRef(null)).toBeNull();
+    expect(parsePresentationRef(b64url({ presentation: p }))).toEqual({ malformed: true });
   });
 });
 
@@ -60,7 +61,7 @@ describe('the nullifier is the door\'s to consume', () => {
     const verify = credentialVerify({ client: client({ valid: true, reason: 'ok', issuerKeyId: 'k', expressionResult: true, nullifier: { audience: ORIGIN, value: '0xAA', grade: 'asserted' } }), issuers: [], chains, policy, consume });
     expect(await verify({}, req)).toMatchObject({ valid: true });
     expect(await verify({}, req)).toMatchObject({ valid: false, reason: 'nullifier_reused' });
-    expect([...seen]).toEqual([`nullifier:${ORIGIN}|0xaa`]);
+    expect([...seen]).toEqual([`nullifier:${ORIGIN}:w${365 * 86400}|0xaa`]);
   });
   it('consumes nothing for a verdict that was not valid', async () => {
     let calls = 0;

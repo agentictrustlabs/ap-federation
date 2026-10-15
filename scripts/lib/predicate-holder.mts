@@ -13,7 +13,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { createPublicClient, hashMessage, http, type Address, type Hex } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
-import { compileOpenAcPredicates, deriveNullifier, pairwiseHandle, prepareOpenAcCredential, presentOpenAc, OPENAC_SUITE, type PredicateClaimV1, type PrivatePresentationV1, type ProofRequestV1, type ProvingBackendPort, type OpenAcPreparedCredentialV1 } from '@agenticprimitives/privacy-credentials';
+import { compileOpenAcPredicates, deriveNullifier, prepareOpenAcCredential, presentOpenAc, OPENAC_SUITE, type PredicateClaimV1, type PrivatePresentationV1, type ProofRequestV1, type ProvingBackendPort, type OpenAcPreparedCredentialV1 } from '@agenticprimitives/privacy-credentials';
 import { createOpenAcBackend, OPENAC_SDK_BUNDLE_VERSION } from '@agenticprimitives/privacy-credentials-openac';
 import { LocalEs256Signer } from '@agenticprimitives/key-custody';
 import { createPresentationRelease, deriveFromStanding, hashDelegation, intentDigest, presentationIntent, PRESENTATION_RAR_TYPE, type Delegation, type StandingWireV1 } from '@agenticprimitives/delegation';
@@ -42,12 +42,15 @@ export async function holderBackend(dir = process.env.OPENAC_KEYS_DIR ?? join(pr
   return createOpenAcBackend({ keys: { '1k': { prepareProvingKey: await file('1k_prepare_proving.key'), prepareVerifyingKey: await file('1k_prepare_verifying.key'), showProvingKey: await file('1k_show_proving.key'), showVerifyingKey: await file('1k_show_verifying.key') } } });
 }
 
-/** The pairwise account for THIS door: `pairwiseHandle(secret, origin)` is 32 bytes of HMAC — a secp256k1 scalar with
- *  overwhelming probability, so it is the key of an EOA that exists for this door and no other (ADR-0025 in spirit:
- *  what the door learns is a handle, never the person). */
+/** The pairwise account for THIS door. privacy-credentials' `pairwiseHandle` is the 20-byte pseudonym a verifier sees;
+ *  the KEY behind this door's account is the same construction untruncated — `HMAC-SHA256(holderSecret, "key:" + origin)`,
+ *  32 bytes, a secp256k1 scalar with overwhelming probability — so the account exists for this door and no other, and is
+ *  underivable without the vault-held secret (INV-305-1 in spirit: what the door learns is an account, never the person). */
 export async function pairwiseAccountFor(holderSecret: Hex, doorOrigin: string) {
-  const key = await pairwiseHandle(holderSecret, doorOrigin);
-  return privateKeyToAccount(key);
+  const raw = Uint8Array.from(holderSecret.slice(2).match(/.{2}/g)!.map((h) => parseInt(h, 16)));
+  const k = await crypto.subtle.importKey('raw', raw, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const mac = new Uint8Array(await crypto.subtle.sign('HMAC', k, new TextEncoder().encode(`key:${doorOrigin}`)));
+  return privateKeyToAccount(`0x${[...mac].map((b) => b.toString(16).padStart(2, '0')).join('')}` as Hex);
 }
 
 /** The proof request as the DOOR builds it — the holder reproduces it from the door's published policy and the

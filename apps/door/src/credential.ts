@@ -6,7 +6,7 @@
 // fit here), reached as one mechanism per deployment (ADR-0013): the Container binding, or VERIFIER_URL — never both.
 // What the door keeps: a reference `credential:<issuerKeyId>:presentation:<digest>` in `entitlementRefs`, the facet,
 // the predicate digest, the nullifier grade and the status sequence on the receipt. Never a claim, never the person.
-import { sha256Of, type CredentialPresentationEvaluatorDeps, type CredentialPresentationVerdict } from '@agenticprimitives/admission';
+import { CREDENTIAL_PRESENTATION_REF, sha256Of, type CredentialPresentationEvaluatorDeps, type CredentialPresentationVerdict } from '@agenticprimitives/admission';
 import { compileOpenAcPredicates, OPENAC_SUITE, type PredicateClaimV1, type PrivatePresentationV1, type ProofRequestV1 } from '@agenticprimitives/privacy-credentials';
 import { intentDigest } from '@agenticprimitives/delegation';
 import type { Hex } from 'viem';
@@ -16,7 +16,8 @@ export interface DoorCredentialPolicy {
   claimSchema: string[];
   vcSize: '1k' | '2k' | '4k' | '8k';
   acceptedVersions: string[];
-  nullifier?: { require: boolean; grade: 'asserted' | 'in-circuit' };
+  /** `windowSeconds`: one visit per audience per window (the store forgets the value after it); absent ⇒ a year. */
+  nullifier?: { require: boolean; grade: 'asserted' | 'in-circuit'; windowSeconds?: number };
   status?: 'required' | 'none';
   maxAgeSeconds?: number;
 }
@@ -27,21 +28,26 @@ export interface RegisterIssuer {
   facets?: Array<{ keyId: string; attestation?: string; document?: { facet: { keyId: string; subjectAgent: string }; facetHash: string; signature: string } }>;
 }
 
-/** What the presenter sends: `x-ap-credential-presentation: base64url({ presentation })`. */
-export interface CredentialHeaderV1 { presentation: PrivatePresentationV1 }
+/** What the presenter POSTs to `/federation/present` ahead of the knock: `{ presentation: PrivatePresentationV1 }`. An OpenAC
+ *  bundle is tens of kilobytes — more than an HTTP header may carry through the edge — so the door holds it under the
+ *  reference it derives, and the knock's `x-ap-credential-presentation` header carries that reference alone. */
+export interface CredentialPresentV1 { presentation: PrivatePresentationV1 }
 
-export function parsePresentationHeader(raw: string | null): { ok: true; presentation: PrivatePresentationV1; issuerKeyId: string; nullifier: { audience?: string; value?: string } | null } | { ok: false; code: 'malformed' | 'suite' } | null {
-  if (!raw) return null;
-  let h: CredentialHeaderV1;
-  try { h = JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(raw.replace(/-/g, '+').replace(/_/g, '/')), (c) => c.charCodeAt(0)))) as CredentialHeaderV1; } catch { return { ok: false, code: 'malformed' }; }
-  const p = h?.presentation;
+export function parsePresentation(o: unknown): { ok: true; presentation: PrivatePresentationV1; issuerKeyId: string } | { ok: false; code: 'malformed' | 'suite' } {
+  const p = (o as CredentialPresentV1 | null)?.presentation;
   if (!p || p.type !== 'PrivatePresentationV1' || typeof p.payload !== 'string') return { ok: false, code: 'malformed' };
   if (p.suite !== OPENAC_SUITE) return { ok: false, code: 'suite' };
-  let payload: { issuerKeyId?: unknown; nullifier?: unknown };
+  let payload: { issuerKeyId?: unknown };
   try { payload = JSON.parse(p.payload) as typeof payload; } catch { return { ok: false, code: 'malformed' }; }
   if (typeof payload.issuerKeyId !== 'string' || !/^[A-Za-z0-9_.:-]+$/.test(payload.issuerKeyId)) return { ok: false, code: 'malformed' };
-  const n = payload.nullifier as { audience?: string; value?: string } | undefined;
-  return { ok: true, presentation: p, issuerKeyId: payload.issuerKeyId, nullifier: n && typeof n === 'object' ? n : null };
+  return { ok: true, presentation: p, issuerKeyId: payload.issuerKeyId };
+}
+
+/** The knock's header: the reference `/federation/present` answered with — nothing else is accepted there. */
+export function parsePresentationRef(raw: string | null): { ref: string; issuerKeyId: string } | null | { malformed: true } {
+  if (!raw) return null;
+  const m = CREDENTIAL_PRESENTATION_REF.exec(raw.trim());
+  return m ? { ref: raw.trim(), issuerKeyId: m[1]! } : { malformed: true };
 }
 
 /** The reference the door derives for what it received — the evaluator resolves it back to the same bytes. */
@@ -118,7 +124,9 @@ export function credentialVerify(deps: { client: VerifierClient; issuers: Regist
     });
     if (!v.valid || !v.nullifier) return v;
     const audience = (request as ProofRequestV1).audience;
-    const r = await deps.consume(`nullifier:${audience}`, String(v.nullifier.value).toLowerCase(), 'presented');
+    // The store is keyed by the window too: a door that changes its rule starts a fresh count under the new rule.
+    const window = deps.policy.nullifier?.windowSeconds ?? 365 * 86400;
+    const r = await deps.consume(`nullifier:${audience}:w${window}`, String(v.nullifier.value).toLowerCase(), 'presented');
     return r === 'CONSUMED' ? v : { ...v, valid: false, reason: 'nullifier_reused' };
   };
 }

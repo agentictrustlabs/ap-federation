@@ -103,7 +103,7 @@ export interface FederationNaming {
   note?: string;
 }
 
-export interface DoorCredentialPolicy { predicates: Array<{ claim: string; op: string; value: unknown }>; claimSchema: string[]; vcSize: string; acceptedVersions?: string[]; nullifier?: { require: boolean; grade: string }; status?: string; maxAgeSeconds?: number }
+export interface DoorCredentialPolicy { predicates: Array<{ claim: string; op: string; value: unknown }>; claimSchema: string[]; vcSize: string; acceptedVersions?: string[]; nullifier?: { require: boolean; grade: string; windowSeconds?: number }; status?: string; maxAgeSeconds?: number }
 export interface FederationDoor { estate: string; url: string; target?: string; since?: string; credentialProofs?: DoorCredentialPolicy }
 
 /** Spec 443 §2 `credentials:` (Ring 0 zkID Z4): the verifier side the doors run, and the issuers whose facets the
@@ -246,6 +246,7 @@ export function validateFederation(f: Federation): string[] {
       if (!Array.isArray(cp.claimSchema) || !cp.claimSchema.length) errs.push(`doors[${d.estate}].credentialProofs.claimSchema: the credential layout the door accepts, claim per slot`);
       if (!['1k', '2k', '4k', '8k'].includes(cp.vcSize)) errs.push(`doors[${d.estate}].credentialProofs.vcSize: 1k | 2k | 4k | 8k`);
       if (cp.nullifier && !['asserted', 'in-circuit'].includes(cp.nullifier.grade)) errs.push(`doors[${d.estate}].credentialProofs.nullifier.grade: asserted | in-circuit`);
+      if (cp.nullifier?.windowSeconds !== undefined && !(Number.isInteger(cp.nullifier.windowSeconds) && cp.nullifier.windowSeconds >= 60)) errs.push(`doors[${d.estate}].credentialProofs.nullifier.windowSeconds: whole seconds, at least 60`);
       if (cp.status && !['required', 'none'].includes(cp.status)) errs.push(`doors[${d.estate}].credentialProofs.status: required | none`);
     }
   }

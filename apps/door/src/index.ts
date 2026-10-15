@@ -22,9 +22,11 @@
 //   GET  /health · GET /federation/challenge?subject=0x… · POST /federation/knock (decide, do not forward)
 //   POST /a2a, /api/a2a (decide, forward) · GET /federation/receipts/<id>
 //   GET  /federation/credentials — the door's `predicate` grade (spec 443 W5): its credential policy, the issuers it
-//        trusts (from the register), the verifier's health. A knock may carry `x-ap-credential-presentation`.
+//        trusts (from the register), the verifier's health. POST /federation/present { presentation } → a reference the
+//        door holds for ten minutes; the knock then carries `x-ap-credential-presentation: <reference>`.
 import { createAdmissionEngine, credentialPresentationEvaluator, foreignEstateEvaluator, verifyRequestProof, sha256Of, type AdmissionRequest, type AdmissionDecision, type AgenticRequestProofClaims, type AtomicReplayStore } from '@agenticprimitives/admission';
-import { credentialVerify, parsePresentationHeader, predicateDigestOf, presentationRef, proofRequestFor, verifierChains, verifierClient, type DoorCredentialPolicy, type RegisterIssuer } from './credential';
+import { credentialVerify, parsePresentation, parsePresentationRef, predicateDigestOf, presentationRef, proofRequestFor, verifierChains, verifierClient, type DoorCredentialPolicy, type RegisterIssuer } from './credential';
+import type { PrivatePresentationV1 } from '@agenticprimitives/privacy-credentials';
 import { verifyAuthorityPresentation, type AuthorityPresentationV1 } from '@agenticprimitives/estate-projection';
 import { createPublicClient, hashMessage, http, keccak256, toHex, type Address, type Hex } from 'viem';
 import { issueChallenge, verifyChallengeHeader } from './challenge';
@@ -125,7 +127,11 @@ function ledger(env: Env) {
       return { receiptRef: String(r.body.receiptRef), recordHash: String(r.body.recordHash) };
     },
   };
-  return { replayStore, audit, receipt: (id: string) => call(`/receipt/${encodeURIComponent(id)}`), recent: () => call('/receipts') };
+  return {
+    replayStore, audit, receipt: (id: string) => call(`/receipt/${encodeURIComponent(id)}`), recent: () => call('/receipts'),
+    present: (ref: string, presentation: PrivatePresentationV1, expiresAt: string) => call('/present', { method: 'POST', body: JSON.stringify({ ref, body: JSON.stringify(presentation), expiresAt }), headers: { 'content-type': 'application/json' } }),
+    presentation: async (ref: string): Promise<PrivatePresentationV1 | null> => { const r = await call(`/presentation/${encodeURIComponent(ref)}`); return r.status === 200 ? (JSON.parse(String(r.body.body)) as PrivatePresentationV1) : null; },
+  };
 }
 
 async function hmacHex(secret: string, message: string): Promise<string> {
@@ -189,11 +195,14 @@ async function admit(req: Request, env: Env, rawBody: Uint8Array): Promise<Knock
   // ── 2b. The CREDENTIAL presentation (spec 443 W5, the `predicate` grade): held under a reference the door derives; the proof
   // request is THE DOOR'S (its policy + its challenge); the verifier is the Node service beside this Worker. A malformed
   // header is refused here, in words; a door with no credential policy ignores the header and says so in the reasons.
-  const credHeader = parsePresentationHeader(req.headers.get('x-ap-credential-presentation'));
-  if (credHeader && !credHeader.ok) return json({ error: 'credential_presentation_malformed', hint: credHeader.code === 'suite' ? 'this door verifies openac-sd-jwt-p256 only' : 'x-ap-credential-presentation: base64url({ presentation: PrivatePresentationV1 })' }, 400);
+  const credHeader = parsePresentationRef(req.headers.get('x-ap-credential-presentation'));
+  if (credHeader && 'malformed' in credHeader) return json({ error: 'credential_presentation_malformed', hint: 'x-ap-credential-presentation: the reference POST /federation/present answered with (credential:<issuerKeyId>:presentation:<digest>)' }, 400);
   const credPolicy = credentialPolicyOf(env);
-  const cred = credHeader?.ok ? credHeader : null;
-  const credRef = cred ? await presentationRef(cred.issuerKeyId, cred.presentation) : null;
+  const credRef = credHeader?.ref ?? null;
+  // The bytes the door HOLDS under that reference (POSTed ahead of the knock, minutes of life) — or nothing, which the
+  // evaluator refuses as CREDENTIAL_PRESENTATION_MISSING. Never fetched from the presenter.
+  const held = credRef ? await L.presentation(credRef) : null;
+  const cred = credHeader && held ? { issuerKeyId: credHeader.issuerKeyId, presentation: held } : null;
 
   // ── 3. Admission ──────────────────────────────────────────────────────────────────────────────
   // The challenge is verified once, here, against the SIGNER (the subject a presentation must be about).
@@ -202,7 +211,7 @@ async function admit(req: Request, env: Env, rawBody: Uint8Array): Promise<Knock
   // The credential's proof request: this door's policy under the challenge it issued to THIS signer. A credential
   // knock with no valid challenge has no request to be verified against — it resolves to nothing and is refused as
   // missing, which is the evaluator's word for "the door holds no request for this reference".
-  const credRequest = cred && credPolicy && challenge.ok ? proofRequestFor(credPolicy, env.PUBLIC_ORIGIN, { nonce: challenge.nonce, audience: challenge.audience }) : null;
+  const credRequest = credRef && credPolicy && challenge.ok ? proofRequestFor(credPolicy, env.PUBLIC_ORIGIN, { nonce: challenge.nonce, audience: challenge.audience }) : null;
   // The challenge nonce is single-use for a credential proof (1/OPENAC §Challenge Freshness): consumed in the ledger DO
   // before the verifier is asked, so a second proof under the same nonce never reaches it.
   if (credRequest) {
@@ -212,8 +221,8 @@ async function admit(req: Request, env: Env, rawBody: Uint8Array): Promise<Knock
   const verifier = credRequest ? verifierClient(env) : null;
   const credEvaluator = credRequest && verifier && !('error' in verifier)
     ? credentialPresentationEvaluator({
-      resolve: async (ref) => (ref === credRef ? { presentation: cred!.presentation, request: credRequest } : null),
-      verify: credentialVerify({ client: verifier, issuers: register().issuers, chains: verifierChains(register(), register().issuers), policy: credPolicy!, consume: async (namespace, id, digest) => L.replayStore.consume({ namespace, replayId: id, digest, expiresAt: new Date((nowSec + 365 * 86400) * 1000).toISOString() }) }),
+      resolve: async (ref) => (ref === credRef && cred ? { presentation: cred.presentation, request: credRequest } : null),
+      verify: credentialVerify({ client: verifier, issuers: register().issuers, chains: verifierChains(register(), register().issuers), policy: credPolicy!, consume: async (namespace, id, digest) => L.replayStore.consume({ namespace, replayId: id, digest, expiresAt: new Date((nowSec + (credPolicy!.nullifier?.windowSeconds ?? 365 * 86400)) * 1000).toISOString() }) }),
       predicateDigestOf,
       ...(credPolicy!.nullifier ? { nullifier: credPolicy!.nullifier } : {}),
       now: () => nowSec,
@@ -287,7 +296,7 @@ async function admit(req: Request, env: Env, rawBody: Uint8Array): Promise<Knock
   const credEvidence = credContribution?.evidenceRefs ?? [];
   const credential: Knock['credential'] = credRef && credContribution?.effect === 'ALLOW' && credContribution.reasonCodes.includes('CREDENTIAL_PREDICATE_HELD')
     ? {
-      ref: credRef, issuerKeyId: cred!.issuerKeyId,
+      ref: credRef, issuerKeyId: credHeader!.issuerKeyId,
       predicateDigest: credEvidence.find((r) => /:predicate:/.test(r))?.split(':predicate:')[1] ?? '',
       nullifierGrade: credEvidence.find((r) => /:nullifier:/.test(r))?.split(':nullifier:')[1]?.split(':')[0] ?? null,
       statusSequence: Number(credEvidence.find((r) => /:status-sequence:/.test(r))?.split(':status-sequence:')[1] ?? NaN) || null,
@@ -297,6 +306,9 @@ async function admit(req: Request, env: Env, rawBody: Uint8Array): Promise<Knock
   const live = decision.contributions.find((c) => c.contributorId === 'foreign-estate-presentation');
   const standing = pres && (decision.effect === 'ADMIT' || decision.effect === 'ADMIT_CONSTRAINED') && live?.reasonCodes.some((c) => c === 'FOREIGN_ESTATE_LIVE_GRANT' || c === 'FOREIGN_ESTATE_MEMBER')
     ? { estateId: String(pres.estateId).toLowerCase(), set: pres.set, sequence: pres.sequence } : null;
+  // The predicate held, as a record of its own beside the minimized decision: the facet, the program, the nullifier grade,
+  // the status sequence, where it was verified — what an auditor asks of a `predicate` admission. No claim, no person.
+  if (credential) await L.audit.append({ kind: 'door.credential', decisionId: decision.decisionId, actingAgentId: proof.claims.actingAgentId, ...credential, at: new Date().toISOString() }).catch(() => undefined);
   return { decision, publicReasons, standing, actingAgentId: proof.claims.actingAgentId, presentationRef: presRef, credential };
 }
 
@@ -326,9 +338,23 @@ export default {
         predicateDigest: policy ? predicateDigestOf(proofRequestFor(policy, env.PUBLIC_ORIGIN, { nonce: '0x00', audience: env.PUBLIC_ORIGIN })) : null,
         issuers: register().issuers.map((i) => ({ id: i.id, estate: i.estate, sa: i.sa, chainId: i.chainId, facets: (i.facets ?? []).map((f) => ({ keyId: f.keyId, attestation: f.attestation ?? null, thumbprint: f.document?.facet ? (f.document.facet as { publicKeyJwk?: { kid?: string } }).publicKeyJwk?.kid ?? null : null })) })),
         verifier: v ? ('error' in v ? { configured: false, error: v.error } : { configured: true, placement: `node:${v.placement}`, ...health }) : { configured: false, error: 'this door has no credential policy' },
-        challenge: `GET /federation/challenge?subject=<the pairwise account>; then knock with x-ap-request-proof (signed by it), x-ap-challenge and x-ap-credential-presentation`,
+        challenge: `GET /federation/challenge?subject=<the pairwise account>; POST /federation/present { presentation } → ref; then knock with x-ap-request-proof (signed by it), x-ap-challenge and x-ap-credential-presentation: <ref>`,
         says: 'A predicate held is evidence about a credential, never a claim about a person and never authority: the estate\'s own mandate still governs every act.',
       }, 200, { 'cache-control': 'public, max-age=30' });
+    }
+    if (req.method === 'POST' && p === '/federation/present') {
+      // THE PRESENTATION, AHEAD OF THE KNOCK. Held under the reference the door derives, for ten minutes; the knock cites
+      // it in a header the edge will carry. Nothing is verified here — a presentation nobody knocks with expires unread.
+      const raw = await req.text();
+      if (raw.length > 1_000_000) return json({ error: 'too_large' }, 413);
+      let o: unknown; try { o = JSON.parse(raw); } catch { return json({ error: 'not_json' }, 400); }
+      const parsed = parsePresentation(o);
+      if (!parsed.ok) return json({ error: 'credential_presentation_malformed', hint: parsed.code === 'suite' ? 'this door verifies openac-sd-jwt-p256 only' : '{ presentation: PrivatePresentationV1 } with an openac payload naming issuerKeyId' }, 400);
+      const ref = await presentationRef(parsed.issuerKeyId, parsed.presentation);
+      const expiresAt = new Date(Date.now() + 600_000).toISOString();
+      const r = await ledger(env).present(ref, parsed.presentation, expiresAt);
+      if (r.status !== 200) return json({ error: 'ledger_unavailable' }, 503);
+      return json({ ref, expiresAt, knock: `x-ap-credential-presentation: ${ref}`, says: 'held, not verified: the knock that cites it is where the proof is checked' });
     }
     if (req.method === 'GET' && p === '/federation/receipts') {
       const r = await ledger(env).recent();

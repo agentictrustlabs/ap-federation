@@ -4,6 +4,10 @@
 //             runs one event at a time, which is the whole reason this is a DO and not KV.
 //   receipts  the admission decisions, hash-chained (each row carries the previous row's hash), so a deleted or
 //             reordered decision is detectable. Returned to the presenter by reference and readable by id.
+//   presentations  a credential presentation a visitor POSTed ahead of her knock (spec 443 W5): an OpenAC proof bundle is
+//             tens of kilobytes and Cloudflare's edge refuses a request header that size, so the door HOLDS it under
+//             the reference it derives and the knock cites the reference. Minutes of life, then gone — the knock's
+//             receipt keeps the digest, never the bundle. A cache, rebuildable by presenting again (ADR-0055).
 //
 // HONEST LIMIT, said in DEPLOYER.md too: an admission receipt is evidence about an agent and belongs in a vault —
 // the receiving estate's registry agent's, and the presenter's own. This door has no vault; the ledger is the
@@ -22,7 +26,8 @@ export class DoorLedgerDO {
   constructor(state: DurableObjectState) {
     this.sql = state.storage.sql;
     this.sql.exec(`CREATE TABLE IF NOT EXISTS replay (namespace TEXT NOT NULL, replay_id TEXT NOT NULL, digest TEXT NOT NULL, expires_at TEXT NOT NULL, PRIMARY KEY (namespace, replay_id));
-      CREATE TABLE IF NOT EXISTS receipts (seq INTEGER PRIMARY KEY AUTOINCREMENT, receipt_id TEXT NOT NULL UNIQUE, record TEXT NOT NULL, prev_hash TEXT NOT NULL, record_hash TEXT NOT NULL, at TEXT NOT NULL);`);
+      CREATE TABLE IF NOT EXISTS receipts (seq INTEGER PRIMARY KEY AUTOINCREMENT, receipt_id TEXT NOT NULL UNIQUE, record TEXT NOT NULL, prev_hash TEXT NOT NULL, record_hash TEXT NOT NULL, at TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS presentations (ref TEXT PRIMARY KEY, body TEXT NOT NULL, expires_at TEXT NOT NULL);`);
   }
 
   async fetch(req: Request): Promise<Response> {
@@ -36,6 +41,18 @@ export class DoorLedgerDO {
       if (prior) return json({ result: prior.digest === r.digest ? 'REPLAY' : 'CONFLICT' });
       this.sql.exec(`INSERT INTO replay (namespace, replay_id, digest, expires_at) VALUES (?, ?, ?, ?)`, r.namespace, r.replayId, r.digest, r.expiresAt);
       return json({ result: 'CONSUMED' });
+    }
+    if (req.method === 'POST' && url.pathname === '/present') {
+      const r = (await req.json()) as { ref: string; body: string; expiresAt: string };
+      this.sql.exec(`DELETE FROM presentations WHERE expires_at < ?`, new Date().toISOString());
+      this.sql.exec(`INSERT OR REPLACE INTO presentations (ref, body, expires_at) VALUES (?, ?, ?)`, r.ref, r.body, r.expiresAt);
+      return json({ ok: true, ref: r.ref, expiresAt: r.expiresAt });
+    }
+    if (req.method === 'GET' && url.pathname.startsWith('/presentation/')) {
+      const ref = decodeURIComponent(url.pathname.slice('/presentation/'.length));
+      const row = this.sql.exec<{ body: string; expires_at: string }>(`SELECT body, expires_at FROM presentations WHERE ref = ?`, ref).toArray()[0];
+      if (!row || row.expires_at < new Date().toISOString()) return json({ error: 'not_found' }, 404);
+      return json({ ref, body: row.body, expiresAt: row.expires_at });
     }
     if (req.method === 'POST' && url.pathname === '/append') {
       const record = (await req.json()) as Record<string, unknown>;

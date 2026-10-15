@@ -171,7 +171,7 @@ real design change and seven traps, each of which failed where nothing named it.
 | P4 | **Finding: the federation door leaks the visitor.** `GET /federation/challenge?subject=0x…` carries the Smart Agent in a query string, and `GET /federation/receipts` serves full `AdmissionReceipt`s to the world (the site shows 25). Fix in 443 W0: subject in the POST body; the public list becomes counts + decision codes + an HMAC `subjectDigest`; the full receipt only to the presenter and the receiving estate's registry agent's vault. | `apps/door/src/index.ts`, `challenge.ts`, `ledger-do.ts`; `apps/site` |
 | P5 | Mediated Sign-In (password relay) is refused by default; Direct and Device Sign-In are Home ceremonies. | spec 442 §8 |
 
-## zkID / OpenAC at the door and on neutral ground — BUILT (2026-10-15, wave Z4 of the Ring 0 program)
+## zkID / OpenAC at the door and on neutral ground — LIVE (2026-10-15, wave Z4 of the Ring 0 program; `gate:predicate-visitor` GREEN, 16 checks incl. 5 refusals)
 
 **What runs.** `credentials:` + `doors[impact-agent].credentialProofs` in `federation.yaml` (validated by `check:federation`;
 on the site as a Credentials tab + `/api/credentials`); the projector's **issuer mode** (`--issuer <id>`: status · register ·
@@ -205,14 +205,28 @@ neutral ground); the ceremony (`setup-predicate-issuer.mts`) and the gate (`gate
 - *A Container's `basic` instance is too small.* 350 MB at idle, 993 MB after one verification: `standard` (4 GiB).
 - *Ring 0 type drift, one line:* Z3 widened `ProjectionSet` and `verifyAuthorityPresentation`'s ok-verdict type leaked it, which
   admission's `foreignEstateEvaluator` refuses at the type level — narrowed in Ring 0 (changeset) rather than cast here.
+- *A proof bundle does not fit a header.* The first live knock answered Cloudflare's "Request Header Or Cookie Too Large":
+  an OpenAC bundle is tens of KB and the edge caps a header at 16 KB. So the presentation goes AHEAD of the knock —
+  `POST /federation/present { presentation }` → the door holds it in its ledger DO under the reference it derives, ten
+  minutes, and the knock's `x-ap-credential-presentation` header carries the reference alone. A cache (ADR-0055): the
+  receipt keeps the digest, the bundle expires unread if nobody knocks.
+- *One visit per audience needs a window, or the gate runs once.* The asserted nullifier is deterministic per (device key,
+  audience), so the second night's visitor is "reused" forever. The door's policy carries `nullifier.windowSeconds` (an
+  hour at impact-agent; absent ⇒ a year): the store forgets the value after the window — ZK-POP's epoch-scoped
+  persistence — and the store's namespace carries the window, so a door that changes its rule starts a fresh count.
+- *The decision receipt is minimized; the predicate gets its own record.* Ring 0's `admission.decision` audit row names
+  no evidence refs (W0's minimized receipts), so the door appends `door.credential` beside it: facet, predicate digest,
+  nullifier grade, status sequence, verifier placement, the pairwise acting account — never a claim, never the person.
 - *The reference issuer is the estate's registry agent*, not a `.svc`: the one non-person SA with a headless custodian and an
   anchoring wire that already covers `setRoots` for any row it signs for. A production issuer is a dedicated service agent.
 
-**Blocked on.** The Ring 0 release that carries Z1–Z3 (`privacy-credentials` with the OpenAC suite, `estate-projection`'s issuer
-row, `admission`'s evaluator) and the brand-new leaf `@agenticprimitives/privacy-credentials-openac`, which **trusted publishing
-cannot create** (E404 on first publish — the known bootstrap step: `npm login`, `scripts/publish-manual.sh --publish`, then
-`03-configure-trusted-publishing.sh privacy-credentials-openac`). Until it lands this repo's pins stay at the published
-versions and the door is not redeployed; the typecheck and the unit tests here ran against the Ring 0 builds.
+**Shipped the same evening.** The Ring 0 release carrying Z1–Z3 published after the leaf's bootstrap publish (trusted
+publishing cannot create a package — `publish-manual.sh`, then `03-configure-trusted-publishing.sh`, by the owner); this
+repo pins `privacy-credentials` alpha.14 · `privacy-credentials-openac` alpha.2 (with Ring 0's `openac-sdk` patch applied
+here too, since the holder half calls `present({ deviceSign })`) · `estate-projection` alpha.12 · `admission` alpha.14 ·
+`delegation`/`key-custody` 1.0.0-alpha.37 · `verification-receipts` alpha.14. The impact-agent door redeployed with its
+verifier Container (first cold start answers 503 for ~20 s while the image pulls; then 355 MB idle), the faithnet door and
+the site redeployed, and the gate went green against the live door at 21:25 UTC.
 
 ### The analysis that preceded it (kept as written)
 

@@ -134,7 +134,10 @@ doors:
       claimSchema: [age, roc_birthday]     # the issuer-fixed disclosure order of the accepted credential type (slot = claim)
       vcSize: 1k
       acceptedVersions: ["0.1.0"]          # openac-sdk 5.0.0's bundle `version` (Ring 0 lock `openac-sdk`); bound to the 1k keys
-      nullifier: { require: true, grade: asserted }
+      # One visit per audience PER WINDOW: the asserted nullifier is deterministic per (device key, audience), so the store
+      # forgets it after the window and the same holder may return — ZK-POP's epoch-scoped persistence. One hour here, so the
+      # nightly gate (and an operator re-running it) is admitted once an hour; a door that means "once, ever" omits the window (a year).
+      nullifier: { require: true, grade: asserted, windowSeconds: 3600 }
       status: required
       maxAgeSeconds: 86400
   - estate: faithnet

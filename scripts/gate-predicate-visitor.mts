@@ -90,7 +90,13 @@ async function knock(opts: { presentation?: unknown; challengeHeader?: string; p
     const base = { agent: me.address.toLowerCase(), method: 'SendMessage', bodyHash: requestBodyHash(body), issuedAt: now, audience: opts.originAudience };
     headers.authorization = sessionAuthorizationHeader({ ...base, signature: await me.sign({ hash: callerAssertionDigest(base) }) });
   }
-  if (opts.presentation) headers['x-ap-credential-presentation'] = b64url({ presentation: opts.presentation });
+  // The presentation goes AHEAD of the knock (an OpenAC bundle is tens of KB, more than the edge lets a header carry):
+  // POST /federation/present holds it under the door's reference for ten minutes, and the knock cites the reference.
+  if (opts.presentation) {
+    const held = await (await fetch(`${DOOR}/federation/present`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ presentation: opts.presentation }) })).json() as { ref?: string; error?: string };
+    if (!held.ref) throw new Error(`the door did not hold the presentation: ${JSON.stringify(held).slice(0, 200)}`);
+    headers['x-ap-credential-presentation'] = held.ref;
+  }
   if (opts.challengeHeader) headers['x-ap-challenge'] = opts.challengeHeader;
   const r = await fetch(`${DOOR}${path}`, { method: 'POST', headers, body });
   const text = await r.text(); let json: any = null; try { json = JSON.parse(text); } catch { /* origin may answer non-JSON */ }
@@ -111,7 +117,10 @@ check('the decision names the facet, the predicate digest, the nullifier grade, 
 const rc = ok.receipt ? await (await fetch(`${DOOR}/federation/receipts/${ok.receipt}`)).json() as any : null;
 const rcText = JSON.stringify(rc ?? {});
 check('the receipt is readable by reference and hash-chained', !!rc && rc.receiptId === ok.receipt && /^sha256:/.test(rc.recordHash) && /^sha256:/.test(rc.prevHash) && rc.record?.effect === 'ADMIT', ok.receipt ?? '');
-check('the receipt carries no claim value and no address of the person — only the pairwise account, the facet and the digests', !!rc && !/0000021|0900101/.test(rcText) && !rcText.toLowerCase().includes(String(standing.wire.delegator).toLowerCase().slice(2)) && rcText.includes(me.address.toLowerCase()) && rcText.includes(`credential:${credential.issuerKeyId}:predicate:`), '');
+check('the receipt carries no claim value and no address of the person — only the pairwise account', !!rc && !/0000021|0900101/.test(rcText) && !rcText.toLowerCase().includes(String(standing.wire.delegator).toLowerCase().slice(2)) && rcText.includes(me.address.toLowerCase()), '');
+const recent = await (await fetch(`${DOOR}/federation/receipts`)).json() as { receipts?: Array<{ record?: Record<string, unknown> }> };
+const companion = (recent.receipts ?? []).find((r) => r.record?.kind === 'door.credential' && r.record?.decisionId === ok.json?.decisionId)?.record;
+check('the ledger holds the predicate record beside the decision: facet, predicate digest, nullifier grade, status sequence, verifier placement — and nothing of the person', !!companion && companion.issuerKeyId === credential.issuerKeyId && String(companion.predicateDigest).toLowerCase() === p1.predicateDigest.toLowerCase() && companion.nullifierGrade === 'asserted' && typeof companion.statusSequence === 'number' && !JSON.stringify(companion).toLowerCase().includes(String(standing.wire.delegator).toLowerCase().slice(2)), companion ? `${companion.verifierPlacement} · status seq ${companion.statusSequence}` : 'no door.credential record');
 // the holder's OWN receipt: this presentation, under this mandate, for this challenge — the mandate named (Ring 0 Z2)
 const bundle = JSON.parse(p1.presentation.payload).bundle as string;
 const sha = async (s: string) => `sha256:${[...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)))].map((x) => x.toString(16).padStart(2, '0')).join('')}` as const;
@@ -147,7 +156,7 @@ const staleStatus = { ...revoked.staleStatus, nonce: c4.nonce, audience: c4.audi
 const p4 = await presentUnderWire({ credential: revoked, request: req4, backend, standing, runtime: { address: runtime.address, sign: runtimeSign }, harness: harness.address, checks: mc, withNullifier: true, status: staleStatus });
 const t3 = await knock({ presentation: p4.presentation, challengeHeader: c4.header });
 check(`twin: a credential the issuer revoked (live at sequence ${revoked.revokedAtSequence - 1}, absent since ${revoked.revokedAtSequence}) is refused on its stale status — read from neutral ground, not from the holder`, t3.status === 403 && t3.json?.reasonCodes?.includes('CREDENTIAL_STATUS_NOT_LIVE'), JSON.stringify(t3.json?.reasonCodes));
-// 4. the same challenge nonce reused: refused before the verifier is asked
+// 4. the same challenge nonce reused: refused before the verifier is asked (the presentation is re-held — it expired or was consumed)
 const t4 = await knock({ presentation: p1.presentation, challengeHeader: c1.header });
 check('twin: a challenge already answered is refused at the door before any proof is verified', t4.status === 403 && (t4.json?.error === 'credential_challenge_replayed' || t4.json?.reasonCodes?.some((c: string) => /NONCE|CHALLENGE/.test(c))), `${t4.status} ${t4.json?.error ?? JSON.stringify(t4.json?.reasonCodes)}`);
 // 5. no credential at all: admitted as nobody with no predicate (the predicate grade is optional evidence, not a gate)
