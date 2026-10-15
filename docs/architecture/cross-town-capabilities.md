@@ -34,8 +34,8 @@ manifest and no record of a person.
 | Outcome | What it is | Status |
 | --- | --- | --- |
 | Resolve a label across every live town | one API, each row `{ name, chain }` plus the CAIP-10 account, never shown bare | **live** (U1) — over https://names.faithnet.io |
-| Carry the pair in the naming package | `FederatedAgentNameV1` and `atl:accounts` (one account id per chain) | **live** (U2, 2026-10-14); per-chain reverse claim **blocked** on a second chain |
-| Issue a name from an estate on another chain | that estate's gate named on the root; the resident owns the name on the root chain | **designed** (U3) |
+| Carry the pair in the naming package | `FederatedAgentNameV1` and `atl:accounts` (one account id per chain) | **live** (U2). `atl:accounts` and a matching reverse lookup are on both faithchain and hopechain for the impact-agent roster (2026-10-15); the resolver does not read them yet |
+| Issue a name from an estate on another chain | that estate's gate named on the root; the resident owns the name on the root chain | **designed** (U3). The second chain exists; impact-agent's gate is not named on the root |
 | Resolve that name where the root chain cannot be read | a naming root on neutral ground; proof or empty | **proposed** (U4) |
 | Admit a new estate's gate by quorum | town clerks, a receipt, not one persona's key | **open** (U5) |
 | Be found by an ANS, AID, or HCS-14 resolver | `_agent` TXT and the well-known paths, each a projection of the signed profile | **proposed** — naming doc §7 item c |

@@ -75,6 +75,16 @@ A one-click deployer is mostly a list of these, encoded. Every one cost real tim
 
 ---
 
+10. **A later chain runs newer contracts.** hopechain is generation 3; faithchain is 1. The estate's `CONTRACTS_GENERATION`, the
+    town's `chain.generation` and the gateway's `CHAIN_GENERATION` must say what `deployments-<chain>.json#contractsGeneration`
+    says, or every redemption fails `BadArgsLength` with nothing naming the cause. *Read it from the record; check it.*
+11. **A KMS caller bound before a signing purpose existed does not have it.** The runtime's relay refused `EIP155_TRANSACTION`
+    and viem reported "unknown error". Bind callers from the current profile, and name the purposes explicitly.
+12. **The estate's gateway token must write.** A runtime that relays userOps needs `writeRps > 0`; a read-only row fails the
+    same way as 11, in front of it.
+13. **Standing wires, treasuries and the registry agent's credentials are chain-bound.** None of them move with the estate;
+    each is re-issued on the new chain by its owner, and the registry agent is a trust position (owner's ceremony).
+
 ## 4. What belongs in ap-federation
 
 ap-federation already holds the register, the door, the projector and the gates — the things that are true across

@@ -55,7 +55,8 @@
 | K2 | Cost evidence: one billable Key Vault root, 5.00 USD a month; 433 logical keys under it cost nothing. A tenant or a caller never creates a Key Vault key. `billableKeyBudget: 2` is a gate. | spec 440 §A7; `federation.yaml#kms` |
 | S1 | The site reads each town's own surfaces live and holds no copy of anything. | spec 440 §B |
 | N1 | Naming is a trust question answered per layer: CAIP-10 identity; a typed handle unique per registry; across towns the pair `{ name, chain }`, never bare; the DNS projection as a rented locator; trust as named signals. | `federated-agent-naming.md` |
-| N2 | **One universal namespace rooted on faithchain, ENS v2 style**, other chains joining without a second registry (the owner's decision 2026-10-14; amends N7). `atl:accounts` (accounts by chain) and `FederatedAgentNameV1` are built; the satellite claim path and the naming root wait for a second chain. | spec 440 §C; `federated-agent-naming.md` |
+| N2 | **One universal namespace rooted on faithchain, ENS v2 style**, other chains joining without a second registry (the owner's decision 2026-10-14; amends N7). `atl:accounts` (accounts by chain) and `FederatedAgentNameV1` are built; the satellite claim path and the naming root are not. | spec 440 §C; `federated-agent-naming.md` |
+| N3 | **The second chain names nothing of its own (2026-10-15).** hopechain's `AgentNameRegistry` is a local table for hopenet's discovery index. `maya-fernandes.me` is on both chains, each record pointing at that chain's account (one custodian key). Both reverse lookups round-trip, both carry the same `atl:accounts`, and the first local label `maya.me` is expired. That is U2's record half across two chains. It is not U3: no gate claim from hopechain, no satellite at the home address, no custody propagation. | spec 440 §C10; `naming-primer.md` |
 
 ## F4 — the NANDA adapter (2026-10-14)
 
@@ -142,11 +143,30 @@ authorized it. This is the reverse, and the asymmetry is the whole point.
 | O5b | So the gate now runs in **both estates and both directions**, and the rule holds each way: faithnet's wire refuses impact-agent's requirement and impact-agent's refuses faithnet's, each as a subset check on the delegator. | `gate:pay-outward` |
 | O6 | Still one chain. Both treasuries are on faithchain, so the money never crosses chains. Paying from a treasury on chain A to one on chain B needs a way to move value between them, which stays open (spec 243 reserves it). | the honest limit |
 
+## W4 — the two-chain twin (2026-10-15)
+
+impact-agent moved to hopechain on 2026-10-14; the federation's proofs still ran on one chain. Closing that took one
+real design change and seven traps, each of which failed where nothing named it.
+
+| # | Finding | Where |
+| --- | --- | --- |
+| W1 | **An estate has two chains, and they are two facts.** `chainId` is where its projection anchors and its permanent id derives from (never changes); `homeChainId` is where its people, Home, custody and grants live. The register says both, with `rpcEnv` for the home chain; each town declares how the federation's Workers reach its chain and which `universalSignatureValidator` answers there. A reader that infers one from the other is wrong. | `federation.yaml`, `apps/site/src/federation.ts` |
+| W2 | **The door verifies a signature on the signer's chain** — the one its CAIP-10 names — reads roots on the registry's chain, and the estate agent's declaration on the projection chain. A chain it cannot reach is refused and logged `SIGNER_CHAIN_UNREACHABLE`, never verified elsewhere. This is the one place "no verifier code" was optimistic. | `apps/door/src/index.ts` |
+| W3 | **The projector reads revocation on the HOME chain.** Before this it read hopechain leaves against faithchain's DelegationManager — the same hex, a different contract — and could only ever answer "not revoked". | `apps/projector/src/revocation.ts` |
+| W4 | **The twin is green in both directions across the chains**: standing admitted each way, acts refused at the authority stage, the host-side payment lands on hopechain under a wire issued there (5 USDC, visitor's payee treasury on hopechain), the duplicate refused on chain. The summary line names the chains. | `pnpm gate:twin` |
+| W5 | **The estate's runtime could never send a transaction on any chain**: its KMS caller (`imb-runtime-3`) refused signing purpose `EIP155_TRANSACTION`, surfacing as viem's "unknown error" on `handleOps`. `imb-runtime-4` names the purpose explicitly beside the `estate-runtime` profile; the old caller is disabled. The estate's gateway token was also read-only (`writeRps: 0`) — two independent "cannot write" causes, found in that order. | ap-home `estates/impact-agent.estate.json`; hopenet gateway KV |
+| W6 | **The twin crosses GENERATIONS as well as chains.** hopechain was deployed from the current scripts (contract generation 3), so its DigestBindingEnforcer takes `(digest, stepNonce)`; the runtime said generation 1 and every redemption died with `BadArgsLength`. `CONTRACTS_GENERATION = "3"` on that env, and the manifest and gateway now say 3. A second chain stood up later than the first runs newer contracts; nothing checked that the estate's declared generation matched the chain's deployment record. | ap-home `apps/agent-runtime/wrangler.toml`; ap-town `towns/hopenet/town.yaml` |
+| W7 | **Wires are chain-bound and do not move.** Every standing wire from before the move named faithchain enforcers and treasuries; on hopechain they derived children that could not redeem. Re-issued on hopechain by their owners with that chain's enforcers (`issue-visitor-standing-wire --deployment-file`), after a treasury for maya and one for the visitor's payee were chartered there (`charter-service-agent` now takes the chain's factory). | `.secrets/*-impact-agent.json` |
+| W8 | **Outward across chains is refused, but not yet for the right reason.** The gate now reads the payer's chain from the register and expects a refusal that names the counterparty when the payee's chain differs; today maya's harness stops earlier — "you have no treasury to be paying from" — because her hopechain treasury carries no `ap:charteredUnder` edge (O5 again, on the new chain). Nothing moved, which is correct, and the gate stays RED until the refusal is about the payee. | `pnpm gate:pay-outward` |
+| W9 | **The estate's registry agent and its vault credential did not move either.** `gate:vault-record` refuses `invalid_invocation_proof` for impact-agent: the projector's credential is a leaf under the faithchain registry agent, and the vault now validates on hopechain. The store holds 0 live leaves for the estate; its anchor at sequence 6 is the pre-move set and will go stale. The signer is a trust position, so re-chartering it on the home chain is the owner's call, not a script's. | `gate:vault-record`, `gate:freshness` |
+
 ## Still owed
 
 | What | Needs |
 | --- | --- |
-| the two-chain twin | a second chain |
+| the outward refusal for the right reason (W8) | maya's hopechain treasury recorded as hers (`ap:charteredUnder`), then the harness's own counterparty check |
+| the estate's registry agent on its home chain (W9): charter, declare on neutral ground and on the estate agent, re-issue the projector's vault credential and anchoring wire | the owner: a signer is a trust position |
+| a check that an estate's declared contract generation matches its chain's deployment record (W6) | `ap doctor` / `check:estate-shape` |
 | the DOOR's receipt copy into the registry agent's vault (the submissions landed 2026-10-14 — V1; the door's receipts are the weaker case of V3, since the presenter holds a copy) | the door writing as the receiving estate's registry agent, which is now only plumbing |
 | the HOLDER's own copy of a vouch (they hold their blind and no record that the estate vouched for it) | a Home surface for it |
 | F4, the NANDA adapter | NANDA's normative document digested into the standards lock |

@@ -31,7 +31,7 @@ if (!existsSync('.secrets/f2-test-agent.env') || !existsSync(wireFile)) throw ne
 const key = /F2_TEST_AGENT_KEY=(0x[0-9a-fA-F]{64})/.exec(readFileSync('.secrets/f2-test-agent.env', 'utf8'))![1] as Hex;
 const me = privateKeyToAccount(key);
 const wire = JSON.parse(readFileSync(wireFile, 'utf8')) as { digest: Hex; chainId: number };
-const fed = parse(readFileSync('federation.yaml', 'utf8')) as { registry: { address: string; chainId: number }; estates: { id: string; homeChainId?: number; governance: string | null }[] };
+const fed = parse(readFileSync('federation.yaml', 'utf8')) as { towns?: { id: string; chainId: number; rpcEnv?: string }[]; registry: { address: string; chainId: number }; estates: { id: string; homeChainId?: number; governance: string | null }[] };
 const rpc = process.env.FEDERATION_RPC_URL ?? (() => { throw new Error('FEDERATION_RPC_URL is not set'); })();
 const pub = createPublicClient({ chain: { id: fed.registry.chainId, name: 'x', nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 }, rpcUrls: { default: { http: [rpc] } } }, transport: http(rpc) });
 const REGISTRY_ABI = [{ type: 'function', name: 'estateIdOf', stateMutability: 'pure', inputs: [{ name: 'chainId', type: 'uint256' }, { name: 'governance', type: 'address' }], outputs: [{ type: 'bytes32' }] },
@@ -136,16 +136,23 @@ check('§6 twin: the parked act still carries the verified standing, so a stewar
 const standingFile = `.secrets/f3-standing-wire-${(health as { receivingEstate?: string }).receivingEstate ?? 'x'}.json`;
 if (existsSync(standingFile)) {
   const standing = JSON.parse(readFileSync(standingFile, 'utf8')) as StandingWireV1 & { treasuryName?: string; capShq?: string };
+  // THE MONEY LIVES ON THE RECEIVING ESTATE'S HOME CHAIN (W4): the asset and the payee's balance are read there, over the
+  // endpoint the register names for that town — never on the registry's chain because that client is at hand.
+  const receiving = fed.estates.find((e) => e.id === (health as { receivingEstate?: string }).receivingEstate);
+  const moneyChain = receiving?.homeChainId ?? receiving?.chainId ?? fed.registry.chainId;
+  const moneyRpc = moneyChain === fed.registry.chainId ? rpc : String(process.env[fed.towns?.find((t) => t.chainId === moneyChain)?.rpcEnv ?? ''] ?? '');
+  if (!moneyRpc) throw new Error(`no endpoint for the receiving estate's home chain eip155:${moneyChain} (set the town's rpcEnv)`);
+  const money = createPublicClient({ chain: { id: moneyChain, name: 'm', nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 }, rpcUrls: { default: { http: [moneyRpc] } } }, transport: http(moneyRpc) });
   // The asset is the one the wire names — the treasury's payment rail (mock USDC on faithchain), not the naming coin.
   const SHQ = String((standing.requirement.limits as { asset?: string } | undefined)?.asset ?? '').toLowerCase() as Address;
   const ERC20 = [{ type: 'function', name: 'balanceOf', stateMutability: 'view', inputs: [{ name: 'a', type: 'address' }], outputs: [{ type: 'uint256' }] }, { type: 'function', name: 'symbol', stateMutability: 'view', inputs: [], outputs: [{ type: 'string' }] }] as const;
-  const symbol = (await pub.readContract({ address: SHQ, abi: ERC20, functionName: 'symbol' })) as string;
+  const symbol = (await money.readContract({ address: SHQ, abi: ERC20, functionName: 'symbol' })) as string;
   // THE PAYEE IS NOT THE ASKER. The harness refuses an asker naming itself as the counterparty of its own act
   // ('That would be you. Who is being paid?'), which is right; and assets live only in treasuries anyway. So the
   // wire names a payee account the visitor holds separately, and the payment lands there.
   const payee = String((standing.requirement.limits as { payee?: string } | undefined)?.payee ?? '').toLowerCase() as Address;
   if (!/^0x[0-9a-f]{40}$/.test(payee)) throw new Error('the standing wire names no payee');
-  const before = (await pub.readContract({ address: SHQ, abi: ERC20, functionName: 'balanceOf', args: [payee] })) as bigint;
+  const before = (await money.readContract({ address: SHQ, abi: ERC20, functionName: 'balanceOf', args: [payee] })) as bigint;
   const c3a = await challenge();
   // ONE INTENT, ONE PAYMENT. The enforcer's nonce is derived from the intent digest (spec 336 §8.3), so the same ask is
   // the same payment and the chain refuses it twice (NonceReused). Each run is a distinct intent by its reference —
@@ -167,7 +174,7 @@ if (existsSync(standingFile)) {
       const cont = await knock({ pres: present(c3b.nonce, c3b.audience), challengeHeader: c3b.header, path: '/a2a', originAudience, text: 'Here is the mandate for that payment.', taskId: askTask.id, metadata: { presented: derived.presented } });
       const doneTask = (cont.json?.result as { task?: { id?: string; status?: { state?: string; message?: { parts?: Array<{ text?: string }> } }; metadata?: { foreignStanding?: { verified?: boolean }; runRef?: string } } } | undefined)?.task;
       const said = doneTask?.status?.message?.parts?.find((pt) => pt.text)?.text ?? '';
-      const after = (await pub.readContract({ address: SHQ, abi: ERC20, functionName: 'balanceOf', args: [payee] })) as bigint;
+      const after = (await money.readContract({ address: SHQ, abi: ERC20, functionName: 'balanceOf', args: [payee] })) as bigint;
       check('§6 positive: the same task continues under the presented chain and COMPLETES — the estate\'s harness verified every link before the money moved', doneTask?.status?.state === 'TASK_STATE_COMPLETED', `${doneTask?.status?.state ?? cont.status} · "${said.slice(0, 120)}"`);
       check('§6 positive: 5 ' + symbol + ' actually moved from the treasury to the wire\'s payee', after - before === 5_000_000n, `payee balance ${Number(before) / 1e6} → ${Number(after) / 1e6} ${symbol}`);
       check('§6 positive: the completed act still carries the verified foreign standing and names its run', doneTask?.metadata?.foreignStanding?.verified === true && typeof doneTask?.metadata?.runRef === 'string', doneTask?.metadata?.runRef ?? '');
@@ -187,7 +194,7 @@ if (existsSync(standingFile)) {
           againState = t2?.status?.state ?? String(cont2.status); againSaid = t2?.status?.message?.parts?.find((pt) => pt.text)?.text ?? '';
         }
       }
-      const afterAgain = (await pub.readContract({ address: SHQ, abi: ERC20, functionName: 'balanceOf', args: [payee] })) as bigint;
+      const afterAgain = (await money.readContract({ address: SHQ, abi: ERC20, functionName: 'balanceOf', args: [payee] })) as bigint;
       check('§6 step 4: the identical intent repeated is handled as a DUPLICATE — the chain refuses the reused nonce and no second payment moves', againState === 'TASK_STATE_REJECTED' && /nonce|reverted|reused/i.test(againSaid) && afterAgain === after, `${againState} · "${againSaid.slice(0, 90)}" · payee still ${Number(afterAgain) / 1e6} ${symbol}`);
     }
   }

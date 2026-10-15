@@ -1,0 +1,196 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1250" viewBox="0 0 1600 1250" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" fill="#1d2433">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#4a5468"/>
+    </marker>
+    <marker id="arrowPurple" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#7a4fd0"/>
+    </marker>
+    <style>
+      .mono { font-family: 'JetBrains Mono', 'SFMono-Regular', Menlo, Consolas, monospace; font-size: 13px; }
+      .h1 { font-size: 26px; font-weight: 700; }
+      .h2 { font-size: 19px; font-weight: 700; }
+      .h3 { font-size: 15px; font-weight: 700; }
+      .body { font-size: 13.5px; }
+      .small { font-size: 12px; fill: #4a5468; }
+      .ok { fill: #1f7a44; font-weight: 700; }
+    </style>
+  </defs>
+
+  <rect width="1600" height="1250" fill="#ffffff"/>
+
+  <!-- Title -->
+  <text x="800" y="44" text-anchor="middle" class="h1">How maya is named across two towns and two chains</text>
+  <text x="800" y="70" text-anchor="middle" class="small">Live state, read from both chains on 2026-10-15. One person, one name, two accounts. The name lives on the root chain; her home is on hopechain.</text>
+
+  <!-- Person -->
+  <rect x="560" y="92" width="480" height="118" rx="14" fill="#f4efff" stroke="#7a4fd0" stroke-width="2"/>
+  <text x="800" y="120" text-anchor="middle" class="h2">Maya Fernandes (a person)</text>
+  <text x="800" y="144" text-anchor="middle" class="body">Resident of the impact-agent estate. Her Home: www.impact-agent.me</text>
+  <text x="800" y="166" text-anchor="middle" class="body">She holds one custodian key. It controls one Smart Agent per chain:</text>
+  <text x="800" y="188" text-anchor="middle" class="body">same custodian, different address (each chain has its own account factory).</text>
+
+  <!-- ============ LEFT PANEL: FAITHCHAIN ============ -->
+  <rect x="30" y="228" width="760" height="662" rx="16" fill="#f3f7ff" stroke="#3b6fd8" stroke-width="2.5"/>
+  <text x="54" y="262" class="h2" fill="#24499e">faithchain &#183; eip155:34348</text>
+  <text x="54" y="284" class="body">The ROOT chain: the one universal namespace lives here (spec 440 &#167;C).</text>
+  <text x="54" y="304" class="small">Town: faithchain (estate: faithnet). Neutral ground also sits on this chain today.</text>
+
+  <!-- Maya's root-chain account -->
+  <rect x="54" y="322" width="350" height="76" rx="10" fill="#ffffff" stroke="#7a4fd0" stroke-width="1.8"/>
+  <text x="70" y="345" class="h3">Maya's root-chain account</text>
+  <text x="70" y="366" class="mono">0x013f&#8230;06e5</text>
+  <text x="70" y="386" class="small">Smart Agent, type person. Owns her federation name.</text>
+
+  <!-- imbnet.estate -->
+  <rect x="420" y="322" width="346" height="76" rx="10" fill="#ffffff" stroke="#3b6fd8" stroke-width="1.5"/>
+  <text x="436" y="345" class="h3">imbnet.estate &#8594; <tspan class="mono">0x4457&#8230;1015</tspan></text>
+  <text x="436" y="366" class="small">impact-agent's estate agent. Its address is the</text>
+  <text x="436" y="384" class="small">permanent root of the estate's id on neutral ground.</text>
+
+  <!-- Registry -->
+  <rect x="54" y="414" width="712" height="300" rx="12" fill="#e4edff" stroke="#3b6fd8" stroke-width="1.5"/>
+  <text x="70" y="438" class="h3">AgentNameRegistry <tspan class="mono">0x60E9&#8230;aED9</tspan>: the root registry</text>
+  <text x="70" y="458" class="small">Typed roots: .me .org .team .svc .workspace .treasury .registry .church .circle .household .estate</text>
+
+  <!-- Root record -->
+  <rect x="78" y="472" width="664" height="226" rx="10" fill="#ffffff" stroke="#24499e" stroke-width="2.2"/>
+  <text x="96" y="498" class="h3" fill="#24499e">maya-fernandes.me</text>
+  <text x="268" y="498" class="small">the federation name   { name: maya-fernandes.me, chain: eip155:34348 }</text>
+  <text x="96" y="524" class="body">owner</text><text x="230" y="524" class="mono">0x013f&#8230;06e5</text>
+  <text x="96" y="546" class="body">points at (addr)</text><text x="230" y="546" class="mono">0x013f&#8230;06e5</text>
+  <text x="96" y="568" class="body">atl:accounts</text><text x="230" y="568" class="mono">eip155:34348:0x013f&#8230;06e5</text>
+  <text x="230" y="588" class="mono">eip155:34349:0x3f96&#8230;33d3</text>
+  <text x="96" y="610" class="body">a2aEndpoint</text><text x="230" y="610" class="mono">https://maya-fernandes.impact-agent.ai/api/a2a</text>
+  <text x="96" y="632" class="body">reverse</text><text x="230" y="632" class="mono">0x013f&#8230;06e5 &#8594; maya-fernandes.me</text>
+  <text x="560" y="632" class="ok">round trip &#10003;</text>
+  <text x="96" y="658" class="small">The suffix .me must match the account's on-chain type (person). A mismatch fails closed.</text>
+  <text x="96" y="678" class="small">One record in the one namespace: nobody else can be maya-fernandes.me, in either town.</text>
+
+  <!-- account owns record -->
+  <path d="M230,398 L230,470" fill="none" stroke="#4a5468" stroke-width="1.8" marker-end="url(#arrow)"/>
+
+  <!-- Neutral ground -->
+  <rect x="54" y="730" width="712" height="142" rx="12" fill="#fff6e5" stroke="#d08a00" stroke-width="2"/>
+  <text x="70" y="756" class="h3" fill="#8a5a00">Neutral ground: EstateProjectionRegistry <tspan class="mono">0xb4E1&#8230;147b</tspan></text>
+  <text x="70" y="780" class="body">A separate contract with no admin, no pause, and no upgrade. It holds each estate's</text>
+  <text x="70" y="800" class="body">roots (live grants, membership) and a sequence number. It holds NO names.</text>
+  <text x="70" y="824" class="body">impact-agent's estate id = keccak256("eip155:34348:" + imbnet.estate's address).</text>
+  <text x="70" y="852" class="small">Neutral is a property of the contract, not the chain. Sharing faithchain with the naming root is convenience.</text>
+
+  <!-- ============ RIGHT PANEL: HOPECHAIN ============ -->
+  <rect x="810" y="228" width="760" height="662" rx="16" fill="#f1fbf4" stroke="#2f9e5b" stroke-width="2.5"/>
+  <text x="834" y="262" class="h2" fill="#1f6e40">hopechain &#183; eip155:34349</text>
+  <text x="834" y="284" class="body">The hopenet town: impact-agent's home chain since 2026-10-14.</text>
+  <text x="834" y="304" class="small">This town sells no names. Its names are rooted at faithchain (federation.yaml: namesRootedAt).</text>
+
+  <!-- Estate services -->
+  <rect x="834" y="322" width="346" height="76" rx="10" fill="#ffffff" stroke="#2f9e5b" stroke-width="1.5"/>
+  <text x="850" y="345" class="h3">impact-agent estate</text>
+  <text x="850" y="366" class="small">Runtime, edge and vault run with CHAIN_ID 34349.</text>
+  <text x="850" y="384" class="small">Agent cards on impact-agent.ai.</text>
+
+  <!-- Maya's home account -->
+  <rect x="1196" y="322" width="350" height="76" rx="10" fill="#ffffff" stroke="#7a4fd0" stroke-width="1.8"/>
+  <text x="1212" y="345" class="h3">Maya's home account</text>
+  <text x="1212" y="366" class="mono">0x3F96&#8230;33d3</text>
+  <text x="1212" y="386" class="small">Where her Home, agent and treasury act.</text>
+
+  <!-- Local registry -->
+  <rect x="834" y="414" width="712" height="300" rx="12" fill="#dff4e6" stroke="#2f9e5b" stroke-width="1.5"/>
+  <text x="850" y="438" class="h3">AgentNameRegistry <tspan class="mono">0x60c7&#8230;318c</tspan>: a LOCAL table</text>
+  <text x="850" y="458" class="small">No priced roots and no gate. It mirrors the root name so this chain's own tools can read it.</text>
+
+  <!-- Local record -->
+  <rect x="858" y="472" width="664" height="156" rx="10" fill="#ffffff" stroke="#1f6e40" stroke-width="2.2"/>
+  <text x="876" y="498" class="h3" fill="#1f6e40">maya-fernandes.me</text>
+  <text x="1048" y="498" class="small">local copy   { name: maya-fernandes.me, chain: eip155:34349 }</text>
+  <text x="876" y="524" class="body">owner</text><text x="1010" y="524" class="mono">0x3F96&#8230;33d3</text>
+  <text x="876" y="546" class="body">points at (addr)</text><text x="1010" y="546" class="mono">0x3F96&#8230;33d3</text>
+  <text x="876" y="568" class="body">atl:accounts</text><text x="1010" y="568" class="mono">eip155:34348:0x013f&#8230;06e5</text>
+  <text x="1010" y="588" class="mono">eip155:34349:0x3f96&#8230;33d3</text>
+  <text x="876" y="612" class="body">reverse</text><text x="1010" y="612" class="mono">0x3F96&#8230;33d3 &#8594; maya-fernandes.me</text>
+  <text x="1340" y="612" class="ok">round trip &#10003;</text>
+
+  <!-- Retired local name -->
+  <rect x="858" y="638" width="664" height="60" rx="10" fill="#fbf3ee" stroke="#c2410c" stroke-width="1.4" stroke-dasharray="6 4"/>
+  <text x="876" y="662" class="h3" fill="#9a3412">maya.me <tspan class="small" fill="#9a3412">(the first local label, retired 2026-10-15)</tspan></text>
+  <text x="876" y="684" class="small">Handed to the chain's root owner and expired; it resolves to nobody. Both chains now use one label.</text>
+
+  <!-- account owns record -->
+  <path d="M1370,398 L1370,470" fill="none" stroke="#4a5468" stroke-width="1.8" marker-end="url(#arrow)"/>
+
+  <!-- Town services -->
+  <rect x="834" y="730" width="712" height="142" rx="12" fill="#ffffff" stroke="#2f9e5b" stroke-width="1.5"/>
+  <text x="850" y="756" class="h3" fill="#1f6e40">The hopenet town's public surfaces</text>
+  <text x="850" y="780" class="body">Town agent: hopenet.town. Discovery: discovery-a2a.hopenet.town, over this chain's own graph.</text>
+  <text x="850" y="800" class="body">Its indexer lists agents that are NAMED on 34349, which is why the local copy exists.</text>
+  <text x="850" y="824" class="body">No naming service of its own: the federation resolver reads the root on faithchain.</text>
+  <text x="850" y="852" class="small">The estate's id stays on faithchain: its runtime moved here, its estate agent did not.</text>
+
+  <!-- Cross-chain link -->
+  <path d="M742,578 L858,578" fill="none" stroke="#7a4fd0" stroke-width="2.6" stroke-dasharray="7 5" marker-start="url(#arrowPurple)" marker-end="url(#arrowPurple)"/>
+  <rect x="726" y="530" width="148" height="38" rx="8" fill="#ffffff" stroke="#7a4fd0" stroke-width="1.4"/>
+  <text x="800" y="545" text-anchor="middle" font-size="12" font-weight="700" fill="#5b36a8">atl:accounts</text>
+  <text x="800" y="560" text-anchor="middle" font-size="11" fill="#5b36a8">same list on both chains</text>
+
+  <!-- ============ BOTTOM: HOW A READER RESOLVES ============ -->
+  <rect x="30" y="910" width="1540" height="320" rx="16" fill="#f7f8fa" stroke="#9aa3b5" stroke-width="1.5"/>
+  <text x="54" y="942" class="h2">How a reader in either town finds maya</text>
+  <text x="54" y="964" class="small">One name, read on the root chain, followed to her home chain by the record she wrote. Every answer is a resolution, never a permission.</text>
+
+  <rect x="54" y="982" width="282" height="140" rx="10" fill="#ffffff" stroke="#4a5468"/>
+  <text x="70" y="1006" class="h3">1. Ask the resolver</text>
+  <text x="70" y="1028" class="body">The federation site asks</text>
+  <text x="70" y="1046" class="mono">/api/names/</text>
+  <text x="70" y="1064" class="mono">maya-fernandes.me</text>
+  <text x="70" y="1086" class="small">ap-federation.faithnet.io</text>
+  <text x="70" y="1104" class="small">holds no copy; it reads live.</text>
+  <path d="M336,1052 L356,1052" stroke="#4a5468" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <rect x="358" y="982" width="282" height="140" rx="10" fill="#ffffff" stroke="#3b6fd8"/>
+  <text x="374" y="1006" class="h3" fill="#24499e">2. Read the root</text>
+  <text x="374" y="1028" class="body">faithchain's record says</text>
+  <text x="374" y="1046" class="body">the name points at</text>
+  <text x="374" y="1064" class="mono">0x013f&#8230;06e5</text>
+  <text x="374" y="1086" class="small">and the reverse round-trips.</text>
+  <text x="374" y="1104" class="small">This is the authoritative name.</text>
+  <path d="M640,1052 L660,1052" stroke="#4a5468" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <rect x="662" y="982" width="282" height="140" rx="10" fill="#ffffff" stroke="#7a4fd0"/>
+  <text x="678" y="1006" class="h3" fill="#5b36a8">3. Follow atl:accounts</text>
+  <text x="678" y="1028" class="body">Need her on hopechain?</text>
+  <text x="678" y="1046" class="body">Take the 34349 entry:</text>
+  <text x="678" y="1064" class="mono">0x3F96&#8230;33d3</text>
+  <text x="678" y="1086" class="small">Written by the name's owner.</text>
+  <text x="678" y="1104" class="small">Evidence, not authority.</text>
+  <path d="M944,1052 L964,1052" stroke="#4a5468" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <rect x="966" y="982" width="282" height="140" rx="10" fill="#ffffff" stroke="#2f9e5b"/>
+  <text x="982" y="1006" class="h3" fill="#1f6e40">4. Check hopechain</text>
+  <text x="982" y="1028" class="body">That account's reverse says</text>
+  <text x="982" y="1046" class="body">maya-fernandes.me and its</text>
+  <text x="982" y="1064" class="body">record lists the same two.</text>
+  <text x="982" y="1086" class="small">Both sides agree: one person,</text>
+  <text x="982" y="1104" class="small">two accounts.</text>
+  <path d="M1248,1052 L1268,1052" stroke="#4a5468" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <rect x="1270" y="982" width="282" height="140" rx="10" fill="#ffffff" stroke="#4a5468"/>
+  <text x="1286" y="1006" class="h3">5. Show it, never bare</text>
+  <text x="1286" y="1030" class="mono">maya-fernandes.me</text>
+  <text x="1286" y="1048" class="mono">&#183; faithchain (eip155:34348)</text>
+  <text x="1286" y="1074" class="small">The chain is a field beside the</text>
+  <text x="1286" y="1092" class="small">name, never part of it: no</text>
+  <text x="1286" y="1110" class="small">"maya-fernandes.me@hopechain".</text>
+
+  <!-- Person to accounts (drawn last so they sit above the panels) -->
+  <path d="M560,170 L14,170 L14,360 L52,360" fill="none" stroke="#7a4fd0" stroke-width="2.4" stroke-linejoin="round" marker-end="url(#arrowPurple)"/>
+  <path d="M1040,170 L1586,170 L1586,360 L1548,360" fill="none" stroke="#7a4fd0" stroke-width="2.4" stroke-linejoin="round" marker-end="url(#arrowPurple)"/>
+  <text x="395" y="162" text-anchor="middle" font-size="12" font-weight="700" fill="#5b36a8">custodies her faithchain account</text>
+  <text x="1205" y="162" text-anchor="middle" font-size="12" font-weight="700" fill="#5b36a8">custodies her hopechain account</text>
+
+  <text x="54" y="1152" class="body"><tspan font-weight="700">Where she is reached:</tspan> maya-fernandes.impact-agent.ai, a DNS name the estate rents. It is a locator: losing it costs reach, not the name.</text>
+  <text x="54" y="1178" class="body"><tspan font-weight="700">Not built yet:</tspan> a hopechain Home claiming a root name through its own estate's gate (U3); a root-chain account at the same address as the home</text>
+  <text x="54" y="1198" class="body">account, with custody that follows a rotation (U3 precondition); a naming root on neutral ground so a chain that cannot read faithchain can verify by proof (U4).</text>
+</svg>

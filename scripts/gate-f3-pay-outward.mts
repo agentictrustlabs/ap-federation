@@ -28,8 +28,21 @@ const PAYER = arg('payer') ?? 'maya';
 const WIRE_FILE = arg('wire') ?? '.secrets/outward-wire-impact-agent.json';
 /** The OTHER estate's wire, used only to be refused — the proof that a permission from elsewhere is not honoured. */
 const FOREIGN_WIRE_FILE = arg('foreign-wire') ?? '.secrets/f3-standing-wire-faithnet.json';
-const RPC = process.env.FEDERATION_RPC_URL ?? process.env.RPC_URL;
-if (!RPC) { console.error('FEDERATION_RPC_URL is required'); process.exit(2); }
+// W4 (2026-10-15): the payer's money lives on the payer's HOME chain, which the register names (`estates[].homeChainId`,
+// its town's `rpcEnv`); the payee is the OTHER estate's treasury, on ITS home chain. When those differ, the honest
+// expectation flips: value does not cross chains (spec 243 reserves the bridge), so the payer's own harness must REFUSE
+// to pay a counterparty that is not an account on its chain — and that refusal is this gate's proof, not a failure of it.
+import { parse as parseYaml } from 'yaml';
+type Reg = { registry: { chainId: number }; towns: { id: string; chainId: number; rpcEnv?: string }[]; estates: { id: string; home?: string; chainId: number; homeChainId?: number }[] };
+const reg = parseYaml(readFileSync('federation.yaml', 'utf8')) as Reg;
+const payerEstate = reg.estates.find((e) => (e.home ?? '').replace(/\/$/, '') === PAYER_HOME);
+const payeeEstate = reg.estates.find((e) => e.id !== payerEstate?.id && !!e.home);
+const payerChain = payerEstate?.homeChainId ?? payerEstate?.chainId ?? reg.registry.chainId;
+const payeeChain = payeeEstate?.homeChainId ?? payeeEstate?.chainId ?? reg.registry.chainId;
+const rpcFor = (chainId: number): string | undefined => chainId === reg.registry.chainId ? (process.env.FEDERATION_RPC_URL ?? process.env.RPC_URL) : process.env[reg.towns.find((t) => t.chainId === chainId)?.rpcEnv ?? ''];
+const RPC = rpcFor(payerChain);
+if (!RPC) { console.error(`no endpoint for the payer's home chain eip155:${payerChain} (FEDERATION_RPC_URL, or the town's rpcEnv)`); process.exit(2); }
+const CROSS_CHAIN = payerChain !== payeeChain;
 if (!existsSync(WIRE_FILE)) { console.error(`${WIRE_FILE} is missing — ap-home scripts/issue-visitor-standing-wire.mts issues the payer's own wire`); process.exit(2); }
 
 const checks: Array<{ ok: boolean; name: string }> = [];
@@ -89,6 +102,23 @@ const before = await balance(payee);
 
 const runRef = `pay-outward-${Date.now().toString(36)}`;
 let reply = await ask(payMessage, runRef);
+if (CROSS_CHAIN) {
+  // THE RULE ACROSS CHAINS: the payee is a treasury on eip155:${payeeChain}; the payer's harness runs on eip155:${payerChain}.
+  // Nothing may move. A parked act or a completed one here would mean hopechain USDC sent to an address that is nobody's there.
+  // A reply's words live in `text`, `summary` or `error`; a question the harness asks lives in `prompt`/`question`. Read them all, and show the shape when none is there.
+  const r = reply as Record<string, unknown>;
+  const said = String(reply.text ?? reply.summary ?? reply.error ?? (r.prompt as { text?: string } | string | undefined && (typeof r.prompt === 'string' ? r.prompt : (r.prompt as { text?: string })?.text)) ?? r.question ?? '') || JSON.stringify(r).slice(0, 300);
+  // Not any non-payment will do: the refusal must be ABOUT the counterparty — the payee named, or its chain — or the
+  // harness has stopped for some other reason (today: "You have no treasury to be paying from", because the treasury was
+  // chartered by script and never recorded as hers) and the rule is not what was proven.
+  const aboutPayee = said.toLowerCase().includes(payee.slice(0, 8)) || /chain|eip155/i.test(said) || /no agent type|not an agent|counterpart/i.test(said);
+  check(`value does not cross chains: a payment from eip155:${payerChain} to a treasury on eip155:${payeeChain} is REFUSED by the payer's own harness, with the counterparty named as the reason`, reply.kind !== 'authority_required' && reply.kind !== 'done' && reply.kind !== 'effect' && aboutPayee, `${reply.kind ?? '?'} · "${said.slice(0, 200)}"`);
+  const after = await balance(payee);
+  check('and nothing moved', after === before, `payee ${formatUnits(before, 6)} → ${formatUnits(after, 6)} ${symbol} on eip155:${payerChain}`);
+  const failed = checks.filter((c) => !c.ok);
+  console.log(failed.length ? `\nPAY-OUTWARD GATE RED · ${failed.length} of ${checks.length} checks failed` : `\nPAY-OUTWARD GATE GREEN · ${checks.length} checks — cross-chain: refused, as it must be`);
+  process.exit(failed.length ? 1 : 0);
+}
 const need = parkedNeedOf(reply);
 check('a payment the payer\'s OWN wire covers parks for authority, with the requirement she can derive against', reply.kind === 'authority_required' && !!need, `${reply.kind ?? 'no kind'}${need ? ` · ${need.requirement.type}` : ` · ${(reply.text ?? reply.error ?? '').slice(0, 120)}`}`);
 

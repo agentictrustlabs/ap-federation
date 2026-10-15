@@ -55,8 +55,8 @@ Everything in this repository is a consequence of that sentence.
 | Word | Means |
 | --- | --- |
 | **estate** | one deployment an operator runs for its residents: a Home, a runtime, a vault, an edge. impact-agent and faithnet are estates |
-| **town** | the estates on one chain and what they share: naming, registry, KMS tenants, gateways. faithchain is the only town today |
-| **federation** | towns on different chains, joined on public ground. Today: two estates, one chain |
+| **town** | the estates on one chain and what they share: naming, registry, KMS tenants, gateways. Two today: faithchain (faithnet) and, since 2026-10-14, hopenet on hopechain (impact-agent) |
+| **federation** | towns on different chains, joined on public ground. Names are rooted on faithchain for both towns ([`naming-primer.md`](naming-primer.md)) |
 | **estate agent** | the one account that *is* the estate on neutral ground: `imbnet.estate`, `faithnet.estate`. Its address is permanent, so it must be an account, never a key |
 | **neutral ground** | `EstateProjectionRegistry`: a contract with no admin, no pause, no upgrade. Neutral is a property of the contract, not of the chain it sits on |
 | **projection** | an estate's commitment to its live-grant set (and membership set): two Merkle roots and a sequence number |
@@ -92,9 +92,14 @@ Everything in this repository is a consequence of that sentence.
 | kept fresh by | a projector on a six-hourly cron at `projector.ap-federation.faithnet.io` — a verifier accepts only a fresh anchored sequence, so an estate whose projector stops running stops being provable |
 | the proof | `pnpm gate:twin`: in both directions, the visitor's standing admitted at the other estate's door, a question answered, an act refused at the authority stage with the missing mandate named, a payment **run under a steward's standing wire** derived by the visitor with the money landing in the visitor's treasury, and the five door refusals |
 
-**What is not live:** a second chain. The estate id is chain-scoped by construction, so a second chain is one row
-in the register and one door, and no verifier code. Until one exists, that is a design property, not a
-demonstration, and every document here says so.
+**Live since 2026-10-15: a second chain.** impact-agent's people, Home, custody and grants live on hopechain
+(34349) while its projection still anchors on faithchain (34348); the register says both (`chainId` and
+`homeChainId`). The door verifies a presenter's signature on the chain its account lives on, reads the roots on the
+registry's chain and the estate agent's declaration on the projection chain; the projector reads revocation on the
+home chain. `pnpm gate:twin` runs both directions across the two chains, the host-side payment lands on hopechain
+under a wire issued there, and the outward payment across chains is refused — the rule being that value does not
+cross chains (spec 243 reserves the bridge). "No verifier code" was true of the registry and false of the door, which
+had one chain's client where it needed one per chain; `decisions-and-findings` W1–W9 say what else the first run found.
 
 ## A worked use case: a visiting agent is paid at faithnet
 

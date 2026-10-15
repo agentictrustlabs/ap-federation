@@ -1,6 +1,6 @@
 # Federated agent naming — one coherent approach across towns and chains
 
-**Status:** DRAFT 2026-10-13; **amended 2026-10-14** — the owner chose the root (N7 below). Spec 440 §C is now the decision of record for the root and how other chains join; §5.3–§5.5 here stand unchanged beneath it. Companion to
+**Status:** DRAFT 2026-10-13; **amended 2026-10-14** — the owner chose the root (N7 below). Spec 440 §C is now the decision of record for the root and how other chains join; §5.3–§5.5 here stand unchanged beneath it. **2026-10-15:** a second chain exists (hopechain, the hopenet town). What it does for names today is in [`naming-service.md`](naming-service.md) "What the second chain does today", and in plain words in [`naming-primer.md`](naming-primer.md). Companion to
 [`federation-principles.md`](federation-principles.md) (P1, P7, P8, P9 are the ones naming leans on) and
 [`naming-landscape-crosswalk.md`](naming-landscape-crosswalk.md) (every external claim here, dated and sourced).
 Ring 0 holds the naming substrate and doctrine; this document decides how that substrate is *used across a
@@ -52,6 +52,10 @@ The gap: with a second town on a second chain, `alice.me` exists twice, and noth
 `chains-and-estates.md` §3.2 item 3 proposed "one home registry per typed root; no parallel `.me` on another chain",
 which is right for one *person* on many chains (her satellites never re-register her name) and silent on whether a
 second *town* may issue `alice.me` to a second person. This document decides that question.
+
+*Since 2026-10-15 the gap is real rather than hypothetical:* hopechain has its own `AgentNameRegistry`. Under N7 it
+is a local table that issues nothing. It mirrors root names (`maya-fernandes.me` on both chains, each pointing at
+that chain's account), and `atl:accounts` on both records joins the two accounts.
 
 ---
 
@@ -369,7 +373,10 @@ Waves in this repository that follow from the table: **N-F1** (a + b: the pair e
 rule in the projector's own output, a gate that no foreign name is printed bare) → **N-F2** (c: the `_agent` record and
 its round-trip gate, with an AID v2 and an HCS-14 resolver run against a live estate as the proof) → **N-F3** (d + e:
 the naming root and the proof-backed resolver, with the negative twin: a name at a stale naming sequence is refused)
-→ **N-F4** (f: chain-keyed addresses and the satellite reverse claim, once a second chain exists to claim from).
+→ **N-F4** (f: chain-keyed addresses and the satellite reverse claim). The second chain exists since 2026-10-14.
+`atl:accounts` (spec 346 §3.8) took the place of a chain-keyed `atl:addr` and is written on both chains for the
+impact-agent roster. The satellite at the home account's address, and the resolver enforcing the round trip, are
+still owed.
 
 ---
 

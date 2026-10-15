@@ -10,7 +10,7 @@ import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { parse } from 'yaml';
 
-const fed = parse(readFileSync('federation.yaml', 'utf8')) as { doors: { estate: string; url: string }[]; estates: { id: string; governance: string | null }[] };
+const fed = parse(readFileSync('federation.yaml', 'utf8')) as { registry?: { chainId: number }; doors: { estate: string; url: string }[]; estates: { id: string; governance: string | null; chainId?: number; homeChainId?: number }[] };
 const projecting = fed.estates.filter((e) => e.governance).map((e) => e.id);
 const doors = fed.doors.filter((d) => projecting.includes(d.estate));
 if (doors.length < 2) { console.error(`the twin needs two projecting estates with doors; have ${doors.map((d) => d.estate).join(', ') || 'none'}`); process.exit(2); }
@@ -22,5 +22,8 @@ for (const door of doors) {
     if (r.status !== 0) red++;
   }
 }
-console.log(red ? `\nF3 TWIN RED · ${red} direction(s) failed` : `\nF3 TWIN GREEN · ${doors.length * (projecting.length - 1)} directions on ONE chain (${[...new Set(fed.estates.map((e) => (e as { chainId?: number }).chainId))].join(', ')}) — cross-estate, not cross-chain`);
+// W4: the chains a presenter's ACCOUNT lives on — `homeChainId` when the register says the estate's people live elsewhere
+// than its projection anchors. Two chains here is the cross-chain twin; one is cross-estate, and the line says which.
+const homeChains = [...new Set(fed.estates.map((e) => (e as { homeChainId?: number; chainId?: number }).homeChainId ?? (e as { chainId?: number }).chainId))];
+console.log(red ? `\nF3 TWIN RED · ${red} direction(s) failed` : `\nF3 TWIN GREEN · ${doors.length * (projecting.length - 1)} directions ${homeChains.length > 1 ? `ACROSS ${homeChains.length} CHAINS (${homeChains.join(' ↔ ')}) — presenters verified on their own chain, roots read on ${fed.registry?.chainId ?? '?'}` : `on ONE chain (${homeChains[0]}) — cross-estate, not cross-chain`}`);
 process.exit(red ? 1 : 0);

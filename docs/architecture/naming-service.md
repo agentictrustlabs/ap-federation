@@ -1,6 +1,8 @@
 # The naming service — one namespace, many chains
 
-**Status:** 2026-10-14. This is how the service works. It decides nothing: the decision of record for the root is
+**Status:** 2026-10-14; **updated 2026-10-15** for the second town (hopenet, on hopechain `eip155:34349`), read from
+both chains. The plain-words version with a picture is [`naming-primer.md`](naming-primer.md). This is how the service
+works. It decides nothing: the decision of record for the root is
 [spec 440 §C](../../specs/440-shared-kms-federation-site-and-universal-naming.md); the layers under the root are
 [`federated-agent-naming.md`](federated-agent-naming.md) N1–N6 and N8. N7 was amended the day this service was
 chosen: one universal namespace, rooted on faithchain, the way ENS v2 is rooted on Ethereum L1.
@@ -21,8 +23,9 @@ GET /api/names/<name>
 
 Each row is `{ name, town, chain, identity, kind, status, display }`. `identity` is the account,
 `eip155:<chainId>:<address>`. `display` always carries the town: the site is in no town, so no name is shown bare.
-Wave 1 asks every **live** town's naming read API (today https://names.faithnet.io), which reads its chain at
-request time. A retired town is not queried. A chain written into the name (`alice.me@faithchain`) is refused: `@`
+Wave 1 asks every **live** town's naming read API, which reads its chain at request time. Today that is
+https://names.faithnet.io, for the root chain. hopenet runs no naming service (`namesRootedAt: faithchain` in
+`federation.yaml`), so its residents' names are answered from the root. A retired town is not queried. A chain written into the name (`alice.me@faithchain`) is refused: `@`
 means a context (an org, a team, a workspace), and the chain is a field beside the name.
 
 An answer is a resolution. It is not a permission, a membership, or a reputation.
@@ -51,8 +54,8 @@ The typed roots on the root chain are `.me .org .team .svc .workspace .treasury 
 
 ## How a name is issued today
 
-faithchain is both the root and the only live town, so issuance is the town's existing ceremony (ap-town specs 430
-and 431):
+There are two towns. faithchain is the root and the only town that issues names; hopenet issues none. On the root,
+issuance is the town's existing ceremony (ap-town specs 430 and 431):
 
 1. The resident asks their estate's Home.
 2. That estate's **naming gate** — a key the Home holds — signs a claim ticket. The chain records which estate
@@ -64,6 +67,30 @@ and 431):
 
 A town's naming service **reads** this registry. It does not run a root of its own, and it does not re-register a
 name another town issued.
+
+### What the second chain does today (2026-10-15)
+
+impact-agent moved its runtime to hopechain on 2026-10-14. Its people were then deployed there as new accounts under
+the same custodian keys, and named, because hopenet's discovery index lists only agents named on its own chain. Take
+maya as the example:
+
+| | faithchain (root) | hopechain |
+| --- | --- | --- |
+| her account | `0x013f…06e5` | `0x3F96…33d3` |
+| `maya-fernandes.me` | in the root registry `0x60E9…aED9`, pointing at `0x013f…` | in hopechain's **local** registry `0x60c7…318c` (no priced roots, no gate), pointing at `0x3F96…` |
+| reverse lookup | round-trips | round-trips |
+| `atl:accounts` | both accounts | the same two |
+
+The local label was first `maya.me`. It was retired on 2026-10-15 so that both chains use one label: the node was
+handed to the chain's root owner and expired, and it now resolves to nobody (ap-home
+`scripts/rename-personas-on-chain.mts`). `atl:accounts` was written by each account on its own chain (ap-home
+`scripts/link-persona-accounts.mts`).
+
+**What that is, and what it is not.** It is U2's record half working across two real chains: either chain's record
+leads a reader to the other account, and both agree. It is **not** U3. The root name was not claimed from hopechain
+through impact-agent's own gate. Maya's root account is a separate account, not one at her home address. Nothing yet
+makes a rotation at her home account reach her root account. The hopechain copy is a local convenience, and the root
+record stays the name.
 
 ---
 
@@ -78,8 +105,9 @@ Three parts, all described in spec 440 §C3. None of them is a second registry.
    chain X, that owner is their satellite: an account at the same CREATE2 address when the factory matches, signing
    by ERC-6492 until its first transaction. The resident signs the claim at their Home on chain X. The operator
    does not hold the name for them. Where the same factory does not exist, the answer is no name until it does.
-3. **The records.** `atl:accounts` holds one CAIP-10 id per chain (registered on faithchain 2026-10-14). The home
-   account's reverse claim on chain X counts only when the forward on the root chain names that account.
+3. **The records.** `atl:accounts` holds one CAIP-10 id per chain (registered on faithchain 2026-10-14 and on
+   hopechain 2026-10-15). The home account's reverse claim on chain X counts only when the forward on the root chain
+   names that account.
 
 Custody has to travel with the person before a global name may point at a satellite in production: a rotation or
 recovery at the home account has to reach the satellite by its own custody ceremony. That is a Ring 0 spec, and it
@@ -103,9 +131,9 @@ One deployment uses one of those. It does not try the other when the first retur
 | Wave | What a reader gets | Status |
 | --- | --- | --- |
 | **U1** | the register, the resolver over live towns' naming services, the never-bare rule, the site | **live** — `scripts/gate-federation-site.mts` |
-| **U2** | the pair `{ name, chain }` in `agent-naming`; `atl:accounts` on the root chain; a reverse claim per chain | pair and `atl:accounts` **live** (2026-10-14); the reverse claim waits for a second chain |
-| **U3** | an estate on another chain named as a gate; its resident claims a root-chain name through their satellite | **designed** — needs a second chain, and custody propagation before production |
-| **U4** | the naming root on neutral ground; a proof-backed resolver on the second chain | **proposed** — a Ring 0 change to spec 410 §4 (a third root, or a second registry instance) |
+| **U2** | the pair `{ name, chain }` in `agent-naming`; `atl:accounts` on the root chain; a reverse claim per chain | pair **live** (2026-10-14); `atl:accounts` and a matching reverse claim **written on both chains** for the impact-agent roster (2026-10-15). **Not built:** the resolver reading `atl:accounts` and enforcing the per-chain round trip — no naming read API exposes the record yet |
+| **U3** | an estate on another chain named as a gate; its resident claims a root-chain name through their satellite | **designed** — the second chain exists; hopechain has no gate named on the root, and custody propagation is still needed before production |
+| **U4** | the naming root on neutral ground; a proof-backed resolver on the second chain | **proposed** — a Ring 0 change to spec 410 §4 (a third root, or a second registry instance). Not needed while hopenet can read faithchain directly (one operator) |
 | **U5** | `setGate` for a new estate becomes a quorum of town clerks, with a receipt | **open** — the governor today is one persona; spec 440 §C7 names the council and does not design it |
 
 ---
@@ -130,6 +158,7 @@ mandate. Signals stay separate; nothing on this service adds them up.
 
 | Question | Document |
 | --- | --- |
+| The same thing in plain words, with maya drawn across both chains | [`naming-primer.md`](naming-primer.md) |
 | Why the root was chosen, and what the field does instead | [`federated-agent-naming.md`](federated-agent-naming.md), spec 440 §C |
 | ERC-8004, ENS v2, the ANS family, AID, HCS-14, NANDA — dated | [`naming-landscape-crosswalk.md`](naming-landscape-crosswalk.md) |
 | Which of these waves are cross-town capabilities, and in what order | [`cross-town-capabilities.md`](cross-town-capabilities.md) |
