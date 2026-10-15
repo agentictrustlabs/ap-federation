@@ -11,7 +11,7 @@
    "required": true,
    "timeoutSec": 120,
    "env": {
-    "FEDERATION_ESTATE": "imbnet"
+    "FEDERATION_ESTATE": "impact-agent"
    }
   },
   {
@@ -36,7 +36,7 @@
    "timeoutSec": 180,
    "env": {
     "FEDERATION_DOOR_URL": "https://door.ap-federation.faithnet.io",
-    "FEDERATION_ESTATE": "imbnet",
+    "FEDERATION_ESTATE": "impact-agent",
     "NODE_OPTIONS": "--dns-result-order=ipv4first"
    },
    "needs": "FEDERATION_RPC_URL + .secrets/f2-test-agent.env + .secrets/f2-test-wire.json (scripts/setup-f2-test-grant.mts, once)"
@@ -52,7 +52,7 @@
    "env": {
     "NODE_OPTIONS": "--dns-result-order=ipv4first"
    },
-   "needs": "FEDERATION_RPC_URL + both estates' leaves (scripts/setup-f2-test-grant.mts --estate imbnet | faithnet)"
+   "needs": "FEDERATION_RPC_URL + both estates' leaves (scripts/setup-f2-test-grant.mts --estate impact-agent | faithnet)"
   },
   {
    "id": "projector-freshness",

@@ -13,7 +13,7 @@ import type { SubmissionV1 } from '../apps/projector/src/ledger.js';
 
 const dir = process.env.FEDERATION_VAULT_SECRET_DIR ?? '.secrets';
 const estates = process.argv.slice(2).filter((a) => !a.startsWith('--'));
-const which = estates.length ? estates : ['faithnet', 'imbnet'];
+const which = estates.length ? estates : ['faithnet', 'impact-agent'];
 // ONE FIXED, OBVIOUSLY SYNTHETIC LEAF, rewritten every run rather than a fresh one each time. A gate that minted a
 // random digest would leave a retired record behind on every pass and grow a real estate's ledger forever — and it
 // cannot tidy up after itself, because the grant has no `delete` scope ON PURPOSE: submissions are retired, never

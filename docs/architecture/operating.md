@@ -59,7 +59,7 @@ against the shortest verifier window it serves.**
 
 | Door | Worker | In front of | Target agent |
 | --- | --- | --- | --- |
-| `door.ap-federation.faithnet.io` | `ap-federation-door` (env `imbnet`) | imbnet | maya-fernandes.me |
+| `door.ap-federation.faithnet.io` | `ap-federation-door` (env `impact-agent`) | impact-agent | maya-fernandes.me |
 | `door-faithnet.ap-federation.faithnet.io` | `ap-federation-door-faithnet` (env `faithnet`) | faithnet | alice.me |
 
 ```

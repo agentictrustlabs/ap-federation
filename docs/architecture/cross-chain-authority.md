@@ -77,7 +77,7 @@ chain. The replay id is spent before that check. The acting agent is the signer,
 After a presentation is admitted, the door reads `signerOf` on neutral ground and `atl:projectionSigner` on the
 estate's own chain. A declared signer that disagrees with the registered one is a refusal: public ground cannot tell
 who governs an estate on another chain, so first to call `register` would otherwise own the roots. An undeclared
-signer is admitted with the gap named (`FOREIGN_ESTATE_SIGNER_UNDECLARED`). imbnet's row in `federation.yaml` still
+signer is admitted with the gap named (`FOREIGN_ESTATE_SIGNER_UNDECLARED`). impact-agent's row in `federation.yaml` still
 says `declaredOnChain: false`.
 
 ---
@@ -87,8 +87,8 @@ says `declaredOnChain: false`.
 | Piece | Where | What a reader can check |
 | --- | --- | --- |
 | Neutral ground | faithchain (34348) `0xb4E116F5C6915a4f1e649E0877e4a0A7a1c1147b` | no admin, no pause, no upgrade |
-| imbnet's roots | estate id derived from `imbnet.estate` (`0x4457aadf…`) | `scripts/gate-f1-projection.mts` — a presentation verifies; one sequence later it is refused |
-| The receiving door | https://door.ap-federation.faithnet.io in front of imbnet's A2A door | `scripts/gate-f2-door.mts` — a real `harness.read` grant maya signed, anchored, admitted; stale, wrong audience, wrong subject, replay, and no proof are refused |
+| impact-agent's roots | estate id derived from `imbnet.estate` (`0x4457aadf…`) | `scripts/gate-f1-projection.mts` — a presentation verifies; one sequence later it is refused |
+| The receiving door | https://door.ap-federation.faithnet.io in front of impact-agent's A2A door | `scripts/gate-f2-door.mts` — a real `harness.read` grant maya signed, anchored, admitted; stale, wrong audience, wrong subject, replay, and no proof are refused |
 | The public view of the register | https://ap-federation.faithnet.io | the registry address, each projecting estate, `declaredOnChain` |
 
 faithnet is not on neutral ground. It has no estate agent, and an estate id is permanent, so the projector refuses

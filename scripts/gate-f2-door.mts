@@ -21,12 +21,12 @@ import { deriveFromStanding, parkedNeedOf, type StandingWireV1 } from '@agenticp
 import { parse } from 'yaml';
 
 const DOOR = (process.env.FEDERATION_DOOR_URL ?? 'https://door.ap-federation.faithnet.io').replace(/\/$/, '');
-const estateId = process.env.FEDERATION_ESTATE ?? 'imbnet';
+const estateId = process.env.FEDERATION_ESTATE ?? 'impact-agent';
 const checks: { name: string; ok: boolean; detail: string }[] = [];
 const check = (name: string, ok: boolean, detail = '') => { checks.push({ name, ok, detail }); console.log(`${ok ? '✓' : '✗'} ${name}${detail ? ` — ${detail}` : ''}`); };
 const b64url = (o: unknown) => Buffer.from(JSON.stringify(o)).toString('base64url');
 
-const wireFile = `.secrets/f2-test-wire${estateId === 'imbnet' ? '' : `-${estateId}`}.json`;
+const wireFile = `.secrets/f2-test-wire${estateId === 'impact-agent' ? '' : `-${estateId}`}.json`;
 if (!existsSync('.secrets/f2-test-agent.env') || !existsSync(wireFile)) throw new Error(`run scripts/setup-f2-test-grant.mts --estate ${estateId} first`);
 const key = /F2_TEST_AGENT_KEY=(0x[0-9a-fA-F]{64})/.exec(readFileSync('.secrets/f2-test-agent.env', 'utf8'))![1] as Hex;
 const me = privateKeyToAccount(key);

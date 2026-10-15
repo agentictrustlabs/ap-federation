@@ -59,7 +59,7 @@ neutral ground, or any conformance claim it has not earned. See spec 439 §8.
 ## Status
 
 **F1 — the projector, live (2026-10-13).** `EstateProjectionRegistry` is deployed on faithchain
-(`0xb4E116F5C6915a4f1e649E0877e4a0A7a1c1147b` — no admin, no pause, no upgrade), the **imbnet** estate is
+(`0xb4E116F5C6915a4f1e649E0877e4a0A7a1c1147b` — no admin, no pause, no upgrade), the **impact-agent** estate is
 registered under `estateId 0xe96d2c36…` derived from its own agent `imbnet.estate`, and its live-grant root
 is anchored over real grants read under their holder's own session and pruned against the chain. A
 presentation verifies against the root read from the chain; one sequence later the same presentation is
@@ -71,7 +71,7 @@ Three things F1 found, and none of them are footnotes:
   records (ap-home deleted its HMAC bridge for that reason), so *inclusion is a submission and exclusion is
   the chain*. `apps/projector/README.md` §1.
 - **`register` is first-come-wins**, so a verifier that trusts `signerOf` alone trusts whoever registered
-  first. F2.5 added the estate-side declaration a verifier cross-checks (`atl:projectionSigner`); imbnet has
+  first. F2.5 added the estate-side declaration a verifier cross-checks (`atl:projectionSigner`); impact-agent has
   declared, and a run prints the gap for any estate that has not.
 - **faithnet could not be federated until it had an estate agent** (an estate id is permanent, so it needed an
   address that will still mean "faithnet" in a year). It has one since 2026-10-14; its people still declare no
@@ -85,7 +85,7 @@ without a payer, or a root chain that is not a live town. The naming decision ch
 universal namespace rooted on faithchain, the way ENS v2 is rooted on L1**, other chains joining without a second
 registry (spec 440 §C; the naming document's N7 is amended).
 
-**F2 — the receiving door, live (2026-10-14).** `apps/door` at **door.ap-federation.faithnet.io** in front of imbnet's
+**F2 — the receiving door, live (2026-10-14).** `apps/door` at **door.ap-federation.faithnet.io** in front of impact-agent's
 A2A door: a challenge, a principal-signed request proof verified through `UniversalSignatureValidator` with the
 replay spent before the signature is checked, the admission engine with `foreignEstateEvaluator` against roots read
 from neutral ground at request time, a hash-chained receipt by reference, and the admitted bytes forwarded with

@@ -4,7 +4,7 @@ import { pruneLive } from '../src/liveness.js';
 import type { SubmissionV1 } from '../src/ledger.js';
 
 const row = (over: Partial<SubmissionV1> = {}): SubmissionV1 => ({
-  type: 'ap.federation-submission.v1', estate: 'imbnet', set: 'live-grant',
+  type: 'ap.federation-submission.v1', estate: 'impact-agent', set: 'live-grant',
   digest: `0x${'11'.repeat(32)}`, blind: `0x${'22'.repeat(32)}`,
   subject: '0x000000000000000000000000000000000000beef', submittedBy: 'test', source: 'test',
   submittedAt: '2026-10-13T00:00:00.000Z', ...over,

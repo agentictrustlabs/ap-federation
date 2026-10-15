@@ -34,7 +34,7 @@ registry:
 # persists, credentials rotate). An estate without such an agent is NOT registered here: minting a
 # permanent id from a provisional address is the kind of thing nobody can undo.
 estates:
-  - id: imbnet
+  - id: impact-agent
     chainId: 34348
     home: https://www.impact-agent.me
     a2a: https://a2a.impact-agent.io
@@ -51,8 +51,8 @@ estates:
     signerCustodian: "maya (a person of this estate, via its Home)"
     # The key the projector holds is a DELEGATE under a wire this agent signed: `setRoots` on the registry, nothing
     # else, time-bounded, revocable on chain in one transaction without touching the agent (ADR-0019).
-    anchorDelegateKeyEnv: IMBNET_PROJECTION_SIGNER
-    anchoringWire: .secrets/anchoring-wire-imbnet.json
+    anchorDelegateKeyEnv: IMPACT_AGENT_PROJECTION_SIGNER
+    anchoringWire: .secrets/anchoring-wire-impact-agent.json
     # Revocation is read on the ESTATE'S chain, and this is the contract that answers (Ring 0
     # `deployments-faithchain.json#delegationManager`). No address here means nothing can be pruned, and the
     # projector then refuses to vouch for a set it cannot narrow.
@@ -87,7 +87,7 @@ estates:
     governanceKind: estate-agent
     governanceName: faithnet.estate         # on-chain: AgentNameRegistry owner of `faithnet.estate`
     governanceCustody: "demo-admin persona (demo/personas.local.json), the owner's choice 2026-10-14"
-    # As imbnet: the signer is this estate's registry agent, custodied by demo-admin (a person of this estate),
+    # As impact-agent: the signer is this estate's registry agent, custodied by demo-admin (a person of this estate),
     # declaring `atl:estate: faithnet.estate`. The projector's key is a revocable delegate under its wire.
     signer: "0xdfdAE0a37D35b72D8E2a4E3464087d43d0eB0b5b"
     signerKind: registry-agent
@@ -102,7 +102,7 @@ estates:
 # The federation's reference receiving doors — one in front of one estate's A2A door each. A production door is
 # the estate's own edge; these are where a foreign presentation reaches an admission receipt today.
 doors:
-  - estate: imbnet
+  - estate: impact-agent
     url: https://door.ap-federation.faithnet.io
     target: maya-fernandes.me          # the receiving agent, through the estate's edge-addressed door
     since: 2026-10-14
@@ -160,7 +160,7 @@ kms:
   # in". That is NOT the configuration either estate runs: both set `A2A_CUSTODY_KMS_BACKEND = "local-aes"`, so
   # custody derives from `A2A_CUSTODY_ROOT_KEY`, a Worker secret of the estate, and no resident's custody seed is
   # in any tenant. The key exists and is unused: faithnet's tenant holds exactly ONE `oidc-custodian` envelope key,
-  # provisioned and never selected; imbnet's holds none. A4 is therefore a CONDITIONAL caveat — true the day an
+  # provisioned and never selected; impact-agent's holds none. A4 is therefore a CONDITIONAL caveat — true the day an
   # estate flips custody to its tenant, which ap-home spec 441 D4 says no estate does until that cost is decided.
   # What the operator does hold for faithnet beyond vault KEKs: its `relay` and `interactions-session` signing keys.
   custodyToday:
@@ -257,11 +257,11 @@ kms:
         - { subject: gather27-a2a-production, operations: [key-public-key, key-sign], protectionLevels: [CVM_WRAPPED] }
       note: "3 logical keys (service-agent delegates); the town is retired — disable or keep is the owner's call"
     - tenant: imb
-      estate: imbnet
+      estate: impact-agent
       town: faithchain
       backend: akcs
       # Re-bound 2026-10-14 to the ESTATE PROFILES (ap-home spec 441 §4 / D5) — the same two shapes every estate
-      # gets, so the eleventh estate's callers are not derived by hand. The -2 pair is DISABLED; imbnet's four
+      # gets, so the eleventh estate's callers are not derived by hand. The -2 pair is DISABLED; impact-agent's four
       # narrower operations were the local-aes shape, which stopped being right when its relay and interactions
       # keys moved into this tenant (441 D3).
       callers:
@@ -277,7 +277,7 @@ kms:
           operations: [status, mac-generate, mac-verify, key-read, key-public-key, key-sign]
           protectionLevels: [CVM_WRAPPED, CVM_DERIVED]
           since: 2026-10-14
-      # NO PRIVATE KEY IN A WORKER SECRET (441 D3): imbnet's relay and interactions-session keys are keys of this
+      # NO PRIVATE KEY IN A WORKER SECRET (441 D3): impact-agent's relay and interactions-session keys are keys of this
       # tenant now, and A2A_MASTER_PRIVATE_KEY / A2A_INTERACTIONS_SESSION_PRIVATE_KEY are deleted from its Worker.
       rawDigestGrant: [imb-runtime-3]
       note: "bound with --audiences urn:mcp:server:person --purposes '*' (one KEK purpose per person); 10 logical keys — 8 vault KEKs plus imb-relay and imb-interactions-session, both SIGNING/secp256k1/CVM_WRAPPED, created 2026-10-14"
@@ -286,7 +286,7 @@ kms:
       condition: "No shared caller credential — one least-privilege bind-caller per Worker per estate (closes spec 407 D10)"
       status: met
       detail: >-
-        imbnet met 2026-10-11 (two callers). faithnet met 2026-10-14: the vault is
+        impact-agent met 2026-10-11 (two callers). faithnet met 2026-10-14: the vault is
         `demo-mcp-faithnet-vault-5` and the runtime `demo-a2a-faithnet-runtime-6`, each with eleven named
         operations, and the shared `demo-a2a-faithnet` caller bound with operations ["*"] is DISABLED along with
         the nine narrowings tried on the way. Both estates' gates are green with it off (gate:pay-outward,

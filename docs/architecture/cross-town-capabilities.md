@@ -44,9 +44,9 @@ manifest and no record of a person.
 
 | Outcome | What it is | Status |
 | --- | --- | --- |
-| Anchor an estate's live-grant and membership roots | Merkle roots on `EstateProjectionRegistry`, monotonic sequence | **live** for imbnet (F1) — `gate-f1-projection` |
+| Anchor an estate's live-grant and membership roots | Merkle roots on `EstateProjectionRegistry`, monotonic sequence | **live** for impact-agent (F1) — `gate-f1-projection` |
 | Prove one leaf to a counterparty | the counterparty reads the root itself; a stale sequence is a refusal | **live** (F1 verify, F2 admit) |
-| Cross-check who registered the estate | `signerOf` on neutral ground against `atl:projectionSigner` on the estate's chain | **live** as a check; imbnet's declaration is still **open** (`declaredOnChain: false`) |
+| Cross-check who registered the estate | `signerOf` on neutral ground against `atl:projectionSigner` on the estate's chain | **live** as a check; impact-agent's declaration is still **open** (`declaredOnChain: false`) |
 | Project faithnet | the same anchor, once faithnet has an estate agent | **blocked** — `federation.yaml` faithnet row |
 
 ### Be admitted, then act
@@ -84,7 +84,7 @@ email, or phone, the operator custodies the seed; the record says so. faithnet's
 
 ```
   live today
-    see the towns · resolve a name · anchor imbnet · knock and be admitted
+    see the towns · resolve a name · anchor impact-agent · knock and be admitted
 
   owner, not code
     faithnet's estate agent          →  faithnet can project

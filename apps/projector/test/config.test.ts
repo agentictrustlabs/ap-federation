@@ -23,14 +23,14 @@ describe('loadFederation', () => {
   });
 
   it('derives the estate id for a projectable row', () => {
-    const p = write(`${REGISTRY}estates:\n  - id: imbnet\n    chainId: 34348\n    governance: "0x4457aadf6ADeB31bA8F166fafcC0d0579ECd1015"\n    governanceKind: estate-agent\n`);
-    expect(requireProjectable(estateById(loadFederation(p), 'imbnet')).estateId).toMatch(/^0x[0-9a-f]{64}$/);
+    const p = write(`${REGISTRY}estates:\n  - id: impact-agent\n    chainId: 34348\n    governance: "0x4457aadf6ADeB31bA8F166fafcC0d0579ECd1015"\n    governanceKind: estate-agent\n`);
+    expect(requireProjectable(estateById(loadFederation(p), 'impact-agent')).estateId).toMatch(/^0x[0-9a-f]{64}$/);
   });
 
   it('will not guess an endpoint or a key from the environment', () => {
-    const p = write(`${REGISTRY}estates:\n  - id: imbnet\n    chainId: 34348\n    governance: "0x4457aadf6ADeB31bA8F166fafcC0d0579ECd1015"\n    governanceKind: estate-agent\n    signerKeyEnv: ABSENT_KEY\n`);
+    const p = write(`${REGISTRY}estates:\n  - id: impact-agent\n    chainId: 34348\n    governance: "0x4457aadf6ADeB31bA8F166fafcC0d0579ECd1015"\n    governanceKind: estate-agent\n    signerKeyEnv: ABSENT_KEY\n`);
     const f = loadFederation(p);
     expect(() => registryRpc(f, {})).toThrow(/TEST_RPC is not set/);
-    expect(() => signerKey(estateById(f, 'imbnet'), { ABSENT_KEY: 'not-a-key' })).toThrow(/32-byte key/);
+    expect(() => signerKey(estateById(f, 'impact-agent'), { ABSENT_KEY: 'not-a-key' })).toThrow(/32-byte key/);
   });
 });

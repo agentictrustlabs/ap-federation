@@ -22,7 +22,7 @@ akcs operator --config /etc/akcs/config.toml create-tenant --tenant-id <t> --nam
 
 One tenant id per estate, named for the estate. A second deployment or a service **of the same estate** is a new
 caller in the same tenant, never a new tenant (faithnet-b, skills-a2a). A different estate is always a new tenant,
-even on the same chain (imbnet).
+even on the same chain (impact-agent).
 
 ## 2. Bind one caller per Worker
 
@@ -48,9 +48,9 @@ akcs operator … bind-caller --tenant-id <t> --issuer https://akcs-pilot.faithn
 
 ### If the estate's person custody runs THROUGH the tenant (the faithnet shape)
 
-The two lines above are the **local-aes** shape (imbnet): the person's vault key is wrapped locally and the tenant is
+The two lines above are the **local-aes** shape (impact-agent): the person's vault key is wrapped locally and the tenant is
 only asked for envelopes and MACs. An estate whose person custody is OIDC-derived in the CVM needs more, and copying
-imbnet's split into it breaks every read it serves. faithnet's two, 2026-10-14:
+impact-agent's split into it breaks every read it serves. faithnet's two, 2026-10-14:
 
 ```
 --operations status,data-key-generate,data-key-unwrap,derived-signer-resolve,derived-signer-sign,\

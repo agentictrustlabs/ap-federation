@@ -5,7 +5,7 @@
 // checks — that the registry refuses a replayed sequence — is checked by SIMULATION (`eth_call`), which is
 // exactly how you test a refusal without spending a sequence to see it fail.
 //
-//   FEDERATION_RPC_URL=… npx tsx scripts/gate-f1-projection.mts [--estate imbnet]
+//   FEDERATION_RPC_URL=… npx tsx scripts/gate-f1-projection.mts [--estate impact-agent]
 //
 // The twin is the point: anyone can anchor a number. What must also be true is that the SAME verifier
 // refuses the same presentation one sequence later, and that nothing it reads comes from the presenter.
@@ -19,7 +19,7 @@ import { isRevokedReader } from '../apps/projector/src/revocation.js';
 import { buildForSequence } from '../apps/projector/src/project.js';
 
 const arg = (k: string, d?: string) => { const i = process.argv.indexOf(`--${k}`); return i >= 0 ? process.argv[i + 1]! : d; };
-const ESTATE = arg('estate', 'imbnet')!;
+const ESTATE = arg('estate', 'impact-agent')!;
 const problems: string[] = [];
 const ok = (what: string) => console.log(`  ok   ${what}`);
 const bad = (what: string) => { problems.push(what); console.log(`  FAIL ${what}`); };

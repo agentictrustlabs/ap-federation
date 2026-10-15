@@ -40,15 +40,15 @@ never spend a sequence on an unchanged, still-fresh projection. Presentations ar
 
 ```bash
 export FEDERATION_RPC_URL=…            # neutral ground (carries an app token; never in federation.yaml)
-export IMBNET_PROJECTION_SIGNER=0x…    # the estate's anchoring key, per its register row
+export IMPACT_AGENT_PROJECTION_SIGNER=0x…    # the estate's anchoring key, per its register row
 
 pnpm projector status                                        # register vs chain, for every estate
-pnpm projector register --estate imbnet                      # binds the estate id to its signer — ONCE
-pnpm projector submit  --estate imbnet --set live-grant \
+pnpm projector register --estate impact-agent                      # binds the estate id to its signer — ONCE
+pnpm projector submit  --estate impact-agent --set live-grant \
   --digest 0x… --subject 0x… --by "maya, under her own session" --source "…"
-pnpm projector retire  --estate imbnet --digest 0x… --reason "the holder asked for it back"
-pnpm projector project --estate imbnet [--dry-run]           # prune, build, anchor (or say why not)
-pnpm projector present --estate imbnet --digest 0x… --audience https://edge.faithnet.io
+pnpm projector retire  --estate impact-agent --digest 0x… --reason "the holder asked for it back"
+pnpm projector project --estate impact-agent [--dry-run]           # prune, build, anchor (or say why not)
+pnpm projector present --estate impact-agent --digest 0x… --audience https://edge.faithnet.io
 pnpm projector verify  --file .submissions/presentation-….json
 ```
 
@@ -70,7 +70,7 @@ from the chain. It is the only command that needs no key at all — **a verifier
 | | |
 | --- | --- |
 | neutral ground | `0xb4E116F5C6915a4f1e649E0877e4a0A7a1c1147b` on faithchain (34348) |
-| imbnet | estateId `0xe96d2c36…`, governance `imbnet.estate` `0x4457aadf…`, anchored, sequence monotonic |
+| impact-agent | estateId `0xe96d2c36…`, governance `imbnet.estate` `0x4457aadf…`, anchored, sequence monotonic |
 | faithnet | **not projectable** — it has no estate agent (`faithnet.estate` is unregistered and its people declare no `atl:estate`). See `federation.yaml`. |
 
 `npx tsx scripts/gate-f1-projection.mts` is F1's gate, and it is green.

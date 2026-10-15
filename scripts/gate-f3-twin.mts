@@ -2,8 +2,8 @@
 // gate-f3-twin — the two-estate twin, both directions, on one chain (spec 439 §6 / §7.5).
 //
 // Standing anchored by ONE estate is presented at the OTHER estate's door and admitted on evidence read from neutral
-// ground; the same five refusals hold at each door. Runs gate-f2-door twice (imbnet → faithnet's door, faithnet →
-// imbnet's door) and fails if either fails. Needs both estates' leaves (setup-f2-test-grant.mts per estate),
+// ground; the same five refusals hold at each door. Runs gate-f2-door twice (impact-agent → faithnet's door, faithnet →
+// impact-agent's door) and fails if either fails. Needs both estates' leaves (setup-f2-test-grant.mts per estate),
 // FEDERATION_RPC_URL, and both doors live. Honest limit, printed: one chain. The id is chain-scoped by construction;
 // a second chain changes one line of config per estate and no verifier code — a design property, not a demonstration.
 import { spawnSync } from 'node:child_process';

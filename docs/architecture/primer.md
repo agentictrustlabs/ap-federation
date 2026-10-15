@@ -38,10 +38,10 @@ Everything in this repository is a consequence of that sentence.
 ## The picture
 
 ```
-      estate A (imbnet)                  neutral ground                    estate B (faithnet)
+      estate A (impact-agent)                  neutral ground                    estate B (faithnet)
    ┌──────────────────────┐        ┌───────────────────────┐        ┌──────────────────────┐
    │ people's grants      │        │ EstateProjectionReg.  │        │ people's grants      │
-   │ (in their own vaults)│ anchor │  imbnet   root @ seq 3│ anchor │ (in their own vaults)│
+   │ (in their own vaults)│ anchor │  impact-agent   root @ seq 3│ anchor │ (in their own vaults)│
    │ projector ───────────┼───────▶│  faithnet root @ seq 1│◀───────┼─────────── projector │
    └──────────┬───────────┘        └──────────▲────────────┘        └──────────┬───────────┘
               │ "here is my leaf"              │ read the root, now              │
@@ -54,7 +54,7 @@ Everything in this repository is a consequence of that sentence.
 
 | Word | Means |
 | --- | --- |
-| **estate** | one deployment an operator runs for its residents: a Home, a runtime, a vault, an edge. imbnet and faithnet are estates |
+| **estate** | one deployment an operator runs for its residents: a Home, a runtime, a vault, an edge. impact-agent and faithnet are estates |
 | **town** | the estates on one chain and what they share: naming, registry, KMS tenants, gateways. faithchain is the only town today |
 | **federation** | towns on different chains, joined on public ground. Today: two estates, one chain |
 | **estate agent** | the one account that *is* the estate on neutral ground: `imbnet.estate`, `faithnet.estate`. Its address is permanent, so it must be an account, never a key |
@@ -85,9 +85,9 @@ Everything in this repository is a consequence of that sentence.
 | Thing | Where |
 | --- | --- |
 | neutral ground | `0xb4E116F5…` on faithchain |
-| imbnet | `imbnet.estate`, anchored at sequence 3, signer declared |
+| impact-agent | `imbnet.estate`, anchored at sequence 3, signer declared |
 | faithnet | `faithnet.estate`, anchored at sequence 1, signer declared |
-| a door in front of each | `door.ap-federation.faithnet.io` (imbnet), `door-faithnet.ap-federation.faithnet.io` (faithnet) |
+| a door in front of each | `door.ap-federation.faithnet.io` (impact-agent), `door-faithnet.ap-federation.faithnet.io` (faithnet) |
 | the site | `ap-federation.faithnet.io`: towns, KMS, names, doors, neutral ground |
 | kept fresh by | a projector on a six-hourly cron at `projector.ap-federation.faithnet.io` — a verifier accepts only a fresh anchored sequence, so an estate whose projector stops running stops being provable |
 | the proof | `pnpm gate:twin`: in both directions, the visitor's standing admitted at the other estate's door, a question answered, an act refused at the authority stage with the missing mandate named, a payment **run under a steward's standing wire** derived by the visitor with the money landing in the visitor's treasury, and the five door refusals |
@@ -105,7 +105,7 @@ one resident, one payment, and the two refusals that sit beside it.
 
 | Who | What they are | Where they live |
 | --- | --- | --- |
-| **the visitor** | an agent of the imbnet estate (it holds a live grant there, from maya) | imbnet, with its own treasury on faithchain |
+| **the visitor** | an agent of the impact-agent estate (it holds a live grant there, from maya) | impact-agent, with its own treasury on faithchain |
 | **alice** | a resident of faithnet; a steward of her treasury `alice2.treasury` | faithnet |
 | **alice's agent** | the agent that acts for alice, behind faithnet's A2A door | faithnet's runtime |
 | **the door** | the federation's receiving door in front of faithnet | `door-faithnet.ap-federation.faithnet.io` |
@@ -113,8 +113,8 @@ one resident, one payment, and the two refusals that sit beside it.
 
 **Before anything crosses** (done once, by each side)
 
-1. imbnet's projector collects the leaf for maya's grant to the visitor, prunes it against the chain, and anchors
-   imbnet's roots on neutral ground at sequence 3.
+1. impact-agent's projector collects the leaf for maya's grant to the visitor, prunes it against the chain, and anchors
+   impact-agent's roots on neutral ground at sequence 3.
 2. alice decides, at her Home, that this visitor may be paid from her treasury: up to 10 USDC per payment, for thirty
    days, into the visitor's treasury. She signs that **standing wire** once. It is revocable on chain at any moment.
 
@@ -123,8 +123,8 @@ one resident, one payment, and the two refusals that sit beside it.
 | # | Interaction | What is checked | What it proves |
 | --- | --- | --- | --- |
 | 1 | The visitor asks the door for a **challenge** for its own account. | — | the presentation it builds next cannot be replayed elsewhere |
-| 2 | The visitor builds a **presentation**: its leaf and Merkle path at imbnet's anchored sequence, bound to the nonce and the door's origin. | — | "I hold a live grant in imbnet as of sequence 3" |
-| 3 | The visitor sends the request with a **signed request proof** and the presentation. | the door spends the replay id, verifies the signature on chain, reads imbnet's root **from neutral ground now**, verifies the path, the sequence, the age, the challenge, the subject; cross-checks imbnet's declared signer | **standing in imbnet** — evidence, written to a receipt |
+| 2 | The visitor builds a **presentation**: its leaf and Merkle path at impact-agent's anchored sequence, bound to the nonce and the door's origin. | — | "I hold a live grant in impact-agent as of sequence 3" |
+| 3 | The visitor sends the request with a **signed request proof** and the presentation. | the door spends the replay id, verifies the signature on chain, reads impact-agent's root **from neutral ground now**, verifies the path, the sequence, the age, the challenge, the subject; cross-checks impact-agent's declared signer | **standing in impact-agent** — evidence, written to a receipt |
 | 4 | The door **forwards** the request to alice's door with the receipt reference and the standing in headers. | — | the estate can see what the door saw |
 | 5 | alice's door asks **who is calling**, separately: the visitor's caller assertion, signed by its own key. | verified through the universal validator; spent once | the visitor is an authenticated agent asking as itself |
 | 6 | The runtime fetches the door's receipt **from the door** and records the standing on the task as evidence. | the receipt names this caller, admitted | a steward later reading the task knows who asked and from where |
@@ -144,10 +144,10 @@ one resident, one payment, and the two refusals that sit beside it.
 
 **What each party learned, and what none of them had to trust**
 
-- The door learned that the visitor has a live grant in imbnet. It never saw the grant, or anyone else in imbnet.
+- The door learned that the visitor has a live grant in impact-agent. It never saw the grant, or anyone else in impact-agent.
 - alice's agent learned that the door admitted this caller, and that alice's own wire covers this payment. It
   trusted neither the door nor the visitor for that: it read the receipt itself and verified the chain itself.
-- imbnet learned nothing about faithnet, and faithnet nothing about imbnet, beyond one root each on neutral ground.
+- impact-agent learned nothing about faithnet, and faithnet nothing about impact-agent, beyond one root each on neutral ground.
 - No bridge carried authority. No grant was re-issued. No assertion was accepted on its issuer's word.
 
 ## Where to go next

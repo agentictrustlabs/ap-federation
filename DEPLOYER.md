@@ -15,13 +15,13 @@ runs against it:
 | `apps/projector` CLI | an operator's machine, for submitting and presenting | ap-federation | 2026-10-13 |
 | `apps/site` — **ap-federation.faithnet.io** (spec 440 §B) | Cloudflare Worker `ap-federation-site`, env `faithnet`, custom domain on `faithnet.io` | ap-federation (`pnpm site:deploy`) | 2026-10-14 |
 | the shared KMS operator record (spec 440 §A) | `federation.yaml#kms` — the AKCS CVM in `RG-AKCS-PILOT-WESTUS`; code `agentictrustlabs/faithkms` | **operated**, not deployed, by the AKCS operator (one holder); recorded here | 2026-10-14 |
-| `apps/door` — **door.ap-federation.faithnet.io** (spec 439 F2, the receiving door in front of imbnet's A2A door) | Cloudflare Worker `ap-federation-door`, env `imbnet` (envs are keyed by the RECEIVING estate; the Worker name never changed), DO `DoorLedgerDO`; secrets `FEDERATION_RPC_URL`, `DOOR_SECRET` | ap-federation (`pnpm door:deploy`) | 2026-10-14 |
+| `apps/door` — **door.ap-federation.faithnet.io** (spec 439 F2, the receiving door in front of impact-agent's A2A door) | Cloudflare Worker `ap-federation-door`, env `impact-agent` (envs are keyed by the RECEIVING estate; the Worker name never changed), DO `DoorLedgerDO`; secrets `FEDERATION_RPC_URL`, `DOOR_SECRET` | ap-federation (`pnpm door:deploy`) | 2026-10-14 |
 | `apps/door` — **door-faithnet.ap-federation.faithnet.io** (the receiving door in front of faithnet's A2A door, target alice.me) | Cloudflare Worker `ap-federation-door-faithnet`, env `faithnet`, its own DO and `DOOR_SECRET` | ap-federation (`pnpm door:deploy`) | 2026-10-14 |
 | `apps/nanda-adapter` (F4) | per town | ap-federation | — |
 
 **The projector anchors as each estate's registry agent, on a schedule** (spec 439 §4). Since 2026-10-14
 `signerOf(estateId)` on neutral ground is the estate's own `.registry` service agent — a Smart Agent custodied by a
-person **of that estate** (faithnet's by demo-admin, imbnet's by maya through its own Home), each declaring
+person **of that estate** (faithnet's by demo-admin, impact-agent's by maya through its own Home), each declaring
 `atl:estate`. The job holds a **delegate key** under a wire that agent signed: `setRoots` on the registry, nothing
 else, time-bounded. Without the wire the key reverts; revoking it on chain stops the job without touching the agent,
 its name, or anything else it may later hold. A Worker ticks every six hours: read the submissions, prune every leaf
@@ -49,7 +49,7 @@ not a root, and not required of any town. This repository deploys nothing into i
 
 ## What this repository must never deploy
 
-- **Any estate's Workers or Home.** Those are the estate's repository's (`ap-home` for faithnet and imbnet;
+- **Any estate's Workers or Home.** Those are the estate's repository's (`ap-home` for faithnet and impact-agent;
   its `DEPLOYER.md` is the record). A federation job reaches an estate over its PUBLIC surfaces — the A2A
   door, the registry, the public KB — and never by deploying into it.
 - **Any town service.** The registry, naming, public graph, discovery and chain gateway deploy from `ap-town`.

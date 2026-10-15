@@ -4,14 +4,14 @@
 // The leaf an acting agent can present about ITSELF is a grant whose delegate IS that agent (F1 §7.1). So the gate
 // needs an account it holds that is the delegate of a live grant in the projecting estate. This script:
 //   1. makes (or reads) the gate's test account — an EOA in .secrets/f2-test-agent.env, never committed;
-//   2. asks a resident of the estate (default: maya at imbnet) to sign a NARROW delegation to it — `harness.read`
+//   2. asks a resident of the estate (default: maya at impact-agent) to sign a NARROW delegation to it — `harness.read`
 //      only, one year — through her Home's demo sign-in and persona-sign (the same path ap-home's own scripts use);
 //      the signature is checked through UniversalSignatureValidator before anything is written;
 //   3. keeps the wire in .secrets/f2-test-wire.json (the holder's copy) and SUBMITS its leaf to the projector's
 //      ledger (inclusion is a submission, F1 §7.1a) — then tells you to `projector project` so it is anchored.
 //
 //   set -a && . .secrets/ops.env && set +a
-//   npx tsx scripts/setup-f2-test-grant.mts [--estate imbnet] [--by maya] [--home https://www.impact-agent.me]
+//   npx tsx scripts/setup-f2-test-grant.mts [--estate impact-agent] [--by maya] [--home https://www.impact-agent.me]
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { createPublicClient, hashMessage, http, type Address, type Hex } from 'viem';
@@ -22,7 +22,7 @@ import { parse } from 'yaml';
 
 const args = process.argv.slice(2);
 const flag = (n: string) => (args.includes(`--${n}`) ? args[args.indexOf(`--${n}`) + 1] : undefined);
-const estateId = flag('estate') ?? 'imbnet';
+const estateId = flag('estate') ?? 'impact-agent';
 const by = flag('by') ?? 'maya';
 const HOME = flag('home') ?? 'https://www.impact-agent.me';
 const rpc = process.env.FEDERATION_RPC_URL ?? (() => { throw new Error('FEDERATION_RPC_URL is not set (set -a && . .secrets/ops.env)'); })();
@@ -65,7 +65,7 @@ const okRaw = await pub.readContract({ address: CONTRACTS.universalSignatureVali
 const ok191 = okRaw ? true : await pub.readContract({ address: CONTRACTS.universalSignatureValidator, abi: VALIDATOR_ABI, functionName: 'isValidSig', args: [d.delegator, hashMessage({ raw: digest }), d.signature] }).catch(() => false);
 if (!okRaw && !ok191) throw new Error(`the wire's signature does not verify for ${d.delegator} on chain ${chainId} — nothing written`);
 console.log(`wire ${digest} — ${by} (${d.delegator}) → ${me.address}, harness.read, 365d; signature verified (${okRaw ? 'raw digest' : 'EIP-191'})`);
-writeFileSync(`.secrets/f2-test-wire${estateId === 'imbnet' ? '' : `-${estateId}`}.json`, JSON.stringify({ estate: estateId, chainId, delegationManager: CONTRACTS.delegationManager, digest, delegation: { ...d, salt: d.salt.toString() }, by, issuedAt: new Date().toISOString() }, null, 2), { mode: 0o600 });
+writeFileSync(`.secrets/f2-test-wire${estateId === 'impact-agent' ? '' : `-${estateId}`}.json`, JSON.stringify({ estate: estateId, chainId, delegationManager: CONTRACTS.delegationManager, digest, delegation: { ...d, salt: d.salt.toString() }, by, issuedAt: new Date().toISOString() }, null, 2), { mode: 0o600 });
 
 // 3. submit the leaf
 const out = execFileSync('pnpm', ['-s', 'projector', 'submit', '--estate', estateId, '--set', 'live-grant', '--digest', digest, '--subject', me.address.toLowerCase(), '--by', `${by} (persona-sign at ${HOME})`, '--source', 'f2-setup'], { encoding: 'utf8' });

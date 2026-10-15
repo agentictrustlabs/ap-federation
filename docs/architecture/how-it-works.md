@@ -2,7 +2,7 @@
 
 *The primer's picture, with the real artifacts. Every step names the code that does it and the gate that proves it.*
 
-The scenario the gates run: an agent holding a grant in **faithnet** visits **imbnet** (and the reverse). The agent
+The scenario the gates run: an agent holding a grant in **faithnet** visits **impact-agent** (and the reverse). The agent
 is the gate's test account; its grant is a real, narrow `harness.read` wire a resident signed at her Home.
 
 ## Part 1 — the estate projects (F1)

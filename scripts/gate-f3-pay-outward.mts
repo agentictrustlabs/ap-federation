@@ -25,7 +25,7 @@ import { deriveFromStanding, parkedNeedOf, type StandingWireV1 } from '@agenticp
 const arg = (k: string): string | undefined => { const i = process.argv.indexOf(`--${k}`); return i >= 0 ? process.argv[i + 1] : undefined; };
 const PAYER_HOME = (arg('payer-home') ?? 'https://www.impact-agent.me').replace(/\/$/, '');
 const PAYER = arg('payer') ?? 'maya';
-const WIRE_FILE = arg('wire') ?? '.secrets/outward-wire-imbnet.json';
+const WIRE_FILE = arg('wire') ?? '.secrets/outward-wire-impact-agent.json';
 /** The OTHER estate's wire, used only to be refused — the proof that a permission from elsewhere is not honoured. */
 const FOREIGN_WIRE_FILE = arg('foreign-wire') ?? '.secrets/f3-standing-wire-faithnet.json';
 const RPC = process.env.FEDERATION_RPC_URL ?? process.env.RPC_URL;

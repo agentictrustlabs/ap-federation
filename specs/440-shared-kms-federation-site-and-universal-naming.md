@@ -77,7 +77,7 @@ tenant** — not the mechanism.
 
 | # | Condition | How it is checked | Status 2026-10-14 |
 | --- | --- | --- | --- |
-| 1 | **No shared caller credential.** Every Worker of every estate has its own `bind-caller` with exact `--audiences`, `--purposes`, `--operations` and CVM `--protection-levels` | `federation.yaml#kms.tenants[].callers` lists each caller by Worker; `check:federation` refuses a tenant with `sharedCredential: true`; the operator's record on the CVM is authoritative | imbnet: met (two callers, 2026-10-11). faithnet: **open** — the pilot credential shared across faithnet's Workers is 407 D10's finding; close before a third estate binds |
+| 1 | **No shared caller credential.** Every Worker of every estate has its own `bind-caller` with exact `--audiences`, `--purposes`, `--operations` and CVM `--protection-levels` | `federation.yaml#kms.tenants[].callers` lists each caller by Worker; `check:federation` refuses a tenant with `sharedCredential: true`; the operator's record on the CVM is authoritative | impact-agent: met (two callers, 2026-10-11). faithnet: **open** — the pilot credential shared across faithnet's Workers is 407 D10's finding; close before a third estate binds |
 | 2 | **One tenant per estate.** | `check:federation` refuses two estates on one tenant and one estate on two | met |
 | 3 | **CVM levels only.** `AZURE_HSM_DIRECT` is never in a caller's levels unless the record names the estate that pays for it | `check:federation` refuses `AZURE_HSM_DIRECT` without `billedTo` | met |
 | 4 | **Attestation published.** The CVM's attestation document (Azure Attestation JWT over the VM's TPM/SEV-SNP report) is served at the operator host and linked from the record | the KMS view shows it; a town's `kms` row may pin its digest | **open** — operator action (A5 step 4) |
@@ -206,7 +206,7 @@ spec 431 already built for one chain:
 
 1. **The gate.** The estate on chain X runs a Home; its naming gate (a key the Home holds in KMS — the shared
    operator of §A makes this one tenant away) is named on the root chain's priced roots by the governor
-   (`PricedSubregistry.setGate`). A ticket it signs is accepted exactly as faithnet's and imbnet's are today, and the
+   (`PricedSubregistry.setGate`). A ticket it signs is accepted exactly as faithnet's and impact-agent's are today, and the
    chain records which estate issued the name (431 D5). **Nothing new on chain.**
 2. **The owner.** `ClaimTicket.owner` is a root-chain address. For a resident whose home account is on chain X it is
    their **satellite** on the root chain: an `AgentAccount` at the same CREATE2 address when the factory,

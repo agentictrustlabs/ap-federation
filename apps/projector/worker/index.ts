@@ -31,11 +31,11 @@ export { SubmissionStoreDO } from './store-do.js';
 interface Env {
   STORE: DurableObjectNamespace;
   FEDERATION_RPC_URL?: string;
-  /** `{"imbnet":"0x…","faithnet":"0x…"}` — one key per estate. Under spec 439 §4 these are DELEGATE keys: each one
+  /** `{"impact-agent":"0x…","faithnet":"0x…"}` — one key per estate. Under spec 439 §4 these are DELEGATE keys: each one
    *  can call `setRoots` for its estate only while that estate's registry agent's wire says so, and the estate ends
    *  that with one on-chain revocation. Before §4 they were the registered signers themselves. */
   PROJECTION_SIGNER_KEYS?: string;
-  /** `{"imbnet":{…wire…}}` — the anchoring wire per estate, as `issue-anchoring-wire.mts` wrote it. Absent for an
+  /** `{"impact-agent":{…wire…}}` — the anchoring wire per estate, as `issue-anchoring-wire.mts` wrote it. Absent for an
    *  estate ⇒ its key is assumed to be the registered signer, which is the shape §4 says to leave behind. */
   ANCHORING_WIRES?: string;
   /** Guards the ops routes (submit / retire / project-now). A read of `/status` needs none. */

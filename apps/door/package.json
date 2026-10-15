@@ -9,7 +9,7 @@
     "test": "vitest run",
     "dev": "wrangler dev",
     "deploy:faithnet": "wrangler deploy --env faithnet",
-    "deploy:imbnet": "wrangler deploy --env imbnet"
+    "deploy:impact-agent": "wrangler deploy --env impact-agent"
   },
   "dependencies": {
     "@agenticprimitives/admission": "0.0.0-alpha.13",

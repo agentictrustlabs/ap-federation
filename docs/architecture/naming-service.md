@@ -56,7 +56,7 @@ and 431):
 
 1. The resident asks their estate's Home.
 2. That estate's **naming gate** — a key the Home holds — signs a claim ticket. The chain records which estate
-   signed, so "issued by imbnet" is a fact, not a label.
+   signed, so "issued by impact-agent" is a fact, not a label.
 3. The resident's account on the root chain owns the name. The governor of the priced roots (`naming.svc`, under
    the town clerk) has already named that estate's gate with `setGate`. A ticket from a gate that was not named is
    refused.
@@ -72,7 +72,7 @@ name another town issued.
 Three parts, all described in spec 440 §C3. None of them is a second registry.
 
 1. **The gate.** The estate on chain X has its naming gate named on the root chain's priced roots, the same
-   `setGate` faithnet and imbnet use. A ticket it signs is accepted, and the chain records which estate issued the
+   `setGate` faithnet and impact-agent use. A ticket it signs is accepted, and the chain records which estate issued the
    name.
 2. **The owner.** The name is owned by the resident's account **on the root chain**. When their home account is on
    chain X, that owner is their satellite: an account at the same CREATE2 address when the factory matches, signing
