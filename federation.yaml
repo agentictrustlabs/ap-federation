@@ -156,7 +156,13 @@ towns:
     # on ONE root chain, so this town deploys naming contracts only as a local table for the `.estate` and
     # service names its bootstrap needs. Nothing here sells a name.
     namesRootedAt: faithchain
-    rpc: https://hopechain-rpc-gateway.agentkg.io
+    # The discovery tier landed 2026-10-15 — registry, discovery MCP, indexer, connector, explorer host and the
+    # town's private MCP, each on its own Worker over this chain's OWN GraphDB repository and retrieval index.
+    # Its graph is empty today and honestly so: nobody holds a name on 34349 (the estate's people and service
+    # agents were deployed there without names, and the universal namespace is rooted at faithchain), and the
+    # indexer projects only what this chain can prove.
+    registry: https://discovery-a2a.hopenet.town
+    rpc: https://rpc.hopenet.town
   - id: base-sepolia
     chainId: 84532
     status: retired
