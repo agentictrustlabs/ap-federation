@@ -87,7 +87,13 @@ async function namesSearch(fed: Federation, q: string): Promise<{ q: string; kin
   const towns = await Promise.all(live.map(async (t): Promise<TownNameResult> => {
     const r = await probe(`${t.naming}/api/search?q=${encodeURIComponent(q)}`);
     const body = obj(r.body);
-    const rows = Array.isArray(body?.rows) ? (body!.rows as TownSearchRow[]) : [];
+    let rows = Array.isArray(body?.rows) ? (body!.rows as TownSearchRow[]) : [];
+    // A FULL NAME is answered by the town as "this is a name" (`kind: 'name'`, no rows): follow it to the name itself,
+    // so `maya-fernandes.me` resolves to one row rather than to an empty table (2026-10-15).
+    if (r.ok && body?.kind === 'name' && typeof body.name === 'string' && rows.length === 0) {
+      const one = obj((await probe(`${t.naming}/api/name/${encodeURIComponent(body.name)}`)).body);
+      if (one && typeof one.name === 'string' && one.status !== 'invalid') rows = [{ name: one.name, kind: (one.kind as string) ?? null, status: (one.status as string) ?? 'unknown', agent: (one.agent as string) ?? null }];
+    }
     return {
       town: t.id,
       chainId: t.chainId,
