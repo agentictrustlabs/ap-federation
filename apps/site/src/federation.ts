@@ -159,7 +159,11 @@ export function validateFederation(f: Federation): string[] {
       if (t.namesRootedAt) {
         if (!declaredTowns.has(t.namesRootedAt)) errs.push(`${at}.namesRootedAt: "${t.namesRootedAt}" is not a town in this register`);
         else if (t.namesRootedAt === t.id) errs.push(`${at}.namesRootedAt: a town cannot root its names at itself — give it a naming URL instead`);
-        if (t.naming) errs.push(`${at}: declares both a naming URL and namesRootedAt — one town, one answer to "who resolves a name here"`);
+        // A town may ALSO read its own local table while its names are rooted elsewhere: an estate's Home on that chain
+        // claims into the chain's own registry (rich-impact.me on hopechain, W10, 2026-10-15), and the resolver has to be
+        // able to ask the chain where the claim landed. `naming` says "read here"; `namesRootedAt` says "the root is there";
+        // together they say both, and the root town's answer stays the record of the name.
+        if (t.naming && !isUrl(t.naming)) errs.push(`${at}.naming: must be an https URL when declared`);
       } else if (!isUrl(t.naming)) {
         errs.push(`${at}: a ${t.status} town needs its naming read API URL (https), or namesRootedAt naming the town whose root serves it`);
       }
