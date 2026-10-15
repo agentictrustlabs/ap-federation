@@ -14,8 +14,13 @@ export interface FederationTown {
   /** The town agent (ap-town apps/town-agent): /api/health · /api/town · /api/estates · /api/services. Custom domain only (CF-1042). */
   agent?: string;
   portal?: string;
-  /** The town's naming read API (spec 430 §4). Custom domain only. */
+  /** The town's naming read API (spec 430 §4). Custom domain only. Absent when `namesRootedAt` is set. */
   naming?: string;
+  /** THIS TOWN SELLS NO NAMES. Spec 440 §C puts the universal namespace on ONE root chain, so a second town
+   *  legitimately has no naming API of its own — its names are resolved by the town named here. Saying so is
+   *  what separates "rooted elsewhere, by design" from "somebody forgot the URL", and only one of those is
+   *  something a reader of this register should accept. */
+  namesRootedAt?: string;
   registry?: string;
   rpc?: string;
   note?: string;
@@ -127,6 +132,9 @@ export function validateFederation(f: Federation): string[] {
   if (!f.registry || typeof f.registry.chainId !== 'number' || !HEX40.test(f.registry.address ?? '')) errs.push('registry: chainId (number) and address (0x…40) are required');
 
   const townIds = new Set<string>();
+  // EVERY id up front, because `namesRootedAt` points ACROSS the list and a check that only knows the towns
+  // it has already walked would accept or reject the same register depending on the order its rows are in.
+  const declaredTowns = new Set<string>((f.towns ?? []).map((t) => t.id).filter(Boolean));
   const liveChains = new Set<number>();
   for (const t of f.towns ?? []) {
     const at = `towns[${t.id ?? '?'}]`;
@@ -137,7 +145,16 @@ export function validateFederation(f: Federation): string[] {
     if (!['live', 'demo', 'retired'].includes(t.status)) errs.push(`${at}: status must be live | demo | retired`);
     if (t.status !== 'retired') {
       if (!isUrl(t.agent)) errs.push(`${at}: a ${t.status} town needs its town agent URL (https)`);
-      if (!isUrl(t.naming)) errs.push(`${at}: a ${t.status} town needs its naming read API URL (https)`);
+      // A town either serves names or says whose root serves them. The first version of this rule required a
+      // naming URL from every town, which was true while there was one town and became wrong the day there
+      // were two: hopenet deploys no naming contracts at all, because the namespace is rooted on faithchain.
+      if (t.namesRootedAt) {
+        if (!declaredTowns.has(t.namesRootedAt)) errs.push(`${at}.namesRootedAt: "${t.namesRootedAt}" is not a town in this register`);
+        else if (t.namesRootedAt === t.id) errs.push(`${at}.namesRootedAt: a town cannot root its names at itself — give it a naming URL instead`);
+        if (t.naming) errs.push(`${at}: declares both a naming URL and namesRootedAt — one town, one answer to "who resolves a name here"`);
+      } else if (!isUrl(t.naming)) {
+        errs.push(`${at}: a ${t.status} town needs its naming read API URL (https), or namesRootedAt naming the town whose root serves it`);
+      }
       for (const [k, v] of [['agent', t.agent], ['naming', t.naming], ['registry', t.registry]] as const) {
         if (typeof v === 'string' && isWorkersDev(v)) errs.push(`${at}.${k}: a workers.dev host cannot be fetched from the site's Worker (CF-1042) — declare a custom domain`);
       }

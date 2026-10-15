@@ -37,6 +37,33 @@ describe('the register', () => {
     fed.naming.rootChain = 1;
     expect(validateFederation(fed).some((e) => e.includes('rootChain'))).toBe(true);
   });
+  it('lets a town root its names at another town, and refuses the three ways that goes wrong', () => {
+    // Spec 440 §C: the universal namespace is on ONE root chain, so a second town having no naming API is
+    // the design. The rule that every town carries one was true while there was a single town and silently
+    // became wrong when there were two — so what is asserted is that the absence must be DECLARED.
+    const fed = parseFederation(text);
+    const hopenet = fed.towns.find((x) => x.id === 'hopenet')!;
+    expect(hopenet.naming).toBeUndefined();
+    expect(hopenet.namesRootedAt).toBe('faithchain');
+    expect(validateFederation(fed)).toEqual([]);
+
+    const missing = parseFederation(text);
+    delete missing.towns.find((x) => x.id === 'hopenet')!.namesRootedAt;
+    expect(validateFederation(missing).some((e) => e.includes('namesRootedAt'))).toBe(true);
+
+    const nowhere = parseFederation(text);
+    nowhere.towns.find((x) => x.id === 'hopenet')!.namesRootedAt = 'a-town-that-is-not-here';
+    expect(validateFederation(nowhere).some((e) => e.includes('is not a town in this register'))).toBe(true);
+
+    const itself = parseFederation(text);
+    itself.towns.find((x) => x.id === 'hopenet')!.namesRootedAt = 'hopenet';
+    expect(validateFederation(itself).some((e) => e.includes('cannot root its names at itself'))).toBe(true);
+
+    const both = parseFederation(text);
+    both.towns.find((x) => x.id === 'hopenet')!.naming = 'https://names.example';
+    expect(validateFederation(both).some((e) => e.includes('one town, one answer'))).toBe(true);
+  });
+
   it('refuses a workers.dev town surface (CF-1042)', () => {
     const fed = parseFederation(text);
     fed.towns[0]!.naming = 'https://x.richardpedersen3.workers.dev';

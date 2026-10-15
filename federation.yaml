@@ -138,6 +138,25 @@ towns:
     naming: https://names.faithnet.io          # the naming read API (spec 430 §4) — the universal resolver asks it
     registry: https://discovery-a2a.faithnet.io
     rpc: https://rpc.faithnet.io
+  - id: hopenet
+    chainId: 34349
+    status: demo
+    repo: agentictrustlabs/ap-town
+    manifest: https://raw.githubusercontent.com/agentictrustlabs/ap-town/master/towns/hopenet/town.yaml
+    # THE SECOND TOWN, live since 2026-10-14 — the reason the twin runs across two CHAINS rather than two
+    # estates on one. It shares the first town's VM, tunnel and disk and costs no new fixed line; what is its
+    # own is the chain, its contracts, its Workers and its graph.
+    #
+    # The portal is `hopenet.town`, and these URLs still name `town.impact-agent.io` because that domain's
+    # delegation had not published at the registry when this row was written. A register that points the
+    # federation site at a name which does not resolve reports a live town as down; these move when it does.
+    agent: https://town.impact-agent.io
+    portal: https://town.impact-agent.io
+    # NO NAMING OF ITS OWN, and that is the design rather than a gap: spec 440 §C puts the universal namespace
+    # on ONE root chain, so this town deploys naming contracts only as a local table for the `.estate` and
+    # service names its bootstrap needs. Nothing here sells a name.
+    namesRootedAt: faithchain
+    rpc: https://hopechain-rpc-gateway.agentkg.io
   - id: base-sepolia
     chainId: 84532
     status: retired
