@@ -47,7 +47,7 @@ estate moves in" cannot execute in that order.
 | the DNS record | a tunnel hostname needs a proxied CNAME, and our tunnels are managed two different ways | a Cloudflare token with `Tunnel:Edit` + `DNS:Edit`, then it is an API call |
 | GraphDB repository | admin credentials live only as Worker secrets | the credential in the deploy's own secret store |
 | the estate's charters | **they spend authority and sign as a custodian** | nothing. A tool that charters unattended can create an agent nobody decided to create |
-| the personas | a demo roster is seeded per chain | a `seed-demo-estate` that takes the roster and the chain |
+| the personas | a demo roster is seeded per chain, in two halves: `seed-personas-on-chain.mts` deploys, `name-personas-on-chain.mts` names (each by its own account; the paymaster deposit must cover the prefund even at gas price 0) | a `seed-demo-estate` that takes the roster and the chain and does both |
 
 ---
 
