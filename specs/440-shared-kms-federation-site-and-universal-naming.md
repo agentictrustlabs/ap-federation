@@ -188,7 +188,7 @@ position §C7 names.
 
 | ENS v2 | Here | Status |
 | --- | --- | --- |
-| One root registry on L1; names resolve from L1 for every chain | the root chain's `AgentNameRegistry` with its typed roots; every name in the federation is a record there | **live** for one chain (faithchain is both root and only town) |
+| One root registry on L1; names resolve from L1 for every chain | the root chain's `AgentNameRegistry` with its typed roots; every name in the federation is a record there | **live**; since 2026-10-14 a second town (hopenet, hopechain) roots its names here and issues none (C10) |
 | "Every name has its own registry" (a directed graph rooted at one root) | the registry is multi-root with per-root subregistries (priced, gate-signed) and per-name subregistries (an owner hands child-issuing to a contract); scoped names `x@ctx` are the context's subtree | live |
 | Registrations from any chain: pay with stablecoins from any EVM chain without bridging | a claim is a user operation on the root chain, sponsored by the town paymaster, with a ticket the resident's own estate's gate signed; the resident's root-chain account is the owner (C3) | **designed** (C3); one chain today |
 | ENSIP-9/11 multi-coin `addr(node, coinType)` | `atl:addr` keyed by CAIP-2 chain, replacing the single record (Ring 0 contract change: `AgentNameAttributeResolver` currently "no multi-coin address records") | **proposed** to Ring 0 (chains-and-estates §3.2 item 3) |
@@ -200,6 +200,14 @@ position §C7 names.
 | The Universal Resolver hides the hierarchy from clients | the universal resolver (C5): one API, every town, chain-qualified answers | **live** wave 1 (over naming services); on-chain and proof reads later |
 
 ### C3 How a resident of another chain owns a name on the root chain
+
+> **Amended 2026-10-15 (C10).** This section assumed the resident's satellite is the SAME account at the same CREATE2 address
+> on every chain. On the chains that exist it is not: faithchain's factory is `0x464eEe75…` and hopechain's is `0x73A7B878…`, so
+> one custodian key yields a DIFFERENT Smart Agent per chain (maya: `0x013f…06e5` on the root, `0x3F96…33d3` at home). The
+> link between them is a record, not an address: `atl:accounts` (CAIP-10 per chain) and `atl:nativeId` (the home account) on
+> the name, each written by that chain's account. Step 2 therefore reads "the resident's root-chain account, named in the
+> ticket by its CAIP-10 and listed in the name's `atl:accounts`", and the custody-propagation item (C9 item 7) is what makes
+> that pair one identity rather than two accounts that happen to share a key today.
 
 Three parts, all of which Ring 0 already described for one principal on many chains (chains-and-estates §3.2) and
 spec 431 already built for one chain:
@@ -272,10 +280,27 @@ never-bare rule as pure functions with tests (`apps/site/src/resolver.ts`); the 
 | Wave | Delivers | Gate | Needs |
 | --- | --- | --- | --- |
 | **U1** (built) | the register, the resolver over town naming services, the never-bare rule, the site | `gate-federation-site` | — |
-| **U2** | `FederatedAgentNameV1 { name, chain }` and `displayAgentName` in `agent-naming` (**built 2026-10-14**, Ring 0 `35fc6955`); **`atl:accounts`** — CAIP-10 ids keyed by chain, one per chain, on the existing `string[]` storage (**registered on faithchain 2026-10-14**, shape v3, Ring 0 spec 346 §3.8); the per-chain reverse claim (waits for a second chain) | Ring 0 `check:agent-naming` green (164 tests); the resolver's `/api/names/<name>` shows `accounts` once a town's naming service exposes the record | the reverse claim: a second chain |
-| **U3** | a second town's estate gate named on the root roots; a resident of that chain claims a root-chain name through their satellite (C3) | the claim lands on the root chain with that estate's gate in the ticket; the negative twin: a ticket from an un-named gate is refused `NotAGate` | a second chain; Ring 0 custody propagation (item 7) before production |
+| **U2** | `FederatedAgentNameV1 { name, chain }` and `displayAgentName` in `agent-naming` (**built 2026-10-14**, Ring 0 `35fc6955`); **`atl:accounts`** — CAIP-10 ids keyed by chain, one per chain, on the existing `string[]` storage (**registered on faithchain 2026-10-14 and hopechain 2026-10-15**, shape v3, Ring 0 spec 346 §3.8); the per-chain reverse claim (**written on both chains for the impact-agent roster 2026-10-15**, C10) | Ring 0 `check:agent-naming` green (164 tests); the resolver's `/api/names/<name>` shows `accounts` once a town's naming service exposes the record | the resolver half: a naming read API that exposes `atl:accounts`, and the round trip enforced on the second chain |
+| **U3** | a second town's estate gate named on the root roots; a resident of that chain claims a root-chain name through their satellite (C3) | the claim lands on the root chain with that estate's gate in the ticket; the negative twin: a ticket from an un-named gate is refused `NotAGate` | impact-agent's gate named on the root (the chain exists since 2026-10-14); Ring 0 custody propagation (item 7) before production |
 | **U4** | the naming root anchored on neutral ground; the proof-backed resolver on the second chain | a name at a stale naming sequence is refused | spec 410 §4 amendment; `EstateProjectionRegistry` third root or a second instance |
 | **U5** | the root's governor becomes a council (C7) | `setGate` is a quorum act with a receipt | Ring 0 spec |
+
+### C10 What the second chain showed (2026-10-15)
+
+hopenet (hopechain, `eip155:34349`) has been live since 2026-10-14, and impact-agent's runtime moved to it. Read from
+both chains on 2026-10-15:
+
+- **hopechain issues no names.** Its `AgentNameRegistry` (`0x60c7…318c`) is a local table with no priced roots and
+  no gate (`federation.yaml` `towns[hopenet].namesRootedAt: faithchain`). It exists because the town's discovery index
+  lists only agents named on its own chain.
+- **One label on both chains.** `maya-fernandes.me` points at `0x013f…06e5` on the root and at `0x3F96…33d3` on
+  hopechain: one custodian key, one account per chain. Both reverse lookups round-trip. The first local label
+  (`maya.me`) was handed to the chain's root owner and expired, so it resolves to nobody.
+- **`atl:accounts` joins them.** Both records list both accounts, each written by that chain's account. That is U2's
+  record half across two real chains.
+- **Not U3.** The root name was not claimed from hopechain through impact-agent's gate, maya's root account is not at
+  her home address, and no custody ceremony carries a rotation between them. The hopechain record is a copy, and the
+  root record is the name.
 
 ---
 
@@ -292,7 +317,8 @@ never-bare rule as pure functions with tests (`apps/site/src/resolver.ts`); the 
 ## E. Not built, and said
 
 The KMS operator actions (A5) — CVM work, the owner's. Everything on chain in §C beyond wave 1 — Ring 0's, listed in
-C9. A second chain — none exists; U3 waits for it.
+C9. A second chain exists since 2026-10-14 (hopechain, C10); U3 now waits on impact-agent's gate being named on the
+root and on custody propagation, not on a chain.
 
 ## Reference: smart-agent patterns to port
 

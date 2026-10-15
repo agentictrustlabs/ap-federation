@@ -81,6 +81,12 @@ estates:
     # DECLARED 2026-10-14: imbnet.estate wrote `atl:projectionSigner` = this signer on its own chain (tx 0x35045e1b…,
     # ap-home scripts/set-projection-signer.mts); `projector status` and the door read it and compare with `signerOf`.
     declaredOnChain: true
+    # THE HOME CHAIN HAS ITS OWN REGISTRY AGENT SINCE 2026-10-15 (W9): `0x4eB7D9e5bE8E10a6FC6d0c5360dB937099a1F39F` on hopechain,
+    # chartered by maya, holds the vault key the projector's credential (`VAULT_CREDENTIALS_IMPACT_AGENT`) is a leaf under —
+    # a vault credential verifies on the chain the vault validates on, which is the home chain now. ANCHORING DID NOT MOVE:
+    # `signerOf` on neutral ground is still the faithchain agent above, under the anchoring wire; the estate id derives from
+    # `chainId` 34348 and a rotation of the signer is the owner's ceremony (`rotateSigner`), not a side effect of the move.
+    homeRegistryAgent: "0x4eB7D9e5bE8E10a6FC6d0c5360dB937099a1F39F"
 
   - id: faithnet
     chainId: 34348

@@ -12,6 +12,9 @@ import { street, town, type PlaceInput, type TownSceneV1 } from './scene';
 
 export interface GroundSignals {
   towns: Record<string, boolean | null>;
+  /** The estates each town LISTS (its own /api/town), by town id. An estate lives in the town whose manifest holds it — the
+   *  register's `chainId` on an estate is the chain its PROJECTION anchors on, which stays put when the estate moves. */
+  townEstates: Record<string, string[]>;
   naming: boolean | null;
   kms: boolean | null;
   doors: Record<string, boolean | null>;
@@ -32,7 +35,7 @@ export function groundScene(fed: Federation, s: GroundSignals, origin: string): 
 
   // Neutral ground: the registry no estate controls, and each estate's projection on it.
   const neutral: PlaceInput[] = [
-    { id: 'neutral-ground', kind: 'registry', label: 'neutral ground', sub: `EstateProjectionRegistry · eip155:${fed.registry.chainId} · ${short(fed.registry.address)}`, href: '#ground', lit: true, pinned: true },
+    { id: 'neutral-ground', kind: 'registry', label: 'neutral ground', sub: `eip155:${fed.registry.chainId} · ${short(fed.registry.address)}`, href: '#ground', lit: true, pinned: true },
     ...fed.estates.map((e): PlaceInput => ({ id: `projection:${e.id}`, kind: 'org', label: `${e.id} · projection`, sub: e.declaredOnChain ? 'signer declared on chain' : e.governance ? 'signer not declared on chain' : 'no estate agent', href: '#ground', lit: !!e.governance && !!e.declaredOnChain })),
   ];
   const g = street(neutral, { cols: Math.max(2, neutral.length), tone: '#9aa7e8', label: 'neutral ground', href: '#ground', ox, oy: 0 });
@@ -51,7 +54,8 @@ export function groundScene(fed: Federation, s: GroundSignals, origin: string): 
 
   // Each town beside the ground: its agent, and the estates the register places on its chain.
   for (const t of live) {
-    const estates = fed.estates.filter((e) => e.chainId === t.chainId);
+    const listed = s.townEstates[t.id];
+    const estates = listed ? fed.estates.filter((e) => listed.includes(e.id)) : fed.estates.filter((e) => e.chainId === t.chainId);
     const places: PlaceInput[] = [
       { id: `town:${t.id}`, kind: 'org', label: `${t.id} · town`, sub: `eip155:${t.chainId} · ${t.status}`, href: t.portal ?? t.agent ?? '#towns', lit: s.towns[t.id] === true, pinned: true },
       ...estates.map((e): PlaceInput => ({ id: `estate:${e.id}`, kind: 'household', label: e.id, sub: host(e.home) || 'an estate', href: e.home ?? '#towns', lit: !!e.governance })),

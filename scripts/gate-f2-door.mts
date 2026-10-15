@@ -31,7 +31,7 @@ if (!existsSync('.secrets/f2-test-agent.env') || !existsSync(wireFile)) throw ne
 const key = /F2_TEST_AGENT_KEY=(0x[0-9a-fA-F]{64})/.exec(readFileSync('.secrets/f2-test-agent.env', 'utf8'))![1] as Hex;
 const me = privateKeyToAccount(key);
 const wire = JSON.parse(readFileSync(wireFile, 'utf8')) as { digest: Hex; chainId: number };
-const fed = parse(readFileSync('federation.yaml', 'utf8')) as { towns?: { id: string; chainId: number; rpcEnv?: string }[]; registry: { address: string; chainId: number }; estates: { id: string; homeChainId?: number; governance: string | null }[] };
+const fed = parse(readFileSync('federation.yaml', 'utf8')) as { towns?: { id: string; chainId: number; rpcEnv?: string }[]; registry: { address: string; chainId: number }; estates: { id: string; chainId?: number; homeChainId?: number; governance: string | null }[] };
 const rpc = process.env.FEDERATION_RPC_URL ?? (() => { throw new Error('FEDERATION_RPC_URL is not set'); })();
 const pub = createPublicClient({ chain: { id: fed.registry.chainId, name: 'x', nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 }, rpcUrls: { default: { http: [rpc] } } }, transport: http(rpc) });
 const REGISTRY_ABI = [{ type: 'function', name: 'estateIdOf', stateMutability: 'pure', inputs: [{ name: 'chainId', type: 'uint256' }, { name: 'governance', type: 'address' }], outputs: [{ type: 'bytes32' }] },
@@ -40,7 +40,7 @@ const estate = fed.estates.find((e) => e.id === estateId)!;
 // W4: the presenter signs as the account on its estate's HOME chain (where its people live), which the door verifies on THAT
 // chain's validator; the roots it is proved against stay on the registry's chain. One chain today for faithnet, two for impact-agent.
 const presenterChain = estate.homeChainId ?? wire.chainId;
-const estateKey = (await pub.readContract({ address: fed.registry.address as Address, abi: REGISTRY_ABI, functionName: 'estateIdOf', args: [BigInt(wire.chainId), estate.governance as Address] })) as Hex;
+const estateKey = (await pub.readContract({ address: fed.registry.address as Address, abi: REGISTRY_ABI, functionName: 'estateIdOf', args: [BigInt(estate.chainId ?? fed.registry.chainId), estate.governance as Address] })) as Hex;
 const anchored = (await pub.readContract({ address: fed.registry.address as Address, abi: REGISTRY_ABI, functionName: 'roots', args: [estateKey] })) as readonly [Hex, Hex, Hex, bigint, bigint];
 console.log(`presenter eip155:${presenterChain}:${me.address} · estate ${estateId} ${estateKey.slice(0, 10)}… anchored at sequence ${anchored[3]} · door ${DOOR}`);
 
