@@ -17,9 +17,10 @@
 // another audience → refused; a credential the issuer REVOKED (its status from the sequence where it was live) →
 // CREDENTIAL_STATUS_NOT_LIVE; a wire for another venue → the release refuses locally and nothing is presented;
 // the same challenge nonce reused → the door refuses before the verifier is asked.
-// Needs: scripts/setup-predicate-issuer.mts once; OPENAC_KEYS_DIR with the 1k proving keys (fetch-openac-keys.sh
-// --proving); FEDERATION_RPC_URL; A2A_ALLOW_LOCAL_DEVICE_KEY=true (the gate's device key is local material standing in
-// for a KMS, as Ring 0 Z2's own test does).
+// Needs: scripts/setup-predicate-issuer.mts once, then setup-predicate-holder-vault.mts once (her records are READ FROM
+// HER VAULT under .secrets/vault-creds-alice.json — the gate's runtime key is the delegate; nothing is read from a file in
+// their place, ADR-0013); OPENAC_KEYS_DIR with the 1k proving keys (fetch-openac-keys.sh --proving); FEDERATION_RPC_URL;
+// A2A_ALLOW_LOCAL_DEVICE_KEY=true (the device key is local material standing in for a KMS, as Ring 0 Z2's own test does).
 import { existsSync, readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { type Address, type Hex } from 'viem';
@@ -27,11 +28,12 @@ import { privateKeyToAccount } from 'viem/accounts';
 import { parse } from 'yaml';
 import { requestProofDigest, sha256Of, type AgenticRequestProofClaims } from '@agenticprimitives/admission';
 import { callerAssertionDigest, requestBodyHash, sessionAuthorizationHeader } from '@agenticprimitives/a2a/standard';
-import { PresentationReleaseRefused, PRESENTATION_CAPABILITY, type StandingWireV1 } from '@agenticprimitives/delegation';
+import { PresentationReleaseRefused, PRESENTATION_CAPABILITY } from '@agenticprimitives/delegation';
 import { openAcChallenge } from '@agenticprimitives/privacy-credentials';
 import { credentialDigestOf } from '@agenticprimitives/estate-projection';
 import { mintVerificationReceipt } from '@agenticprimitives/verification-receipts';
-import { holderBackend, mandateChecks, pairwiseAccountFor, presentUnderWire, proofRequestFor, type DoorCredentialPolicy, type IssuedCredential } from './lib/predicate-holder.mts';
+import { holderBackend, mandateChecks, pairwiseAccountFor, presentUnderWire, proofRequestFor, type DoorCredentialPolicy } from './lib/predicate-holder.mts';
+import { holderVaultCredentials, readHolderFromVault } from './lib/predicate-holder-vault.mts';
 
 const DOOR = (process.env.FEDERATION_DOOR_URL ?? 'https://door.ap-federation.faithnet.io').replace(/\/$/, '');
 const checks: { name: string; ok: boolean; detail: string }[] = [];
@@ -41,12 +43,14 @@ const need = (f: string) => { if (!existsSync(f)) throw new Error(`${f} is missi
 
 const env = readFileSync(need('.secrets/predicate-visitor.env'), 'utf8');
 const envGet = (k: string) => new RegExp(`^${k}=(\\S+)`, 'm').exec(env)?.[1] ?? (() => { throw new Error(`${k} missing from .secrets/predicate-visitor.env`); })();
-const credential = JSON.parse(readFileSync(need('.secrets/predicate-credential.json'), 'utf8')) as IssuedCredential & { digest: Hex };
-const revoked = JSON.parse(readFileSync(need('.secrets/predicate-credential-revoked.json'), 'utf8')) as IssuedCredential & { digest: Hex; staleStatus: Record<string, unknown>; revokedAtSequence: number };
-const standing = JSON.parse(readFileSync(need('.secrets/predicate-standing-wire.json'), 'utf8')) as StandingWireV1 & { holder: string; door: string; issuerKeyId: string };
 const runtime = privateKeyToAccount(envGet('PREDICATE_RUNTIME_KEY') as Hex);
 const harness = privateKeyToAccount(envGet('PREDICATE_HARNESS_KEY') as Hex);
-const holderSecret = envGet('PREDICATE_HOLDER_SECRET') as Hex;
+// HER RECORDS, FROM HER VAULT: the credential, the revoked one with its kept status, the device key, the holder secret, the
+// standing mandate for this door — read as her agent under the grant her custodian minted for the runtime key.
+const vault = holderVaultCredentials({ credsFile: need(process.env.PREDICATE_HOLDER_VAULT_CREDS ?? '.secrets/vault-creds-alice.json'), vaultUrl: process.env.PREDICATE_HOLDER_VAULT_URL ?? 'https://mcp.faithnet.io', agentName: process.env.PREDICATE_HOLDER ?? 'alice.me' });
+const holder = await readHolderFromVault(vault, DOOR);
+const { live: credential, revoked, holderSecret, standing } = holder;
+check('the holder\'s credential, device key, secret and mandate were read from HER vault as her agent (never a file)', !!credential.jwt && !!holderSecret && standing.door === DOOR, `${vault.agentName} · ${vault.vaultUrl}`);
 const fed = parse(readFileSync('federation.yaml', 'utf8')) as { registry: { chainId: number }; credentials: { issuers: Array<{ id: string; chainId: number; universalSignatureValidator: Address; rpcEnv?: string }> }; estates: Array<{ id: string; delegationManager?: Address }> };
 const issuer = fed.credentials.issuers.find((i) => i.facets?.some((f: { keyId: string }) => f.keyId === credential.issuerKeyId) as boolean) ?? fed.credentials.issuers[0]!;
 const rpc = (process.env[issuer.rpcEnv ?? 'FEDERATION_RPC_URL'] ?? '').trim() || (() => { throw new Error('FEDERATION_RPC_URL is not set'); })();

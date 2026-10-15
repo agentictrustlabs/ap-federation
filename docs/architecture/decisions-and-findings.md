@@ -217,6 +217,11 @@ neutral ground); the ceremony (`setup-predicate-issuer.mts`) and the gate (`gate
 - *The decision receipt is minimized; the predicate gets its own record.* Ring 0's `admission.decision` audit row names
   no evidence refs (W0's minimized receipts), so the door appends `door.credential` beside it: facet, predicate digest,
   nullifier grade, status sequence, verifier placement, the pairwise acting account — never a claim, never the person.
+- *The holder's records are vault records, not files.* The ceremony left her credential, device key, holder secret and
+  standing mandate in `.secrets/*.json`; by ADR-0055 each is a bereavement (lose the device key and no presentation can
+  ever be made). `setup-predicate-holder-vault.mts` writes them into HER vault as her agent — under a grant her custodian
+  minted for the gate's runtime key, scoped to four record families the Ring 0 ontology binds to `appc:` classes — and the
+  gate reads them from there and nowhere else (ADR-0013). The runtime and harness keys stay the gate's own.
 - *The reference issuer is the estate's registry agent*, not a `.svc`: the one non-person SA with a headless custodian and an
   anchoring wire that already covers `setRoots` for any row it signs for. A production issuer is a dedicated service agent.
 

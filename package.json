@@ -35,7 +35,8 @@
     "gate:pay-outward": "tsx scripts/gate-f3-pay-outward.mts",
     "gate:predicate": "tsx scripts/gate-predicate-visitor.mts",
     "setup:predicate": "tsx scripts/setup-predicate-issuer.mts",
-    "keys:openac": "sh scripts/fetch-openac-keys.sh"
+    "keys:openac": "sh scripts/fetch-openac-keys.sh",
+    "setup:predicate-vault": "tsx scripts/setup-predicate-holder-vault.mts"
   },
   "devDependencies": {
     "@agenticprimitives/a2a": "0.0.0-alpha.35",

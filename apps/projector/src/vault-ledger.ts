@@ -92,6 +92,24 @@ function refusal(tool: string, c: VaultCredentials, r: NativeResult & { status: 
   return `${c.agentName}'s vault refused ${tool}: ${r.error ?? r.code ?? r.status}${r.detail ? ` (${r.detail})` : ''}`;
 }
 
+// ─── Generic record access, same door, same credential — for records that are not submissions (the predicate gate's
+// holder records, spec 443 W5). The record family a credential may touch is the GRANT's scope, not this code's.
+export async function putVaultRecord(c: VaultCredentials, recordType: string, data: unknown, fetchImpl: typeof fetch = fetch): Promise<void> {
+  const r = await callVault(c, 'set_vault_record', { recordType, data }, fetchImpl);
+  if (!(r.status < 400 && r.ok !== false)) throw new Error(refusal(`set_vault_record ${recordType}`, c, r));
+}
+export async function getVaultRecord<T = unknown>(c: VaultCredentials, recordType: string, fetchImpl: typeof fetch = fetch): Promise<T | null> {
+  const r = await callVault(c, 'get_vault_record', { recordType }, fetchImpl);
+  if (r.status === 404) return null;
+  if (!(r.status < 400 && r.ok !== false)) throw new Error(refusal(`get_vault_record ${recordType}`, c, r));
+  return (r.data ?? null) as T | null;
+}
+export async function listVaultRecords(c: VaultCredentials, prefix: string, fetchImpl: typeof fetch = fetch): Promise<string[]> {
+  const listed = await callVault(c, 'list_vault_record', {}, fetchImpl);
+  if (!(listed.status < 400 && listed.ok !== false)) throw new Error(refusal('list_vault_record', c, listed));
+  return (listed.records ?? []).map((x) => String(x.record_type ?? '')).filter((t) => t.startsWith(prefix));
+}
+
 /** WRITE one submission as the agent. Resolves on `ok`; THROWS on refusal — a submission the estate's own vault would
  *  not take is not a submission, and recording it anywhere else would make the DO the record again. */
 export async function writeSubmission(c: VaultCredentials, row: SubmissionV1, fetchImpl: typeof fetch = fetch): Promise<void> {

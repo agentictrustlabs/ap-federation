@@ -103,7 +103,7 @@
     "A2A_ALLOW_LOCAL_DEVICE_KEY": "true",
     "NODE_OPTIONS": "--max-old-space-size=8192 --dns-result-order=ipv4first"
    },
-   "needs": "FEDERATION_RPC_URL + OPENAC_KEYS_DIR with the 1k proving keys (scripts/fetch-openac-keys.sh --proving, ≈560 MB) + .secrets/predicate-*.json (scripts/setup-predicate-issuer.mts, once; the door deployed with its verifier Container and VERIFIER_SECRET). Prepare is ≈20 s per credential."
+   "needs": "FEDERATION_RPC_URL + OPENAC_KEYS_DIR with the 1k proving keys (scripts/fetch-openac-keys.sh --proving, ≈560 MB) + .secrets/predicate-visitor.env (the gate's runtime + harness keys) + .secrets/vault-creds-alice.json (her custodian's vault credential for the runtime key — ap-home issue-self-host-vault-credentials.mts); her credential, device key, holder secret and mandate are READ FROM HER VAULT (setup-predicate-issuer.mts then setup-predicate-holder-vault.mts, once). The door deployed with its verifier Container and VERIFIER_SECRET. Prepare is ≈20 s per credential; the nullifier window at impact-agent is an hour."
   }
  ]
 }
