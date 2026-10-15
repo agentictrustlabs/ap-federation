@@ -62,9 +62,11 @@ describe('the register', () => {
     itself.towns.find((x) => x.id === 'hopenet')!.namesRootedAt = 'hopenet';
     expect(validateFederation(itself).some((e) => e.includes('cannot root its names at itself'))).toBe(true);
 
+    // Both is ALLOWED since 2026-10-15 (W10): a town rooted elsewhere may still read its own chain's name table
+    // (`naming` says "read here", `namesRootedAt` says "the root is there"); the root town's answer stays the record.
     const both = parseFederation(text);
-    both.towns.find((x) => x.id === 'hopenet')!.naming = 'https://names.example';
-    expect(validateFederation(both).some((e) => e.includes('one town, one answer'))).toBe(true);
+    both.towns.find((x) => x.id === 'hopenet')!.naming = 'https://names.hopenet.town';
+    expect(validateFederation(both)).toEqual([]);
   });
 
   it('refuses a workers.dev town surface (CF-1042)', () => {
