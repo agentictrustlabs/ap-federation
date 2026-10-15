@@ -170,9 +170,15 @@ kms:
     checked: 2026-10-14                 # `akcs operator status` keys grouped by kind+purpose, and both estates' wrangler vars
   repo: agentictrustlabs/faithkms
   backend: akcs
-  host: akcs-pilot.faithnet.io
-  hostPlanned: kms.faithnet.io               # spec 440 A5 step 3 — a federation host, not a pilot name; the pilot host stays until no caller uses it
-  probe: https://akcs-pilot.faithnet.io/healthz
+  host: kms.faithnet.io                      # spec 440 A5 step 3 DONE 2026-10-14 — a federation host, not a pilot name
+  # BOTH HOSTS ANSWER, deliberately. A tunnel serves many hostnames, so `kms` was added beside `akcs-pilot`
+  # rather than replacing it, and both estates' Workers were re-pointed and redeployed with every gate green.
+  # The pilot host is RETIRING, not retired: it stays until nothing points at it, and removing it is its own
+  # change. Note what did NOT move — caller tokens are minted against the issuer
+  # `https://akcs-pilot.faithnet.internal`, an internal name unrelated to the public host, so re-pointing
+  # invalidated no credential.
+  hostRetiring: akcs-pilot.faithnet.io
+  probe: https://kms.faithnet.io/healthz
   attestation: null                          # spec 440 A5 step 4 — the CVM attestation, published at the operator host; null until it is
   azureResources:
     - /subscriptions/5a656e13-849d-4b56-9101-53f987cf971b/resourceGroups/RG-AKCS-PILOT-WESTUS/providers/Microsoft.Compute/virtualMachines/vm-akcs-pilot-0
@@ -304,20 +310,28 @@ kms:
       condition: "The CVM attestation document is published at the operator host and linked from this record"
       status: open
       detail: >-
-        operator action — spec 440 A5 step 4. Scouted 2026-10-14, so the next attempt starts informed.
+        operator action — spec 440 A5 step 4. **THE HOST MOVE IS DONE (2026-10-14)**: `kms.faithnet.io` is a
+        published-application route on the same tunnel, answering `healthz=200`, and both estates were
+        re-pointed and redeployed with every live gate green. What remains of this condition is the
+        attestation itself, and it has ONE blocker, corrected from an earlier overstatement.
         THE HARDWARE IS REAL: vm-akcs-pilot-0 is a Standard_DC4as_v5 and the guest itself says so — "Memory
         Encryption Features active: AMD SEV" and systemd's "Detected confidential virtualization sev-snp" — with
-        secure boot and a vTPM at /dev/tpm0.
-        BUT THE DIRECT REPORT PATH IS CLOSED on this kernel (6.17.0-azure-fde): there is no /dev/sev-guest, no
-        sev-guest module to load, and /sys/kernel/config/tsm/report refuses a report directory with ENXIO, so
-        configfs-TSM has no provider bound. A report must therefore come the way Azure's own guest attestation
-        takes it — through the vTPM, via the AttestationClient package, which is not installed — and the MAA JWT
-        it returns is what gets published.
-        TWO BLOCKERS, AND THEY ARE INDEPENDENT. The attestation needs a package installed on the CVM. The host
-        move needs DNS for kms.faithnet.io, and this machine's Cloudflare credential is zone:read only (wrangler's
-        OAuth session scopes; a dns_records write returns Invalid API Token), so that half needs the owner or a
-        Zone.DNS:Edit token. Publishing at the CURRENT host (akcs-pilot.faithnet.io/.well-known/attestation) would
-        meet this condition as written and does not wait for DNS; the rename then only changes a URL.
+        secure boot and a vTPM at /dev/tpm0. The direct report path is closed on this kernel (6.17.0-azure-fde):
+        no /dev/sev-guest, no module to load, and /sys/kernel/config/tsm/report refuses a report directory with
+        ENXIO. That does NOT block the attestation: Azure's own guest attestation reads the SNP report through
+        the vTPM, which is present.
+        THE ONE BLOCKER IS EGRESS, and an earlier note here said "no outbound network at all", which was too
+        strong and in the wrong direction. The CVM's NSG DELIBERATELY PERMITS AzureActiveDirectory,
+        AzureKeyVault, AzureAttestation and AzureMonitor outbound on 443, denying only Internet — so reaching
+        MAA was always the intent. DNS resolves from the guest and a default route exists, yet every outbound
+        connection returns 000, while the TUNNEL VM reaches both Cloudflare and MAA. The difference: there is no
+        NAT gateway on any subnet and no public IP in the resource group, so snet-akcs-cvm has no SNAT path. It
+        is a missing egress PATH, not a missing permission.
+        THE FIX, and it is an owner decision because it adds a billable public IP to a confidential-compute
+        resource group: a NAT Gateway on snet-akcs-cvm, written into infra/bicep/modules/network.bicep beside the
+        attestation rule rather than clicked. The deny-Internet rule stays, so egress remains the four service
+        tags. The guest attestation client then installs (GitHub is correctly denied today, which is why it is
+        not installed), and the MAA JWT it returns is what gets published at https://kms.faithnet.io/.well-known/attestation.
 
 # ── THE UNIVERSAL NAMESPACE (spec 440 §C) ─────────────────────────────────────────────────────────────
 # One namespace, rooted on ONE chain the way ENS v2 is rooted on Ethereum L1: the typed roots on the root chain are
