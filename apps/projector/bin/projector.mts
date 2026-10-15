@@ -9,6 +9,11 @@
 //   projector present --estate <id> --digest 0x… --audience <origin> [--nonce 0x…] [--out <file>]
 //   projector verify  --file <presentation.json> [--max-age <seconds>]
 //
+//   --issuer <id> (zkID Z4) routes status | register | submit | retire | project at a credential ISSUER's row
+//   (`credentials.issuers[]` in the register; set `live-credential`; ledger `.submissions/issuer-<id>.json`), and
+//   projector present-status --issuer <id> --digest 0x… --audience <origin> --nonce <nonce> [--out <file>]
+//   writes the credential-status presentation a holder shows beside a proof. Revocation is `retire` + `project`.
+//
 // Every command reads `federation.yaml` (the register) and `FEDERATION_RPC_URL` (neutral ground). The
 // anchoring key comes from the environment variable the estate's row names and is never printed.
 //
@@ -19,7 +24,8 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';
 import { makeAuthorityPresentation, verifyAuthorityPresentation, type AuthorityPresentationV1 } from '@agenticprimitives/estate-projection';
 import type { Address, Hex } from 'viem';
-import { estateById, loadFederation, registryRpc, requireProjectable, signerKey } from '../src/config.js';
+import { estateById, issuerById, loadFederation, registryRpc, requireProjectable, signerKey } from '../src/config.js';
+import { presentCredentialStatus, projectIssuer, liveCredentialRows } from '../src/issuer.js';
 import { fileLedger } from '../src/ledger.js';
 import { readDeclaredSigner, registryClient, type AnchoringWireV1, type DeclaredSigner } from '../src/anchor.js';
 import { buildForSequence, projectEstate } from '../src/project.js';
@@ -49,6 +55,54 @@ const REFRESH_AFTER = Number(flag('refresh-after') ?? process.env.FEDERATION_REF
 // Annotated so TypeScript narrows after it: an unannotated arrow returning `never` does not.
 const die: (msg: string) => never = (msg) => { console.error(msg); process.exit(1); };
 const estateFlag = () => flag('estate') ?? die('--estate <id> is required');
+
+// ── ISSUER ROWS (Ring 0 zkID Z3/Z4; spec 443 W5): the same verbs, a credential issuer's live-credential row ──
+if (has('issuer')) {
+  const issuer = issuerById(f, flag('issuer') ?? die('--issuer <id> is required'));
+  const ledger = fileLedger(flag('ledger') ?? `.submissions/issuer-${issuer.id}.json`);
+  const wire = issuer.anchoringWire ? ((): AnchoringWireV1 | null => { try { return JSON.parse(readFileSync(issuer.anchoringWire!, 'utf8')) as AnchoringWireV1; } catch { return null; } })() : null;
+  if (cmd === 'status') {
+    const signer = await registry.signerOf(issuer.issuerId);
+    const r = await registry.roots(issuer.issuerId);
+    const live = liveCredentialRows(ledger.list());
+    console.log(`── issuer ${issuer.id} (${issuer.kind ?? 'issuer'} of ${issuer.estate}) ──\n  sa        ${issuer.sa} on eip155:${issuer.chainId}\n  issuerId  ${issuer.issuerId}\n  signer    ${signer ?? 'not registered'}${signer && signer.toLowerCase() !== issuer.sa.toLowerCase() ? '  ⚠ not the issuer SA' : ''}`);
+    console.log(r.never ? '  roots     nothing anchored yet (sequence 0)' : `  roots     seq ${r.sequence} · live-credential ${r.liveGrantRoot.slice(0, 18)}… · tag ${r.charterHash.slice(0, 10)}… · anchored ${new Date(r.anchoredAt * 1000).toISOString()}`);
+    console.log(`  vouches   ${live.kept.length} live credential(s) in the ledger (${live.dropped.length} retired/expired)\n  facets    ${(issuer.facets ?? []).map((x) => `${x.keyId}${x.attestation ? ' (attested)' : ' (NOT attested)'}`).join(', ') || 'none declared'}`);
+  } else if (cmd === 'register') {
+    const already = await registry.signerOf(issuer.issuerId);
+    if (already) die(already.toLowerCase() === issuer.sa.toLowerCase() ? `issuer ${issuer.id} is already registered to its SA ${already}` : `issuer ${issuer.id}'s row is registered to ${already}, NOT to its SA — first-come-wins; resolve this first`);
+    const tx = await registry.register(issuer.issuerId, issuer.sa, signerKey(issuer));
+    console.log(`registered issuer ${issuer.id}: row ${issuer.issuerId} → signer ${issuer.sa} (the issuer SA itself; the delegate key anchors under its wire)\n  tx ${tx}`);
+  } else if (cmd === 'submit') {
+    const digest = (flag('digest') ?? die('--digest 0x… (credentialDigestOf the issued JWT) is required')).toLowerCase() as Hex;
+    if (!/^0x[0-9a-f]{64}$/.test(digest)) die('--digest must be 32 bytes');
+    // A credential leaf is ABOUT the credential, not a subject: the status presentation names none. The ledger's
+    // subject slot takes the zero address unless the issuer chooses to record whom it issued to (its own record).
+    const subject = ((flag('subject') ?? `0x${'00'.repeat(20)}`).toLowerCase()) as Address;
+    const out = ledger.add({ estate: issuer.estate, set: 'live-credential', digest, subject, submittedBy: flag('by') ?? 'issuer', source: flag('source') ?? 'cli', ...(flag('expires') ? { expiresAt: flag('expires')! } : {}) });
+    console.log(out.added ? `vouched for: live-credential ${digest}\n  the opening (digest + blind) is in the issuer's ledger; the holder needs it for a status presentation` : `not added — ${out.why}`);
+  } else if (cmd === 'retire') {
+    // REVOCATION, for a credential: the issuer stops standing behind it. The next `project` anchors a root without it.
+    const digest = (flag('digest') ?? die('--digest 0x… is required')).toLowerCase() as Hex;
+    const reason = flag('reason') ?? die('--reason "<why>" is required');
+    console.log(ledger.retire('live-credential', digest, reason) ? `revoked: live-credential ${digest}\n  run \`projector project --issuer ${issuer.id}\` to anchor the row without it; every status built before is stale from then on` : `nothing live to retire for ${digest}`);
+  } else if (cmd === 'project') {
+    const dry = has('dry-run');
+    const run = await projectIssuer(issuer, { registry, ledger, refreshAfterSeconds: REFRESH_AFTER, ...(dry ? {} : { signerKey: signerKey(issuer) }), ...(wire ? { anchoringWire: wire } : {}) });
+    console.log(`issuer ${issuer.id} · row ${run.issuerId}\n  live-credential ${run.counts.live} leaf/leaves → ${run.projection.liveCredentialRoot} (${run.counts.retired} retired/expired)\n  anchored before: ${run.anchoredBefore.never ? 'never' : `seq ${run.anchoredBefore.sequence}`}\n  decision: ${run.decision.anchor ? `anchor at sequence ${run.decision.sequence}` : 'do not anchor'} — ${run.decision.why}`);
+    if (run.txHash) console.log(`  tx ${run.txHash}`); else if (dry && run.decision.anchor) console.log('  (dry run: nothing was written)');
+  } else if (cmd === 'present-status') {
+    const digest = (flag('digest') ?? die('--digest 0x… is required')).toLowerCase() as Hex;
+    const audience = flag('audience') ?? die('--audience <the verifier\'s origin> is required');
+    const nonce = flag('nonce') ?? die('--nonce <the verifier\'s challenge nonce> is required: a status answers ONE challenge');
+    const r = await presentCredentialStatus(issuer, { registry, ledger, digest, nonce, audience });
+    if (!r.ok) die(r.reason);
+    const file = flag('out') ?? `.submissions/status-${issuer.id}-${digest.slice(2, 10)}.json`;
+    writeFileSync(file, `${JSON.stringify(r.presentation, null, 2)}\n`, { mode: 0o600 });
+    console.log(`status presentation for ${digest} at sequence ${r.sequence} → ${file}\n  It says the issuer still stands behind this credential as of that sequence, to this audience, for this nonce. It names no subject and authorizes nothing.`);
+  } else die(`unknown issuer command "${cmd}" — status | register | submit | retire | project | present-status`);
+  process.exit(0);
+}
 
 if (cmd === 'status') {
   const only = flag('estate');

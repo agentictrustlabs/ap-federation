@@ -27,7 +27,10 @@ import { randomBytes } from 'node:crypto';
 import { commitmentOf } from '@agenticprimitives/estate-projection';
 import type { Hex } from 'viem';
 
-export type ProjectionSet = 'live-grant' | 'membership';
+/** The estate's two sets (spec 439 F1) and, since Z4, an ISSUER's one: `live-credential` is the set of credentials an issuer
+ *  still stands behind (Ring 0 estate-projection's issuer row, zkID Z3). Its digest is `credentialDigestOf(jwt)`; its
+ *  liveness is the issuer's own ledger (retire = revoke) — no chain is asked, because a credential is not a delegation. */
+export type ProjectionSet = 'live-grant' | 'membership' | 'live-credential';
 
 export interface SubmissionV1 {
   type: 'ap.federation-submission.v1';

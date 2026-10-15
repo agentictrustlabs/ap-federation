@@ -1,0 +1,3 @@
+# The OpenAC 1k verifying keys (≈280 MB), fetched by scripts/fetch-openac-keys.sh into the image's build context. Never committed.
+keys/
+node_modules/

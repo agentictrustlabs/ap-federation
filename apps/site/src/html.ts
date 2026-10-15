@@ -46,18 +46,19 @@ ${SCENE_CSS}
 </style></head><body>
 <header><h1>ap-federation</h1><span class="sub">${esc(fed.federation)} · ${fed.towns.length} town${fed.towns.length === 1 ? '' : 's'} (${live} live) · ${projecting} estate${projecting === 1 ? '' : 's'} on neutral ground · root chain eip155:${fed.naming.rootChain}</span>
 <span class="sub">public · read-only · it lists, it never grants</span></header>
-<nav><button data-v="towns" class="on">Towns</button><button data-v="ground">Neutral ground</button><button data-v="doors">Doors</button><button data-v="names">Names</button><button data-v="kms">KMS</button></nav>
+<nav><button data-v="towns" class="on">Towns</button><button data-v="ground">Neutral ground</button><button data-v="doors">Doors</button><button data-v="credentials">Credentials</button><button data-v="names">Names</button><button data-v="kms">KMS</button></nav>
 <main>
 <div class="intro">The federation's estates, each in its town, joined on <b>neutral ground</b>: each publishes a commitment to the grants it vouches for; a visiting agent proves one leaf at the other's <b>door</b>; the door admits on evidence and the estate's own mandate decides what runs. <a href="https://github.com/agentictrustlabs/ap-federation/blob/master/docs/architecture/primer.md">Read the primer</a> · <a href="https://github.com/agentictrustlabs/ap-federation/blob/master/docs/architecture/how-it-works.md">how one crossing works</a>.</div>
 ${errors.length ? `<div class="card bad"><b>The register has ${errors.length} problem(s)</b><ul>${errors.map((e) => `<li>${esc(e)}</li>`).join('')}</ul></div>` : ''}
 <section id="towns"><div id="scene" class="card" aria-live="polite">drawing the federation…</div><p class="note" style="margin:-4px 0 12px">What the federation runs and the towns host — neutral ground, the naming root and resolver, the shared KMS operator, the doors — and each town beside it. Lit windows answered their probe just now; a building is a link. Nothing drawn is a permission.</p><p class="lead">Every town we have, read live from each town's own surfaces: its town agent, its naming service, its services' probes. A town is one chain and the estates on it.</p><div id="towns-body" class="card">loading…</div></section>
 <section id="ground" hidden><p class="lead">The registry no estate controls, and the estates that project their live sets onto it. A root is a commitment; the leaves stay the estate's record. <b>Neutral</b> is a property of the contract (no admin, no pause, no upgrade), not of the chain.</p><div id="ground-body" class="card"></div></section>
 <section id="doors" hidden><p class="lead">The receiving doors: where a visiting agent's presentation reaches an admission receipt. Each decision was taken on a root read from neutral ground at that moment. A door admits on evidence; it never decides what the agent may do.</p><div id="doors-body" class="card">loading…</div></section>
+<section id="credentials" hidden><p class="lead">The predicate grade (spec 443 W5): a visitor proves, in zero knowledge, that a credential she holds satisfies what a door asks — bound to that door's challenge, under an issuer the door resolves through the chain, one visit per audience, with the issuer's live status read from neutral ground. The door learns that a predicate held. It learns no claim, no name, no address of hers.</p><div id="credentials-body" class="card">loading…</div></section>
 <section id="names" hidden><p class="lead">The universal resolver: one namespace rooted on the root chain, answered across every live town. A name outside its home town is never shown bare. Resolution is never authority.</p>
 <div class="card"><form id="nf" class="row"><input id="nq" placeholder="a label or a name — try alice, alice.me, vault.svc@richcanvas.org" autocomplete="off"><button class="go">Resolve</button></form><div id="names-body" class="empty">Type a label to see it across every live town.</div></div></section>
 <section id="kms" hidden><p class="lead">The shared KMS operator: one operator of record, one tenant per estate, never a shared seed. Keys are delegates under wires custodians hold. Nothing here is a key, a token or a seed.</p><div id="kms-body" class="card">loading…</div></section>
 </main>
-<footer>Spec 439 · 440 · reads <code>federation.yaml</code> and each town's public API · <a href="/api/federation">/api/federation</a> · <a href="/api/towns">/api/towns</a> · <a href="/api/scene.svg">/api/scene.svg</a> · <a href="/api/doors">/api/doors</a> · <a href="/api/names?q=alice">/api/names?q=</a> · <a href="/api/kms">/api/kms</a> · ${esc(origin)}</footer>
+<footer>Spec 439 · 440 · reads <code>federation.yaml</code> and each town's public API · <a href="/api/federation">/api/federation</a> · <a href="/api/towns">/api/towns</a> · <a href="/api/scene.svg">/api/scene.svg</a> · <a href="/api/doors">/api/doors</a> · <a href="/api/credentials">/api/credentials</a> · <a href="/api/names?q=alice">/api/names?q=</a> · <a href="/api/kms">/api/kms</a> · ${esc(origin)}</footer>
 <script>
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -70,7 +71,7 @@ const FED = ${JSON.stringify({ registry: fed.registry, estates: fed.estates, tow
 // ── tabs (the hash remembers which) ──
 function show(v) { document.querySelectorAll('nav button').forEach((x) => x.classList.toggle('on', x.dataset.v === v)); document.querySelectorAll('main section').forEach((s) => (s.hidden = s.id !== v)); history.replaceState(null, '', '#' + v); }
 document.querySelectorAll('nav button').forEach((b) => (b.onclick = () => show(b.dataset.v)));
-const initial = location.hash.slice(1); if (['towns', 'ground', 'doors', 'names', 'kms'].includes(initial)) show(initial);
+const initial = location.hash.slice(1); if (['towns', 'ground', 'doors', 'credentials', 'names', 'kms'].includes(initial)) show(initial);
 
 // ── neutral ground ──
 function ground() {
@@ -125,6 +126,26 @@ async function doors() {
 }
 document.addEventListener('click', (ev) => { const b = ev.target.closest('button[data-more]'); if (!b) return; const more = b.parentElement.querySelector('tbody.more'); if (more) more.hidden = false; b.remove(); });
 doors().catch((e) => ($('#doors-body').innerHTML = '<span class="bad">doors: ' + esc(e.message) + '</span>'));
+
+// ── credentials (the predicate grade) ──
+async function credentials() {
+  const c = await (await fetch('/api/credentials')).json();
+  if (!c.credentials) { $('#credentials-body').innerHTML = '<div class="empty">no credentials block declared</div>'; return; }
+  const k = c.credentials;
+  const head = '<div class="row"><b>' + esc(k.suite) + '</b> <span class="pill">' + esc((k.backend && (k.backend.package + ' ' + k.backend.version)) || '') + ' · ' + esc((k.backend && k.backend.role) || 'verifier') + '</span> <span class="k">verifier placement</span> <code>' + esc(k.verifierPlacement || '') + '</code> <span class="k">issuer trust</span> <code>' + esc(k.issuerTrust || '') + '</code></div>'
+    + '<div class="note">Proof validity is evidence, never authority. A door that admits on a predicate still runs its own mandate per act. The verifier is a Node service beside the door (the 1k Prepare verifying key is 274 MB) and every receipt names that placement.</div>';
+  const doors = '<h3>doors with a predicate grade</h3>' + ((c.doors || []).length ? (c.doors || []).map((d) => {
+    const live = d.live || {}; const v = live.verifier || {};
+    const preds = (d.policy.predicates || []).map((p) => '<code>' + esc(p.claim + ' ' + p.op + ' ' + JSON.stringify(p.value)) + '</code>').join(' ');
+    return '<div class="card"><div class="row"><b>' + esc(new URL(d.url).host) + '</b> <span class="pill">in front of ' + esc(d.estate) + '</span> ' + (d.error ? st(false, d.error) : st(true, 'answers')) + '</div>'
+      + '<div class="note">asks ' + preds + ' over <code>' + esc((d.policy.claimSchema || []).join(', ')) + '</code> (' + esc(d.policy.vcSize) + ') · nullifier ' + esc(d.policy.nullifier ? (d.policy.nullifier.require ? 'required, ' + d.policy.nullifier.grade : 'optional') : 'none') + ' · status ' + esc(d.policy.status || 'none') + (live.predicateDigest ? ' · predicate program <code>' + short(live.predicateDigest) + '</code>' : '') + '</div>'
+      + '<div class="note">verifier: ' + (v.configured ? st(v.ok === true, (v.placement || '') + (v.body && v.body.sdk ? ' · openac-sdk ' + v.body.sdk + ' · bundle ' + v.body.bundleVersion + ' · keys ' + (v.body.keys || []).join(',') + ' · rss ' + v.body.rssMb + ' MB' : v.ok ? '' : ' (not answering: ' + ((v.body && v.body.error) || v.status) + ')')) : st(false, v.error || 'not configured')) + '</div></div>';
+  }).join('') : '<div class="empty">no door declares credentialProofs</div>');
+  const issuers = '<h3>issuers — facets read the way a stranger reads them</h3>' + tbl(['issuer', 'estate', 'issuing agent', 'chain', 'facets (keyId · thumbprint · attestation)'], (c.issuers || []).map((i) => '<tr><td>' + esc(i.id) + (i.kind ? ' <span class="pill">' + esc(i.kind) + '</span>' : '') + '</td><td>' + esc(i.estate) + '</td><td class="mono">' + esc(i.sa) + '</td><td>eip155:' + esc(i.chainId) + '</td><td>' + ((i.facets || []).map((f) => '<code>' + esc(f.keyId) + '</code> · ' + esc(f.thumbprint || (f.document && f.document.facet && f.document.facet.publicKeyJwk && f.document.facet.publicKeyJwk.kid) || '—') + ' · ' + (f.attestation ? st(true, short(f.attestation)) : st(false, 'not attested')) + ' · revocation: ' + esc(f.revocationRoot || '—')).join('<br>') || '<span class="warn">none</span>') + '</td></tr>'))
+    + '<div class="note">An issuer is an organization or a service, never a person, and never an estate\'s governance agent (its revocation row on neutral ground would collide). The facet document is public — a key and the agent\'s signature over it; the attestation on the issuer\'s chain is what a verifier checks, not this page.</div>';
+  $('#credentials-body').innerHTML = head + doors + issuers;
+}
+credentials().catch((e) => ($('#credentials-body').innerHTML = '<span class="bad">credentials: ' + esc(e.message) + '</span>'));
 
 // ── kms ──
 async function kms() {

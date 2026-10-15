@@ -171,7 +171,50 @@ real design change and seven traps, each of which failed where nothing named it.
 | P4 | **Finding: the federation door leaks the visitor.** `GET /federation/challenge?subject=0x…` carries the Smart Agent in a query string, and `GET /federation/receipts` serves full `AdmissionReceipt`s to the world (the site shows 25). Fix in 443 W0: subject in the POST body; the public list becomes counts + decision codes + an HMAC `subjectDigest`; the full receipt only to the presenter and the receiving estate's registry agent's vault. | `apps/door/src/index.ts`, `challenge.ts`, `ledger-do.ts`; `apps/site` |
 | P5 | Mediated Sign-In (password relay) is refused by default; Direct and Device Sign-In are Home ceremonies. | spec 442 §8 |
 
-## zkID / OpenAC at the door and on neutral ground (2026-10-15; analysis only)
+## zkID / OpenAC at the door and on neutral ground — BUILT (2026-10-15, wave Z4 of the Ring 0 program)
+
+**What runs.** `credentials:` + `doors[impact-agent].credentialProofs` in `federation.yaml` (validated by `check:federation`;
+on the site as a Credentials tab + `/api/credentials`); the projector's **issuer mode** (`--issuer <id>`: status · register ·
+submit · retire · project · `present-status`; set `live-credential`; revocation = retire + re-anchor); the door's **`predicate`
+grade** (`x-ap-credential-presentation` → the door's OWN proof request from its policy + its challenge → Ring 0's
+`binding-credential-presentation` evaluator → a verdict from the **Node verifier Container** beside the Worker → the
+nullifier consumed in the door's ledger DO → receipt + `x-ap-credential-predicate` on the forward); the verifier
+(`apps/door/verifier`: facet resolved by keyId among the register's documents and RE-VERIFIED on the issuer's chain — SA
+signature through the validator, live attestation of type `issuer-key-facet` — then the proof, then the issuer row read from
+neutral ground); the ceremony (`setup-predicate-issuer.mts`) and the gate (`gate-predicate-visitor.mts`, nightly row
+`predicate-visitor`). Measured locally against the real chain: Prepare+Show 25 s on the holder's side, verify 7 s, verifier RSS
+993 MB after one verification; a revoked credential's old status → `status_not_live`; another audience → `nonce_or_audience_mismatch`.
+
+**Found on the way.**
+- *The visitor is nameless, not actor-less.* Ring 0's admission invariants want a CAIP-10 actor and a principal-signed proof
+  behind any cited entitlement (ADR-0010/0041). A credential reference is an entitlement ref, so the knock IS signed — by a
+  **pairwise EOA** derived from the holder secret and the door's origin (`pairwiseHandle`). What the door and its receipt
+  hold is that handle, the facet, the predicate digest, the nullifier grade and the status sequence; her person agent
+  appears nowhere, and the gate asserts it.
+- *An issuer row can masquerade as an estate.* Same registry, same id function, and `liveGrantRoot` holds the credential
+  root: a credential leaf submitted with a `--subject` would verify as that subject's "live grant" in a row that is no
+  estate, and F2.5 only says `SIGNER_UNKNOWN_ESTATE`. The door now reads `charterHash`, treats `ISSUER_ROW_TAG` as never
+  anchored and refuses by name (`FOREIGN_ESTATE_ROW_IS_AN_ISSUER_ROW`). Ring 0's `verifyAuthorityPresentation` already refused a
+  `live-credential` SET; the row-level confusion was the door's to close.
+- *The nullifier store is the door's, never the verifier's.* The verifier holds no state (it is one Container per door and
+  must stay replaceable), so it answers the verdict and the ledger DO does the atomic insert — a reused one flips a valid
+  verdict to `nullifier_reused` after the fact, and a verdict that was not valid consumes nothing (unit-tested).
+- *The device key must be in `cnf`.* openac-sdk's test issuer takes `deviceKey` as a full `EcdsaPublicKey` (`kty`, `crv`, `x`, `y`);
+  `{x, y}` alone silently issues a credential with no holder binding, and Prepare refuses it later with `INVALID_JWT`. The first
+  issued pair had to be retired and re-issued (sequences 1–2 of the issuer row are that mistake, kept, with the reason).
+- *A Container's `basic` instance is too small.* 350 MB at idle, 993 MB after one verification: `standard` (4 GiB).
+- *Ring 0 type drift, one line:* Z3 widened `ProjectionSet` and `verifyAuthorityPresentation`'s ok-verdict type leaked it, which
+  admission's `foreignEstateEvaluator` refuses at the type level — narrowed in Ring 0 (changeset) rather than cast here.
+- *The reference issuer is the estate's registry agent*, not a `.svc`: the one non-person SA with a headless custodian and an
+  anchoring wire that already covers `setRoots` for any row it signs for. A production issuer is a dedicated service agent.
+
+**Blocked on.** The Ring 0 release that carries Z1–Z3 (`privacy-credentials` with the OpenAC suite, `estate-projection`'s issuer
+row, `admission`'s evaluator) and the brand-new leaf `@agenticprimitives/privacy-credentials-openac`, which **trusted publishing
+cannot create** (E404 on first publish — the known bootstrap step: `npm login`, `scripts/publish-manual.sh --publish`, then
+`03-configure-trusted-publishing.sh privacy-credentials-openac`). Until it lands this repo's pins stay at the published
+versions and the door is not redeployed; the typecheck and the unit tests here ran against the Ring 0 builds.
+
+### The analysis that preceded it (kept as written)
 
 Ring 0 doc of record: `agenticprimitives/docs/architecture/zkid-and-verifiable-credentials-alignment.md`
 (Coin Center's seven principles scored; OpenAC's `Deployment policy` layer = our authority plane; **delegated

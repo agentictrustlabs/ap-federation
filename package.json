@@ -32,7 +32,10 @@
     "projector:deploy": "pnpm --filter @ap-federation/projector deploy:faithnet",
     "gate:freshness": "tsx scripts/gate-projector-freshness.mts",
     "gate:vault-record": "tsx scripts/gate-vault-record.mts",
-    "gate:pay-outward": "tsx scripts/gate-f3-pay-outward.mts"
+    "gate:pay-outward": "tsx scripts/gate-f3-pay-outward.mts",
+    "gate:predicate": "tsx scripts/gate-predicate-visitor.mts",
+    "setup:predicate": "tsx scripts/setup-predicate-issuer.mts",
+    "keys:openac": "sh scripts/fetch-openac-keys.sh"
   },
   "devDependencies": {
     "@agenticprimitives/a2a": "0.0.0-alpha.35",

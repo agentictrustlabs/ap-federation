@@ -17,7 +17,7 @@
   {
    "id": "federation-site",
    "script": "scripts/gate-federation-site.mts",
-   "spec": "specs/440 \u00a7B4",
+   "spec": "specs/440 §B4",
    "proves": "the federation site answers from the towns' live surfaces: the root-chain town is listed live with its estates, the KMS operator probe answers, a label resolves across every live town with every row qualified and carrying { name, chain } + a CAIP-10 identity.",
    "twin": "no row is ever bare; a retired town is neither probed nor queried; the KMS record carries no secret-shaped value; a chain in the name is refused.",
    "required": true,
@@ -29,7 +29,7 @@
   {
    "id": "f2-door",
    "script": "scripts/gate-f2-door.mts",
-   "spec": "specs/439 F2 (Ring 0); Ring 0 spec 410 \u00a74.2",
+   "spec": "specs/439 F2 (Ring 0); Ring 0 spec 410 §4.2",
    "proves": "the receiving door admits a foreign presentation on a principal-signed request proof and a leaf proved against the root READ FROM NEUTRAL GROUND, writes a hash-chained receipt naming only the acting account and the boundary, and forwards the admitted bytes to the estate's A2A door with the standing in headers.",
    "twin": "a presentation one sequence behind (stale), one answering another door's challenge, one about another subject, a replayed proof, and no proof are each refused; a request with no presentation is admitted as nobody-foreign with no standing.",
    "required": true,
@@ -44,9 +44,9 @@
   {
    "id": "f3-twin",
    "script": "scripts/gate-f3-twin.mts",
-   "spec": "specs/439 \u00a76 / \u00a77.5 (Ring 0)",
+   "spec": "specs/439 §6 / §7.5 (Ring 0)",
    "proves": "standing anchored by one estate is admitted at the other estate's door, in both directions, on evidence read from neutral ground, with the signer cross-check agreeing; the same five refusals hold at each door.",
-   "twin": "each direction carries gate-f2-door's five refusals; the run prints that it is ONE chain \u2014 cross-estate, not cross-chain.",
+   "twin": "each direction carries gate-f2-door's five refusals; the run prints that it is ONE chain — cross-estate, not cross-chain.",
    "required": true,
    "timeoutSec": 360,
    "env": {
@@ -57,9 +57,9 @@
   {
    "id": "projector-freshness",
    "script": "scripts/gate-projector-freshness.mts",
-   "spec": "specs/439 \u00a74 / \u00a77.10 (Ring 0)",
+   "spec": "specs/439 §4 / §7.10 (Ring 0)",
    "proves": "every projecting estate's anchor is fresh enough that a verifier will still accept a presentation against it, and the scheduled projector is the thing keeping it so.",
-   "twin": "an estate whose anchor is past the shortest verifier window is RED, not a warning \u2014 an estate that cannot be proved is not a passing estate.",
+   "twin": "an estate whose anchor is past the shortest verifier window is RED, not a warning — an estate that cannot be proved is not a passing estate.",
    "required": true,
    "timeoutSec": 120,
    "env": {
@@ -69,8 +69,8 @@
   {
    "id": "vault-record",
    "script": "scripts/gate-vault-record.mts",
-   "spec": "specs/439 \u00a77.13 (Ring 0); ADR-0055; spec 410 \u00a74",
-   "proves": "each estate's submissions \u2014 the openings behind its public roots \u2014 are records in ITS OWN registry agent's vault: the agent's vault takes the record, a read under the same grant sees it, and the blind round-trips unchanged.",
+   "spec": "specs/439 §7.13 (Ring 0); ADR-0055; spec 410 §4",
+   "proves": "each estate's submissions — the openings behind its public roots — are records in ITS OWN registry agent's vault: the agent's vault takes the record, a read under the same grant sees it, and the blind round-trips unchanged.",
    "twin": "a write-only credential would list nothing and a read-only one would be refused the write, so a gate that passes proves both halves of the grant rather than one; and the leaf it writes is retired before it exits, so the gate never leaves a vouch in a real estate's ledger.",
    "required": true,
    "timeoutSec": 180,
@@ -81,14 +81,29 @@
   {
    "id": "pay-outward",
    "script": "scripts/gate-f3-pay-outward.mts",
-   "spec": "specs/439 \u00a76 / \u00a77.16 (Ring 0)",
+   "spec": "specs/439 §6 / §7.16 (Ring 0)",
    "proves": "the OTHER payment direction: a resident pays a treasury in the other estate under HER OWN permission, issued at her own home for her own treasury, redeemed by her own harness. The receiving estate grants nothing and checks only that the money arrived.",
-   "twin": "the other estate's own valid, signed standing wire derives NOTHING against this payer's requirement \u2014 neither estate honours a spending permission issued by the other. Plus the wire's own bounds: another payee and an over-cap amount derive nothing, and the identical intent repeated is refused on chain as a reused nonce.",
+   "twin": "the other estate's own valid, signed standing wire derives NOTHING against this payer's requirement — neither estate honours a spending permission issued by the other. Plus the wire's own bounds: another payee and an over-cap amount derive nothing, and the identical intent repeated is refused on chain as a reused nonce.",
    "required": true,
    "timeoutSec": 420,
    "env": {
     "FEDERATION_PAYER_HOME": "https://www.faithnet.me"
    }
+  },
+  {
+   "id": "predicate-visitor",
+   "script": "scripts/gate-predicate-visitor.mts",
+   "spec": "specs/443 W5; Ring 0 spec 305 W2 + zkID alignment Z1–Z4",
+   "proves": "a NAMELESS visitor proves \"over 18\" in zero knowledge at another estate's door: she knocks as a pairwise account, the proof hides the issuer key and the device key, the door verifies it beside the Worker (a Node Container holding the 274 MB verifying key) against an issuer facet resolved through the chain (SA signature + live attestation) and the issuer's live-credential row read from neutral ground; ADMIT with CREDENTIAL_PREDICATE_HELD; the receipt names the facet, the predicate digest (the door's own = the wire's), the nullifier grade and the status sequence, and carries no claim value and no address of the person; the holder's own receipt names the mandate; the device key signs only under her standing credential.present wire, judged by the presentation release inside every signature.",
+   "twin": "the same nullifier again under a fresh challenge is refused as reused (one visit per audience); a presentation without the nullifier the policy requires is refused; a statement for another venue derives no mandate and nothing leaves the holder; a credential the issuer REVOKED (its status from the sequence where it was live) is refused on neutral ground's current row; a challenge already answered is refused before the verifier is asked; a knock with no credential is admitted as nobody with no predicate.",
+   "required": true,
+   "timeoutSec": 600,
+   "env": {
+    "FEDERATION_DOOR_URL": "https://door.ap-federation.faithnet.io",
+    "A2A_ALLOW_LOCAL_DEVICE_KEY": "true",
+    "NODE_OPTIONS": "--max-old-space-size=8192 --dns-result-order=ipv4first"
+   },
+   "needs": "FEDERATION_RPC_URL + OPENAC_KEYS_DIR with the 1k proving keys (scripts/fetch-openac-keys.sh --proving, ≈560 MB) + .secrets/predicate-*.json (scripts/setup-predicate-issuer.mts, once; the door deployed with its verifier Container and VERIFIER_SECRET). Prepare is ≈20 s per credential."
   }
  ]
 }

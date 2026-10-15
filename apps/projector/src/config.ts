@@ -55,8 +55,36 @@ export interface EstateRow {
   blocked?: string;
 }
 
+/** A credential ISSUER the federation lists (spec 443 §2 `credentials.issuers[]`; Ring 0 zkID Z4). Its row on neutral ground is
+ *  `estateIdOf(chainId, sa)` tagged `ISSUER_ROW_TAG` — the same registry, a distinct id (an issuer is never an estate's
+ *  governance agent, or the two rows would collide). The signer is the issuer SA itself and the key that writes is a
+ *  delegate under its anchoring wire, exactly as an estate's (spec 439 §4). */
+export interface IssuerRow {
+  id: string;
+  estate: string;
+  sa: Address;
+  chainId: number;
+  kind?: string;
+  attestationRegistry?: Address;
+  universalSignatureValidator?: Address;
+  rpcEnv?: string;
+  anchorDelegateKeyEnv?: string;
+  signerKeyEnv?: string;
+  anchoringWire?: string;
+  facets?: Array<{ keyId: string; thumbprint?: string; attestation?: Hex; revocationRoot?: string; document?: unknown }>;
+}
+
+export interface FederationCredentials {
+  suite: string;
+  backend?: { package: string; version: string; role: string };
+  verifierPlacement?: string;
+  issuerTrust?: string;
+  issuers?: IssuerRow[];
+}
+
 export interface Federation {
   federation: string;
+  credentials?: FederationCredentials;
   registry: RegistryRow;
   estates: EstateRow[];
 }
@@ -71,6 +99,16 @@ export function loadFederation(path = 'federation.yaml'): Federation {
     if (e.governance === undefined) throw new Error(`${path}: estate ${e.id} must state its governance address or null (never omit it)`);
   }
   return raw;
+}
+
+export function issuerById(f: Federation, id: string): IssuerRow & { issuerId: Hex } {
+  const row = (f.credentials?.issuers ?? []).find((i) => i.id === id);
+  if (!row) throw new Error(`no issuer "${id}" under credentials.issuers in the register (have: ${(f.credentials?.issuers ?? []).map((i) => i.id).join(', ') || 'none'})`);
+  if (!row.sa || !row.chainId) throw new Error(`issuer ${id}: sa and chainId are required`);
+  const issuerId = estateIdOf(row.chainId, row.sa);
+  // The row must not be an estate's: same registry, same id function, and `register` is first-come-wins.
+  for (const e of f.estates) if (e.governance && estateIdOf(e.chainId, e.governance).toLowerCase() === issuerId.toLowerCase()) throw new Error(`issuer ${id} IS estate ${e.id}'s governance agent — an issuer row would collide with the estate's row; issue from a distinct SA`);
+  return { ...row, issuerId };
 }
 
 export function estateById(f: Federation, id: string): EstateRow {
@@ -101,7 +139,7 @@ export function registryRpc(f: Federation, env: NodeJS.ProcessEnv = process.env)
 }
 
 /** The estate's anchoring key, from the environment its row names. */
-export function signerKey(row: EstateRow, env: NodeJS.ProcessEnv = process.env): Hex {
+export function signerKey(row: Pick<EstateRow, 'id' | 'anchorDelegateKeyEnv' | 'signerKeyEnv'>, env: NodeJS.ProcessEnv = process.env): Hex {
   const name = row.anchorDelegateKeyEnv ?? row.signerKeyEnv;
   if (!name) throw new Error(`estate ${row.id} names no anchorDelegateKeyEnv (or signerKeyEnv), so nothing here can anchor for it`);
   const k = (env[name] ?? '').trim();

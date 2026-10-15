@@ -48,6 +48,22 @@ class_name = "DoorLedgerDO"
 [[env.impact-agent.migrations]]
 tag = "v1"
 new_sqlite_classes = ["DoorLedgerDO"]
+# ── THE `predicate` GRADE (spec 443 W5 / Ring 0 zkID Z4, 2026-10-15): the OpenAC verifier as a Container beside this door.
+# A Container IS a Durable Object class: bound as VERIFIER, migrated like one. The image is built by wrangler from
+# ./verifier (server.mjs + the 1k VERIFYING keys, ≈280 MB, fetched by scripts/fetch-openac-keys.sh — gitignored).
+# `standard` = 4 GiB: the Prepare verifying key alone is 274 MB on disk and more once parsed. One instance per door.
+# Secrets it needs beside DOOR_SECRET: VERIFIER_SECRET (the Worker's bearer to it). The RPC_URL secrets pass through.
+[[env.impact-agent.durable_objects.bindings]]
+name = "VERIFIER"
+class_name = "VerifierContainer"
+[[env.impact-agent.migrations]]
+tag = "v2"
+new_sqlite_classes = ["VerifierContainer"]
+[[env.impact-agent.containers]]
+class_name = "VerifierContainer"
+image = "./verifier/Dockerfile"
+max_instances = 1
+instance_type = "standard"
 [env.impact-agent.vars]
 PUBLIC_ORIGIN = "https://door.ap-federation.faithnet.io"
 BOUNDARY_ID = "ap-federation-door:impact-agent"

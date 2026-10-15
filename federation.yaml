@@ -123,10 +123,72 @@ doors:
     url: https://door.ap-federation.faithnet.io
     target: maya-fernandes.me          # the receiving agent, through the estate's edge-addressed door
     since: 2026-10-14
+    # THE `predicate` GRADE (spec 443 W5; Ring 0 zkID Z1–Z4, 2026-10-15): what THIS door asks a credential to prove, in zero
+    # knowledge, over which credential layout. The door builds the proof request from this and ITS challenge, never from
+    # the presentation; the predicate program's digest is what a holder's `credential.present` wire names. A nullifier
+    # (one visit per audience) is required; the issuer's live-credential status is required and read from neutral ground.
+    # The verifier is the Node Container beside the door Worker (apps/door/verifier) — the receipt names that placement.
+    credentialProofs:
+      predicates:
+        - { claim: age, op: gte, value: 18 }
+      claimSchema: [age, roc_birthday]     # the issuer-fixed disclosure order of the accepted credential type (slot = claim)
+      vcSize: 1k
+      acceptedVersions: ["0.1.0"]          # openac-sdk 5.0.0's bundle `version` (Ring 0 lock `openac-sdk`); bound to the 1k keys
+      nullifier: { require: true, grade: asserted }
+      status: required
+      maxAgeSeconds: 86400
   - estate: faithnet
     url: https://door-faithnet.ap-federation.faithnet.io
     target: alice.me
     since: 2026-10-14
+
+# ── CREDENTIALS: THE PREDICATE GRADE, VERIFIER SIDE (spec 443 §2 `credentialProofs` + `issuers`; Ring 0 zkID Z1–Z4) ────
+# What the federation's doors can verify and which issuers it lists. Nothing here grants anything: a predicate held is
+# EVIDENCE about a credential (never a claim, never the person), and the estate's own mandate still governs every act.
+# · suite: Ring 0's one zero-knowledge suite — OpenAC (1/OPENAC raw, SD-JWT-P256 profile): predicates over an SD-JWT, the
+#   issuer key hidden in the proof and checked against a spec-304 facet, the device key hidden and holder-bound.
+# · backend: openac-sdk at the version Ring 0's standards lock pins; role `verifier` — a federation holds no proving key.
+# · verifierPlacement `node`: the 1k Prepare verifying key is 274 MB, so verification runs in a Node Container beside
+#   each door Worker, never in the Worker; the door's receipt says so (`verifierPlacement: node:container`).
+# · issuerTrust `chain`: a facet is resolved by keyId among the documents listed here, then RE-VERIFIED on the issuer's
+#   chain — the SA's signature over the facet hash (UniversalSignatureValidator → ERC-1271) and a live attestation of
+#   `credentialType = keccak256("issuer-key-facet")` with that subject and hash. Never a fetch to the issuer.
+# · issuers[]: the issuing agent is an organization or a service — NEVER a person (a person's agent holds credentials; it
+#   does not issue them), and never an estate's governance agent (its live-credential row `estateIdOf(chainId, sa)` on
+#   neutral ground would be the estate's own row). Revocation is the issuer row (`revocationRoot: projection`): the
+#   issuer `retire`s a credential and re-anchors; every status presentation built before is stale from then on.
+credentials:
+  suite: openac-sd-jwt-p256
+  backend: { package: openac-sdk, version: "5.0.0", role: verifier }
+  verifierPlacement: node
+  issuerTrust: chain
+  issuers:
+    # The reference issuer for `gate:predicate-visitor` (2026-10-15): faithnet's REGISTRY AGENT — the one non-person Smart
+    # Agent of the estate with a headless custodian (demo-admin, through www.faithnet.me) and an anchoring wire already
+    # (.secrets/anchoring-wire-faithnet.json covers `setRoots` for ANY row the agent signs for, so its issuer row anchors
+    # under the same wire). A production issuer is a dedicated `.svc` of the estate; this one proves the mechanism.
+    - id: faithnet-gate-issuer
+      estate: faithnet
+      sa: "0xdfdAE0a37D35b72D8E2a4E3464087d43d0eB0b5b"
+      chainId: 34348
+      kind: registry-agent
+      attestationRegistry: "0x4c94A0355380b8F5023eDd5f8A8131B020de19FA"      # Ring 0 deployments-faithchain.json#attestationRegistry
+      universalSignatureValidator: "0xeDd56f500325D4701B9985A34e5Fa6EED6716137"
+      rpcEnv: FEDERATION_RPC_URL
+      anchorDelegateKeyEnv: FAITHNET_PROJECTION_SIGNER
+      anchoringWire: .secrets/anchoring-wire-faithnet.json
+      since: 2026-10-15
+      # Written by scripts/setup-predicate-issuer.mts (2026-10-15): the facet is PUBLIC (a key and the agent's signature over
+      # it); the attestation (tx 0xe506b393…) on faithchain's AttestationRegistry is what a verifier checks, not this file.
+      facets:
+        - keyId: issuer-key:sd-jwt:faithnet-gate-issuer-1
+          thumbprint: oWU6lXzCiQwCoJks7qO4PDu6kbMyOKAa29SMPjY4GHg
+          attestation: "0x4aee783dd3b76e12f2847bfe188100f5b3b9f95366f57c6580533db6f63310aa"
+          revocationRoot: projection       # the issuer row on neutral ground, 0x07c51491…; revoked = retired + re-anchored
+          document:
+            facet: {"type":"IssuerKeyFacetV1","subjectAgent":"0xdfdae0a37d35b72d8e2a4e3464087d43d0eb0b5b","keyId":"issuer-key:sd-jwt:faithnet-gate-issuer-1","suite":"es256-sd-jwt","publicKeyJwk":{"kty":"EC","crv":"P-256","x":"3HysY9tBTFNfcQLn7H-XoEfTU6VCtIdqXJ12CeM--iA","y":"3RkcTxTh6bp7MrToZk460J2H1oxcchMRw252q07iPW0","kid":"oWU6lXzCiQwCoJks7qO4PDu6kbMyOKAa29SMPjY4GHg"},"validFrom":"2026-10-15T19:51:50.087Z"}
+            facetHash: sha256:998285da0476be115f5c577dd2740e25870402ffbbae1b6a42ff83b8ec794f92
+            signature: "0x66ab84c90e0f55796ec75f245e0a1c7b29c78ec857bc6e5d728c034c54dacdf72d71015a8da93cddec00a7544083a1fafec3860759044ea641a6b503ef93f7ce1b"
 
 # ── THE SCHEDULED PROJECTOR (spec 439 §4) ─────────────────────────────────────────────────────────────
 # The job that keeps every estate's roots fresh: a tick every six hours that prunes against the chain, rebuilds and

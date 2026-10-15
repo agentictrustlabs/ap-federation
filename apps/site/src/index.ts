@@ -192,6 +192,13 @@ export default {
       if (p === '/api/scene') return json({ scene, signals, at: new Date().toISOString() }, 200, 30);
       return new Response(sceneSvg(scene), { headers: { ...CORS, 'content-type': 'image/svg+xml; charset=utf-8', 'cache-control': 'public, max-age=30' } });
     }
+    if (p === '/api/credentials') {
+      // THE PREDICATE GRADE, read live from each door: what it asks, which issuers the register lists, whether its verifier
+      // answers. The site reads no chain (keyless); the door does, and says what it read.
+      const c = fed.credentials ?? null;
+      const doors = await Promise.all(fed.doors.filter((d) => d.credentialProofs).map(async (d) => { const r = await probe(`${d.url}/federation/credentials`); return { estate: d.estate, url: d.url, policy: d.credentialProofs, live: r.ok ? r.body : null, error: r.ok ? null : (r.error ?? `HTTP ${r.status}`) }; }));
+      return json({ credentials: c, doors, issuers: (c?.issuers ?? []).map((i) => ({ ...i, anchorDelegateKeyEnv: undefined, anchoringWire: undefined })), at: new Date().toISOString() }, 200, 30);
+    }
     if (p === '/api/doors') {
       const doors = await Promise.all(fed.doors.map(async (d) => {
         const [health, receipts] = await Promise.all([probe(`${d.url}/health`), probe(`${d.url}/federation/receipts`)]);

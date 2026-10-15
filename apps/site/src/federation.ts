@@ -103,7 +103,14 @@ export interface FederationNaming {
   note?: string;
 }
 
-export interface FederationDoor { estate: string; url: string; target?: string; since?: string }
+export interface DoorCredentialPolicy { predicates: Array<{ claim: string; op: string; value: unknown }>; claimSchema: string[]; vcSize: string; acceptedVersions?: string[]; nullifier?: { require: boolean; grade: string }; status?: string; maxAgeSeconds?: number }
+export interface FederationDoor { estate: string; url: string; target?: string; since?: string; credentialProofs?: DoorCredentialPolicy }
+
+/** Spec 443 §2 `credentials:` (Ring 0 zkID Z4): the verifier side the doors run, and the issuers whose facets the
+ *  federation lists — read the way a stranger reads them (attested on the issuer's chain, revocation on neutral ground). */
+export interface FederationIssuerFacet { keyId: string; thumbprint?: string; attestation?: string; revocationRoot?: 'projection' | 'statusList'; document?: { facet: { type: string; subjectAgent: string; keyId: string; suite: string; publicKeyJwk?: Record<string, unknown>; validFrom: string; validUntil?: string }; facetHash: string; signature: string } }
+export interface FederationIssuer { id: string; estate: string; sa: string; chainId: number; kind?: string; attestationRegistry?: string; universalSignatureValidator?: string; rpcEnv?: string; anchorDelegateKeyEnv?: string; anchoringWire?: string; since?: string; note?: string; facets?: FederationIssuerFacet[] }
+export interface FederationCredentials { suite: string; backend?: { package: string; version: string; role: string }; verifierPlacement?: string; issuerTrust?: string; issuers?: FederationIssuer[] }
 
 export interface Federation {
   federation: string;
@@ -113,6 +120,7 @@ export interface Federation {
   towns: FederationTown[];
   kms: FederationKms;
   naming: FederationNaming;
+  credentials?: FederationCredentials;
 }
 
 export function parseFederation(text: string): Federation {
@@ -126,6 +134,7 @@ export function parseFederation(text: string): Federation {
     doors: ((raw as { doors?: FederationDoor[] }).doors ?? []),
     kms: raw.kms as FederationKms,
     naming: raw.naming as FederationNaming,
+    ...(raw.credentials ? { credentials: raw.credentials as FederationCredentials } : {}),
   };
 }
 
@@ -226,7 +235,53 @@ export function validateFederation(f: Federation): string[] {
     if ((k.conditions ?? []).length !== 4) errs.push('kms.conditions: the four conditions of spec 440 A3, each with a status');
   }
 
-  for (const d of f.doors ?? []) { if (!isUrl(d.url) || isWorkersDev(d.url)) errs.push(`doors[${d.estate}]: an https custom-domain URL`); if (!(f.estates ?? []).some((e) => e.id === d.estate)) errs.push(`doors[${d.estate}]: not an estate in the register`); }
+  for (const d of f.doors ?? []) {
+    if (!isUrl(d.url) || isWorkersDev(d.url)) errs.push(`doors[${d.estate}]: an https custom-domain URL`);
+    if (!(f.estates ?? []).some((e) => e.id === d.estate)) errs.push(`doors[${d.estate}]: not an estate in the register`);
+    const cp = d.credentialProofs;
+    if (cp) {
+      if (!f.credentials) errs.push(`doors[${d.estate}].credentialProofs: a door with a predicate grade needs the top-level credentials block`);
+      if (!Array.isArray(cp.predicates) || !cp.predicates.length) errs.push(`doors[${d.estate}].credentialProofs.predicates: at least one predicate — a door that asks nothing verifies nothing`);
+      for (const pr of cp.predicates ?? []) if (!pr.claim || !['gte', 'lte', 'in-set', 'before', 'after'].includes(pr.op)) errs.push(`doors[${d.estate}].credentialProofs: predicate ${JSON.stringify(pr)} is not { claim, op: gte|lte|in-set|before|after, value }`);
+      if (!Array.isArray(cp.claimSchema) || !cp.claimSchema.length) errs.push(`doors[${d.estate}].credentialProofs.claimSchema: the credential layout the door accepts, claim per slot`);
+      if (!['1k', '2k', '4k', '8k'].includes(cp.vcSize)) errs.push(`doors[${d.estate}].credentialProofs.vcSize: 1k | 2k | 4k | 8k`);
+      if (cp.nullifier && !['asserted', 'in-circuit'].includes(cp.nullifier.grade)) errs.push(`doors[${d.estate}].credentialProofs.nullifier.grade: asserted | in-circuit`);
+      if (cp.status && !['required', 'none'].includes(cp.status)) errs.push(`doors[${d.estate}].credentialProofs.status: required | none`);
+    }
+  }
+  // ── credentials (spec 443 §2; zkID Z4): a verifier declaration and issuers read the way a stranger reads them ──
+  const c = f.credentials;
+  if (c) {
+    if (c.suite !== 'openac-sd-jwt-p256') errs.push(`credentials.suite: openac-sd-jwt-p256 is the one suite Ring 0 Z1 ships (got ${c.suite})`);
+    if (c.backend && c.backend.role !== 'verifier') errs.push('credentials.backend.role: verifier — a federation never holds a proving key');
+    if (c.verifierPlacement && !['node', 'worker'].includes(c.verifierPlacement)) errs.push('credentials.verifierPlacement: node | worker');
+    if (c.issuerTrust && c.issuerTrust !== 'chain') errs.push('credentials.issuerTrust: chain — never a fetch to the issuer');
+    const ids = new Set<string>();
+    for (const i of c.issuers ?? []) {
+      const at = `credentials.issuers[${i.id ?? '?'}]`;
+      if (!i.id || ids.has(i.id)) errs.push(`${at}: a unique id`); ids.add(i.id ?? '');
+      if (!HEX40.test(i.sa ?? '')) errs.push(`${at}.sa: the issuing agent's address (an org or a service, never a person)`);
+      if (typeof i.chainId !== 'number') errs.push(`${at}.chainId: the chain the issuer SA lives on`);
+      if (!(f.estates ?? []).some((e) => e.id === i.estate)) errs.push(`${at}.estate: not an estate in the register`);
+      const governs = (f.estates ?? []).find((e) => e.governance && e.governance.toLowerCase() === (i.sa ?? '').toLowerCase());
+      if (governs) errs.push(`${at}.sa IS estate ${governs.id}'s governance agent — its issuer row would collide with the estate's row on neutral ground; issue from a distinct SA`);
+      if (i.attestationRegistry && !HEX40.test(i.attestationRegistry)) errs.push(`${at}.attestationRegistry: 0x…40`);
+      for (const fc of i.facets ?? []) {
+        const fat = `${at}.facets[${fc.keyId ?? '?'}]`;
+        if (!fc.keyId) errs.push(`${fat}: keyId is required`);
+        if (fc.attestation && !/^0x[0-9a-fA-F]{64}$/.test(fc.attestation)) errs.push(`${fat}.attestation: the AttestationRegistry uid (bytes32)`);
+        if (fc.revocationRoot && !['projection', 'statusList'].includes(fc.revocationRoot)) errs.push(`${fat}.revocationRoot: projection | statusList`);
+        if (fc.document) {
+          if (fc.document.facet?.keyId !== fc.keyId) errs.push(`${fat}.document.facet.keyId must equal keyId`);
+          if ((fc.document.facet?.subjectAgent ?? '').toLowerCase() !== (i.sa ?? '').toLowerCase()) errs.push(`${fat}.document.facet.subjectAgent must be the issuer SA`);
+          if (!/^sha256:[0-9a-f]{64}$/.test(fc.document.facetHash ?? '')) errs.push(`${fat}.document.facetHash: sha256:<hex>`);
+          if (!/^0x[0-9a-fA-F]+$/.test(fc.document.signature ?? '')) errs.push(`${fat}.document.signature: the SA's signature over the facet hash`);
+          const jwk = fc.document.facet?.publicKeyJwk as { d?: unknown } | undefined;
+          if (jwk && 'd' in jwk) errs.push(`${fat}.document.facet.publicKeyJwk carries a private component — never`);
+        }
+      }
+    }
+  }
   const n = f.naming;
   if (!n) errs.push('naming: the universal namespace record is required (spec 440 §C)');
   else {

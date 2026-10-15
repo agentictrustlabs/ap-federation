@@ -167,7 +167,7 @@ Nightly rows on the site, like the existing twin.
 | **W2** | `pap-door` for one public company agent (ligonier.svc) + the stub foreign client; `gate:pap-twin` | 442 W2 + W3 |
 | **W3** | invitation-only company doors; `gate:private-company`; `gate:nameless-visitor` with the `standing` proof | 442 W3; estate-projection presentations |
 | **W4** | ACP checkout client; UCP profile + AP2 mandate JWT; TAP signer + key directory; the Protocols card | 442 W4 |
-| **W5** (zkID) | `issuers:` + `credentialProofs:` in `federation.yaml`; facets on the site; the door's `predicate` grade over `ProvingBackendPort` (verifier only) with the Worker-size decision recorded; revocation roots in `apps/projector` beside the authority roots; `gate:predicate-visitor` | Ring 0 Z1–Z3 (`openac-sd-jwt-p256` suite, the `sign(digest)` SDK patch, `binding-credential-presentation`) |
+| **W5** (zkID) — **built 2026-10-15** (`docs/architecture/decisions-and-findings.md` §zkID; deploy + nightly green owed to the Ring 0 publish) | `credentials:` + `credentialProofs:` in `federation.yaml`; facets on the site (Credentials tab, `/api/credentials`); the door's `predicate` grade over `ProvingBackendPort` (verifier only) — the Worker-size decision: a Node **Container** beside the door (`verifierPlacement: node`, RSS ≈1 GB); revocation roots in `apps/projector` beside the authority roots (`--issuer`, set `live-credential`); `gate:predicate-visitor` | Ring 0 Z1–Z3 (`openac-sd-jwt-p256` suite, the `sign(digest)` SDK patch, `binding-credential-presentation`) |
 
 ---
 
