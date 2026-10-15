@@ -161,9 +161,36 @@ real design change and seven traps, each of which failed where nothing named it.
 | W9 | **The estate's registry agent and its vault credential moved on 2026-10-15; its anchoring did not.** `gate:vault-record` had refused `invalid_invocation_proof` for impact-agent: the projector's credential was a leaf under the faithchain registry agent while the vault validated on hopechain. A registry agent was chartered on the home chain (`0x4eB7D9e5…`, by maya), its vault key bound, the credential re-issued (`.secrets/vault-secret-impact-agent.json`; the faithchain-era file kept beside it), and the store re-anchored at sequence 7 with 3 live leaves. `gate:vault-record` is GREEN for both estates. The neutral-ground signer is unchanged (the faithchain agent, under the anchoring wire): an estate id derives from its projection chain, and rotating the signer is the owner's ceremony, not a consequence of the move. | `gate:vault-record`, `gate:freshness` |
 | W10 | **A Home claims where its agent lives, and the root called the name free.** The owner signed in at impact-agent.me (social login, per-chain record — ap-home `27e61fee`) and claimed `rich-impact.me`: born on hopechain (`0x5bBd…B957`, reverse round-trips), absent on faithchain, and names.faithnet.io said "available". Spec 440 C10 had written "hopechain issues no names" — true of sales, false of claims: an estate's Home writes into its own chain's registry, and nothing carries that claim to the root (U3). Three answers, none of them U3: hopenet gets a read-only naming service over its local table (ap-town `6f61aea`, deploys after the contracts release that carries `deployments-hopechain.json`), the register lists it so the resolver asks it, and the root's name page asks the resolver before calling a name free and refuses to register one claimed elsewhere (ap-town `9f39932`). The root record is still unwritten; that is U3's. | names.faithnet.io `/name/rich-impact.me` after names.hopenet.town is live |
 
+## The company's door — PAP, ACP, UCP, TAP (spec 443, 2026-10-15; designed, nothing built)
+
+| # | Decision / finding | Where |
+| --- | --- | --- |
+| P1 | **The person is never the client.** PAP's `client_id` names the agent software, so at every company the client is the estate's `pap.svc` (one service-scoped `ClientKeyBindingV1`, one JWKS, one key directory) and the person is only a pairwise `sub` derived from a vault secret. A per-person client metadata document would publish the label and estate to every company and is refused by gate. | spec 442 §7.1; spec 443 §0 |
+| P2 | **Approval is the mandate signature; `approved_by` is a claim.** Outbound, `user` comes only from the parked act's signature and `standing_permission` only from a covering 397 §11 wire. Inbound, a foreign agent's `approved_by` is recorded and the act parks for the owner's mandate. We propose a `proof` on confirm (`identity`: ERC-1271 JWS; `standing`: a blinded presentation against the estate root) to close PAP Operations §8. | spec 442 §5, §7.2 |
+| P3 | **A `listing: none` company serves no `poppy.json`.** Its door profile travels inside the connect invitation's publication; PAP "registration" is an accepted invitation; the door admits only a presented resolution grant and answers everyone else with a uniform `invalid_client`. | spec 442 §7.3; spec 443 §1.2 |
+| P4 | **Finding: the federation door leaks the visitor.** `GET /federation/challenge?subject=0x…` carries the Smart Agent in a query string, and `GET /federation/receipts` serves full `AdmissionReceipt`s to the world (the site shows 25). Fix in 443 W0: subject in the POST body; the public list becomes counts + decision codes + an HMAC `subjectDigest`; the full receipt only to the presenter and the receiving estate's registry agent's vault. | `apps/door/src/index.ts`, `challenge.ts`, `ledger-do.ts`; `apps/site` |
+| P5 | Mediated Sign-In (password relay) is refused by default; Direct and Device Sign-In are Home ceremonies. | spec 442 §8 |
+
+## zkID / OpenAC at the door and on neutral ground (2026-10-15; analysis only)
+
+Ring 0 doc of record: `agenticprimitives/docs/architecture/zkid-and-verifiable-credentials-alignment.md`
+(Coin Center's seven principles scored; OpenAC's `Deployment policy` layer = our authority plane; **delegated
+presentation** — the credential's device key signs only under a person→runtime wire). What it asks of this repo,
+none built (wave Z4):
+
+| # | Addition | Shape |
+| --- | --- | --- |
+| K1 | **Issuer-key facets as published surfaces.** An issuing estate lists its spec-304 facets under `issuers:` in `federation.yaml` and on the site, read from the chain; a verifier in another town resolves `kid` → facet → SA → attestation without asking the issuer (no phone-home). A `listing: none` issuer publishes none. | `federation.yaml`, `apps/site` |
+| K2 | **Revocation roots on neutral ground** beside the authority roots — same `EstateProjectionRegistry`, same projector cadence, same freshness rule (stale = refuse). The holder proves non-membership; the verifier reads the root. | `apps/projector` |
+| K3 | **The door accepts an OpenAC bundle as evidence**: `admission` sibling `binding-credential-presentation` contributes `{issuerFacet, predicateDigest, nullifier, fresh}`, never authority; `pap-door` is an OpenAC verifier (challenge audience = door origin + operation id) and offers the `predicate` proof grade beside `identity`/`standing`. | `apps/door`, spec 443 `pap-door` |
+| K4 | `gate:predicate-visitor` — a nameless person proves "over 21" at another estate's door; no address anywhere on the wire; the receipt names the mandate digest. | gates |
+| K5 | **Verifier only, never prover** (spec 443 decision 7, W5). `openac-sdk` is TypeScript over a Rust/Circom→WASM core (~126 MB proving keys; `present()` takes a raw device key). A door here bundles verifying keys + the `Show` verifier behind Ring 0's `ProvingBackendPort`, adds issuer trust from the chain / audience binding / replay, and records `expressionResult` as evidence. `federation.yaml` gains `credentialProofs:` + `issuers:`; a company door lists its `proofGrades`. | spec 443 §0.7, §1.2, §2, §5 W5 |
+
 ## Still owed
 
 | What | Needs |
+| the two door fixes in P4 (subject out of the query string; minimized public receipts) | 443 W0 — no Ring 0 dependency |
+| `pap.svc` per estate, `personal-agent-client`, `pap-door`, the Protocols card, `gate:pap-twin` / `gate:nameless-visitor` / `gate:private-company` | Ring 0 spec 442 W1–W3 |
 | --- | --- |
 | the outward refusal for the right reason (W8) | maya's hopechain treasury recorded as hers in her vault — the Home's birthright ceremony run at impact-agent, which first needs the skills commons (`skills-a2a`) to admit a second estate's issuer and origin (a change in `~/skills`, the other developer's tree today); then the harness's own counterparty check does the refusing |
 | a check that an estate's declared contract generation matches its chain's deployment record (W6) | ap-town `check:town` compares `chain.generation` with the pinned contracts release's `deployments-<chain>.json` since 2026-10-15 (hopechain's record ships in the release after 1.0.0-alpha.35 — Ring 0 `847bfad21`); still owed in `ap doctor` / `check:estate-shape` for the ESTATE's declared `CONTRACTS_GENERATION` |

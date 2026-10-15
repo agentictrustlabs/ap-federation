@@ -161,6 +161,10 @@ towns:
     universalSignatureValidator: "0xeDd56f500325D4701B9985A34e5Fa6EED6716137"   # deployments-faithchain.json
   - id: hopenet
     chainId: 34349
+    # The chain's LOCAL name table, read (ap-town hopenet naming, 2026-10-15). hopenet roots its names on faithchain and sells none,
+    # but an estate's Home on this chain claims into this chain's registry (rich-impact.me, W10) — the resolver asks here so
+    # such a name is seen, and the root's page can refuse to call it free. Spec 440 U3 is what carries the claim to the root.
+    naming: https://names.hopenet.town
     status: demo
     repo: agentictrustlabs/ap-town
     manifest: https://raw.githubusercontent.com/agentictrustlabs/ap-town/master/towns/hopenet/town.yaml

@@ -25,7 +25,10 @@ them are where the detail and the industry context live. Ring 0 doctrine is cite
 | [`naming-landscape-crosswalk.md`](naming-landscape-crosswalk.md) | ERC-8004 · ENS v2 · the ANS family (OWASP, IETF, Linux Foundation, GoDaddy) · AID · HCS-14 · NANDA · AGNTCY · SPKI/SDSI, one dated row each: what we take, refuse, and propose to pin |
 
 Where the mechanism lives: Ring 0 spec 410 §4 and spec 439 (the architect-of-record), spec 440 in this repository
-(`specs/`); `apps/projector/README.md` for what F1 built and found; `../runbooks/` to do things.
+(`specs/`); spec 443 (`specs/443-standard-protocol-projections-pap-ucp-acp-tap.md`) for the Personal Agent
+Protocol / ACP / UCP / Visa TAP projections (designed; Ring 0 spec 442 defines what they render); Ring 0
+`docs/architecture/zkid-and-verifiable-credentials-alignment.md` for ZK credential proofs at the door and
+revocation roots on neutral ground (analysis; K1–K4 in `decisions-and-findings.md`); `apps/projector/README.md` for what F1 built and found; `../runbooks/` to do things.
 
 Status words used throughout: **live** (runs today, gate named) · **designed** (a spec and a gate exist, not built) ·
 **proposed** (this repository recommends it; no spec holds it yet) · **open** (framed, not decided).
