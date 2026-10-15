@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { identityOf, looksLikeName, mergeTownRows, qualify, toNameRow } from '../src/resolver';
+import { accountOf, looksLikeName, mergeTownRows, qualify, toNameRow } from '../src/resolver';
 
 const faith = { id: 'faithchain', chainId: 34348 };
 const base = { id: 'base-town', chainId: 8453 };
@@ -18,16 +18,16 @@ describe('the never-bare rule (naming doc N4)', () => {
     const b = toNameRow({ name: 'alice.me', status: 'registered', agent: '0xb0d11ce19b756a682e78b4904cd8d832303b3d11' }, base, 34348);
     expect(a.federated).toEqual({ name: 'alice.me', chain: 'eip155:34348' });
     expect(b.federated).toEqual({ name: 'alice.me', chain: 'eip155:8453' });
-    expect(a.identity).not.toBe(b.identity);
+    expect(a.account).not.toBe(b.account); expect(a.federated).not.toEqual(b.federated);
     expect(a.root).toBe(true); expect(b.root).toBe(false);
   });
 });
 
-describe('identity', () => {
+describe('account', () => {
   it('is CAIP-10 on the row\'s chain, lower-cased, or null when the name points at nobody', () => {
-    expect(identityOf(34348, '0xB0D11CE19B756A682E78B4904CD8D832303B3D11')).toBe('eip155:34348:0xb0d11ce19b756a682e78b4904cd8d832303b3d11');
-    expect(identityOf(34348, null)).toBeNull();
-    expect(identityOf(34348, 'alice.me')).toBeNull();
+    expect(accountOf(34348, '0xB0D11CE19B756A682E78B4904CD8D832303B3D11')).toBe('eip155:34348:0xb0d11ce19b756a682e78b4904cd8d832303b3d11');
+    expect(accountOf(34348, null)).toBeNull();
+    expect(accountOf(34348, 'alice.me')).toBeNull();
   });
 });
 

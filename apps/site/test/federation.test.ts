@@ -43,11 +43,14 @@ describe('the register', () => {
     // became wrong when there were two — so what is asserted is that the absence must be DECLARED.
     const fed = parseFederation(text);
     const hopenet = fed.towns.find((x) => x.id === 'hopenet')!;
-    expect(hopenet.naming).toBeUndefined();
+    // Since 2026-10-15 hopenet also publishes a LOCAL name table (its own chain's registry, read by the town naming
+    // service) — rooting elsewhere says where the universal names live, not that the town may not read its own table.
     expect(hopenet.namesRootedAt).toBe('faithchain');
     expect(validateFederation(fed)).toEqual([]);
 
     const missing = parseFederation(text);
+    // A town with NEITHER a naming API nor a declared root: the absence must be declared (spec 440 §C).
+    delete missing.towns.find((x) => x.id === 'hopenet')!.naming;
     delete missing.towns.find((x) => x.id === 'hopenet')!.namesRootedAt;
     expect(validateFederation(missing).some((e) => e.includes('namesRootedAt'))).toBe(true);
 
