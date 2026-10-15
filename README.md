@@ -108,7 +108,7 @@ not a demonstration. Next is that second chain, faithnet's estate agent, and the
 | `apps/projector` | the projection job: a CLI for submitting and presenting, and **projector.ap-federation.faithnet.io**, a Worker that prunes, rebuilds and anchors every six hours so no estate's roots age out |
 | `apps/nanda-adapter` | **F4** — a pure projection from a released card into a NANDA index entry, with a loss report; it prints, it never publishes, and it never carries authority |
 | `apps/door` | **door.ap-federation.faithnet.io** — the receiving door (spec 439 F2): proof → admission with the foreign-estate evaluator → receipt → forward |
-| `apps/site` | **ap-federation.faithnet.io** — towns · KMS · names · neutral ground; public, read-only, keyless (spec 440 §B) |
+| `apps/site` | **ap-federation.faithnet.io** — the federation drawn (`/api/scene.svg`: neutral ground, the naming root and resolver, the KMS operator, the doors, each town beside it) · towns · KMS · names · neutral ground; public, read-only, keyless (spec 440 §B) |
 | `specs/` | this repository's own specs (`440` — the shared KMS operator, the site, the universal naming service) |
 | `scripts/` | ops scripts and the live gates (`gate-f1-projection.mts`) |
 | `docs/architecture/` | three walks — cross-chain authority, the naming service, the cross-town capabilities — then the principles, the naming decision, and the dated crosswalk. Start at its `README.md` |

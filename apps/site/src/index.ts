@@ -18,6 +18,8 @@ import ATTESTATION_JWT from '../assets/attestation.jwt';
 import { parseFederation, validateFederation, type Federation, type FederationTown } from './federation';
 import { looksLikeName, mergeTownRows, toNameRow, type NameRow, type TownNameResult, type TownSearchRow } from './resolver';
 import { page } from './html';
+import { groundScene, rootTown } from './ground';
+import { sceneSvg } from './scene';
 
 interface Env { PUBLIC_ORIGIN?: string }
 
@@ -164,6 +166,21 @@ export default {
       const name = decodeURIComponent(p.slice('/api/names/'.length)).trim().toLowerCase();
       if (!looksLikeName(name)) return json({ error: 'not_a_name', name }, 400);
       return json(await nameAcross(fed, name), 200, 15);
+    }
+    // THE PICTURE (owner, 2026-10-15): the federation's own ground, lit by the same probes the text views use.
+    if (p === '/api/scene' || p === '/api/scene.svg') {
+      const live = fed.towns.filter((t) => t.status !== 'retired');
+      const root = rootTown(fed);
+      const [towns, naming, kms, doors] = await Promise.all([
+        Promise.all(live.map(async (t) => [t.id, t.agent ? (await probe(`${t.agent}/api/health`)).ok : null] as const)),
+        root?.naming ? probe(`${root.naming}/api/health`) : null,
+        probe(fed.kms.probe),
+        Promise.all(fed.doors.map(async (d) => [d.estate, (await probe(`${d.url}/health`)).ok] as const)),
+      ]);
+      const signals = { towns: Object.fromEntries(towns), naming: naming ? naming.ok : null, kms: kms.ok, doors: Object.fromEntries(doors) };
+      const scene = groundScene(fed, signals, env.PUBLIC_ORIGIN ?? url.origin);
+      if (p === '/api/scene') return json({ scene, signals, at: new Date().toISOString() }, 200, 30);
+      return new Response(sceneSvg(scene), { headers: { ...CORS, 'content-type': 'image/svg+xml; charset=utf-8', 'cache-control': 'public, max-age=30' } });
     }
     if (p === '/api/doors') {
       const doors = await Promise.all(fed.doors.map(async (d) => {

@@ -24,6 +24,15 @@ const kms = await get('/api/kms');
 check('the KMS operator record is served and its probe answers', kms.status === 200 && kms.body?.probeResult?.ok === true && Array.isArray(kms.body?.tenants) && kms.body.conditions?.length === 4, `probe=${kms.body?.probeResult?.status} tenants=${kms.body?.tenants?.length}`);
 check('the KMS record carries no secret-shaped value (twin)', !JSON.stringify(kms.body ?? {}).match(/(eyJ[A-Za-z0-9_-]{20,}|0x[0-9a-f]{64})/i), 'no JWT, no 32-byte hex');
 
+const scene = await get('/api/scene');
+const ids: string[] = (scene.body?.scene?.buildings ?? []).map((b: any) => b.id);
+const liveTowns: string[] = (fed.body?.towns ?? []).filter((t: any) => t.status !== 'retired').map((t: any) => t.id);
+check('the picture stands the federation\'s services on its own ground, with every live town beside it', scene.status === 200 && ['neutral-ground', 'naming-root', 'resolver', 'kms'].every((id) => ids.includes(id)) && liveTowns.every((t) => ids.includes(`town:${t}`)), `${ids.length} building(s); towns ${liveTowns.join(', ')}`);
+check('the naming root and the KMS operator are lit by their probes', scene.body?.signals?.naming === true && scene.body?.signals?.kms === true, JSON.stringify(scene.body?.signals ?? {}));
+const svg = await fetch(base + '/api/scene.svg', { signal: AbortSignal.timeout(30_000) });
+const svgText = await svg.text();
+check('the picture is served as SVG with a title and real links', svg.status === 200 && (svg.headers.get('content-type') ?? '').includes('image/svg+xml') && svgText.startsWith('<svg') && svgText.includes('<title>') && svgText.includes('<a href='), `${svgText.length} bytes`);
+
 const names = await get('/api/names?q=alice');
 const rows: any[] = names.body?.rows ?? [];
 check('a label resolves across every live town', names.status === 200 && rows.length > 0 && names.body.towns.every((t: any) => t.ok), `${rows.length} row(s) from ${names.body?.towns?.length ?? 0} town(s)`);

@@ -2,6 +2,7 @@
 // Every name printed here is qualified (the never-bare rule); every signal is named; nothing is a score.
 // The script is plain functions, one per view, so a bug in one view cannot take the others down.
 import type { Federation } from './federation';
+import { SCENE_CSS } from './scene';
 
 const esc = (s: unknown): string => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
 
@@ -40,21 +41,23 @@ h3{margin:14px 0 6px;font-size:14px;color:var(--mute);font-weight:500;text-trans
 footer{padding:16px 20px;color:var(--mute);font-size:13px;border-top:1px solid var(--line)}
 a{color:var(--acc)}
 @media (max-width:640px){header{padding:12px 16px}nav,main{padding-left:16px;padding-right:16px}table{min-width:520px}}
+#scene{padding:6px}#scene svg{min-height:200px}
+${SCENE_CSS}
 </style></head><body>
 <header><h1>ap-federation</h1><span class="sub">${esc(fed.federation)} · ${fed.towns.length} town${fed.towns.length === 1 ? '' : 's'} (${live} live) · ${projecting} estate${projecting === 1 ? '' : 's'} on neutral ground · root chain eip155:${fed.naming.rootChain}</span>
 <span class="sub">public · read-only · it lists, it never grants</span></header>
 <nav><button data-v="towns" class="on">Towns</button><button data-v="ground">Neutral ground</button><button data-v="doors">Doors</button><button data-v="names">Names</button><button data-v="kms">KMS</button></nav>
 <main>
-<div class="intro">Two estates on one chain, joined on <b>neutral ground</b>: each publishes a commitment to the grants it vouches for; a visiting agent proves one leaf at the other's <b>door</b>; the door admits on evidence and the estate's own mandate decides what runs. <a href="https://github.com/agentictrustlabs/ap-federation/blob/master/docs/architecture/primer.md">Read the primer</a> · <a href="https://github.com/agentictrustlabs/ap-federation/blob/master/docs/architecture/how-it-works.md">how one crossing works</a>.</div>
+<div class="intro">The federation's estates, each in its town, joined on <b>neutral ground</b>: each publishes a commitment to the grants it vouches for; a visiting agent proves one leaf at the other's <b>door</b>; the door admits on evidence and the estate's own mandate decides what runs. <a href="https://github.com/agentictrustlabs/ap-federation/blob/master/docs/architecture/primer.md">Read the primer</a> · <a href="https://github.com/agentictrustlabs/ap-federation/blob/master/docs/architecture/how-it-works.md">how one crossing works</a>.</div>
 ${errors.length ? `<div class="card bad"><b>The register has ${errors.length} problem(s)</b><ul>${errors.map((e) => `<li>${esc(e)}</li>`).join('')}</ul></div>` : ''}
-<section id="towns"><p class="lead">Every town we have, read live from each town's own surfaces: its town agent, its naming service, its services' probes. A town is one chain and the estates on it.</p><div id="towns-body" class="card">loading…</div></section>
+<section id="towns"><div id="scene" class="card" aria-live="polite">drawing the federation…</div><p class="note" style="margin:-4px 0 12px">What the federation runs and the towns host — neutral ground, the naming root and resolver, the shared KMS operator, the doors — and each town beside it. Lit windows answered their probe just now; a building is a link. Nothing drawn is a permission.</p><p class="lead">Every town we have, read live from each town's own surfaces: its town agent, its naming service, its services' probes. A town is one chain and the estates on it.</p><div id="towns-body" class="card">loading…</div></section>
 <section id="ground" hidden><p class="lead">The registry no estate controls, and the estates that project their live sets onto it. A root is a commitment; the leaves stay the estate's record. <b>Neutral</b> is a property of the contract (no admin, no pause, no upgrade), not of the chain.</p><div id="ground-body" class="card"></div></section>
 <section id="doors" hidden><p class="lead">The receiving doors: where a visiting agent's presentation reaches an admission receipt. Each decision was taken on a root read from neutral ground at that moment. A door admits on evidence; it never decides what the agent may do.</p><div id="doors-body" class="card">loading…</div></section>
 <section id="names" hidden><p class="lead">The universal resolver: one namespace rooted on the root chain, answered across every live town. A name outside its home town is never shown bare. Resolution is never authority.</p>
 <div class="card"><form id="nf" class="row"><input id="nq" placeholder="a label or a name — try alice, alice.me, vault.svc@richcanvas.org" autocomplete="off"><button class="go">Resolve</button></form><div id="names-body" class="empty">Type a label to see it across every live town.</div></div></section>
 <section id="kms" hidden><p class="lead">The shared KMS operator: one operator of record, one tenant per estate, never a shared seed. Keys are delegates under wires custodians hold. Nothing here is a key, a token or a seed.</p><div id="kms-body" class="card">loading…</div></section>
 </main>
-<footer>Spec 439 · 440 · reads <code>federation.yaml</code> and each town's public API · <a href="/api/federation">/api/federation</a> · <a href="/api/towns">/api/towns</a> · <a href="/api/doors">/api/doors</a> · <a href="/api/names?q=alice">/api/names?q=</a> · <a href="/api/kms">/api/kms</a> · ${esc(origin)}</footer>
+<footer>Spec 439 · 440 · reads <code>federation.yaml</code> and each town's public API · <a href="/api/federation">/api/federation</a> · <a href="/api/towns">/api/towns</a> · <a href="/api/scene.svg">/api/scene.svg</a> · <a href="/api/doors">/api/doors</a> · <a href="/api/names?q=alice">/api/names?q=</a> · <a href="/api/kms">/api/kms</a> · ${esc(origin)}</footer>
 <script>
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -81,6 +84,9 @@ function ground() {
     + '<div class="note">The register says what it believes; the projector and the doors read the chain and compare. "declared on chain" is the estate agent\\'s own <code>atl:projectionSigner</code>, which closes first-come-wins.</div>';
 }
 ground();
+
+// ── the picture ──
+fetch('/api/scene.svg').then((r) => r.text()).then((svg) => { $('#scene').innerHTML = svg; }).catch((e) => ($('#scene').innerHTML = '<span class="bad">the picture could not be drawn: ' + esc(e.message) + '</span>'));
 
 // ── towns ──
 async function towns() {
