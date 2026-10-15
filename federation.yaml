@@ -202,14 +202,16 @@ kms:
       estate: faithnet
       town: faithchain
       backend: akcs
-      # Re-bound 2026-10-14 (condition 1): the Home's two Workers hold SEPARATE credentials and the shared
+      # Re-bound 2026-10-14 TWICE: first to separate per-Worker credentials (condition 1), then through the
+      # named PROFILES once the operator carried them (ap-home spec 441 §4 / D5) — 8 operations and 6, down
+      # from 11 each, and not a set anyone typed. The Home's two Workers hold SEPARATE credentials and the shared
       # `demo-a2a-faithnet` caller with operations ["*"] is DISABLED, with the nine narrowings tried on the way.
       # Nine ACTIVE callers of twenty rows — a disabled row is never deleted, so the history of who could do what
       # stays readable. The seven key-public-key/key-sign callers are services that only sign for themselves.
       # From `akcs operator status` on the CVM (non-secret metadata). 423 logical keys, all CVM_WRAPPED.
       callers:
-        - { subject: demo-mcp-faithnet-vault-5, worker: demo-mcp-faithnet, operations: [status, data-key-generate, data-key-unwrap, mac-generate, mac-verify, key-create, key-read, key-public-key, key-sign, derived-signer-resolve, derived-signer-sign], protectionLevels: [CVM_WRAPPED] }
-        - { subject: demo-a2a-faithnet-runtime-6, worker: demo-a2a-faithnet, operations: [status, data-key-generate, data-key-unwrap, derived-signer-resolve, derived-signer-sign, mac-generate, mac-verify, key-create, key-read, key-public-key, key-sign], protectionLevels: [CVM_WRAPPED] }
+        - { subject: faithnet-vault, worker: demo-mcp-faithnet, profile: estate-vault, operations: [status, data-key-generate, data-key-unwrap, mac-generate, mac-verify, key-create, key-read, key-public-key], protectionLevels: [CVM_WRAPPED, CVM_DERIVED], since: 2026-10-14 }
+        - { subject: faithnet-runtime, worker: demo-a2a-faithnet, profile: estate-runtime, operations: [status, mac-generate, mac-verify, key-read, key-public-key, key-sign], protectionLevels: [CVM_WRAPPED, CVM_DERIVED], since: 2026-10-14 }
         - { subject: skills-a2a-faithnet, worker: skills-a2a, operations: [key-public-key, key-sign], protectionLevels: [CVM_WRAPPED] }
         - { subject: field-a2a-faithnet, worker: field-a2a-faithnet, operations: [key-public-key, key-sign], protectionLevels: [CVM_WRAPPED] }
         - { subject: gather27-a2a-faithnet, worker: gather27-a2a-faithnet, operations: [key-public-key, key-sign], protectionLevels: [CVM_WRAPPED] }
@@ -220,7 +222,7 @@ kms:
       # The runtime still holds RAW_32_BYTE_DIGEST (condition 1's residual): the relayer signs EIP-155 transaction
       # digests that no purpose in the enum describes, and the interactions-session key signs a 32-byte DEL-001 leaf
       # that is really EIP-712. Neither is the custody key.
-      rawDigestGrant: [demo-a2a-faithnet-runtime-6]
+      rawDigestGrant: [faithnet-runtime]
       note: "faithnet-b, the second deployment, has no caller of its own yet — it is the next thing this tenant owes (spec 366 R5)"
     - tenant: impact
       estate: impact
@@ -275,13 +277,19 @@ kms:
         Worker's logs and nowhere in the gate's own output, only as `plannerTrace.playbookUnreadable` inside an ask
         reply, after which the run asked "You have no treasury to be paying from" — a credential error wearing a
         domain question's clothes. Operations were never the cause; three attempts added operations and failed.
-        RESIDUAL, named not hidden: the runtime still holds RAW_32_BYTE_DIGEST, which is a signature over bytes
-        whose meaning nothing can check. Two sites need it today (ap-home apps/agent-runtime): the relayer, which
-        signs EIP-155 transaction digests that no purpose in the enum describes, and the interactions-session key,
-        which signs the 32-byte DEL-001 leaf digest. The first wants a typed `EIP155_TRANSACTION` purpose in
-        faithkms; the second is an EIP-712 digest and should say so. Then the grant drops. Until then the custody
-        key and the relay key are deliberately separate, so the blast radius of the raw grant is the relayer's own
-        key and the session-leaf key, not a person's. Each Worker also still holds a superset of what it calls; the
+        RESIDUAL, HALVED 2026-10-14 and the rest explained rather than deferred. `EIP155_TRANSACTION` now exists
+        in faithkms (live on the CVM, and the two estate profiles are bound from it), so THE RELAYER no longer
+        needs the raw grant: its two acts are the transaction it broadcasts and the paymaster sponsorship digest
+        it signs as a message, which `SmartAgentPaymaster` recovers over `toEthSignedMessageHash`
+        (`PERSONAL_SIGN_DIGEST`). What still holds RAW_32_BYTE_DIGEST is the INTERACTIONS-SESSION key, and that is
+        the truthful label rather than a shortfall: one key signs peer attestations, harness digests, DEL-001
+        bound tokens, invocation proofs and userOp hashes through one raw-digest path, and naming them all
+        `EIP712` would put a FALSE statement in this operator's own audit row. Removing it means naming the
+        purpose per act (`signA2AAction` takes one as of key-custody's next release) and then splitting the
+        runtime's credential per key role — ap-home spec 441 W6. Note the audit precision lags the capability:
+        until ap-home pins that release, its transactions are labelled with the purpose its signer was built
+        with, so `EIP155_TRANSACTION` appears in no row yet. The custody key and the relay key stay deliberately
+        separate, so the blast radius of the raw grant is the session-leaf key, not a person's. The
         floor this condition asserts is per-Worker credentials and no key-rotate, key-disable or
         key-schedule-destruction, which "*" wrongly granted.
     - id: 2
