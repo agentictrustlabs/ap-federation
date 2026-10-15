@@ -153,7 +153,29 @@ $('#nf').onsubmit = async (ev) => {
   $('#names-body').className = '';
   $('#names-body').innerHTML = '<div class="note">' + d.towns.map((t) => esc(t.town) + ' ' + (t.ok ? st(true, 'block ' + t.block) : st(false, t.error || 'unreachable'))).join(' · ') + '</div>'
     + tbl(['display (never bare)', 'status', 'type', 'identity (CAIP-10)', 'federated reference'], d.rows.map((x) => '<tr><td><b>' + esc(x.display) + '</b>' + (x.root ? ' <span class="pill">root chain</span>' : '') + '</td><td>' + st(x.status === 'registered' ? true : x.status === 'available' ? undefined : false, x.status) + '</td><td>' + esc(x.kind || '—') + '</td><td class="mono">' + esc(x.identity || '—') + '</td><td class="mono">{ name: ' + esc(x.federated.name) + ', chain: ' + esc(x.federated.chain) + ' }</td></tr>'))
-    + '<div class="note">' + esc(d.rule) + ' · <i>authorized</i> is the caller\\'s own mandate, which no resolver answers.</div>';
+    + '<div class="note">' + esc(d.rule) + ' · <i>authorized</i> is the caller\\'s own mandate, which no resolver answers.</div>'
+    + '<div id="identities"></div>';
+  // THE AGENT BEHIND EACH NAME (owner, 2026-10-15): for every registered name in the answer, what the home town's naming
+  // service says the name is a name OF — the canonical id is the HOME account; the account the name points at on the root
+  // chain is the agent's account there, a satellite, and the one every reader will want to call canonical. It is not, and
+  // this card keeps saying so. Undeclared stays undeclared: nothing here promotes a chain's account by default.
+  const named = [...new Set(d.rows.filter((x) => x.status === 'registered').map((x) => x.name))].slice(0, 3);
+  for (const name of named) {
+    const one = await (await fetch('/api/names/' + encodeURIComponent(name))).json().catch(() => null);
+    const chainWord = (a) => 'eip155:' + a.chainId + (a.town ? ' · the ' + esc(a.town) + ' town' : '');
+    const roleWord = (r) => (r === 'home' ? 'home — the canonical id' : r === 'satellite' ? 'satellite — holds the name on this chain' : 'role not declared');
+    const cards = (one && one.towns ? one.towns : []).filter((t) => t.detail && t.detail.identity && t.detail.identity.here).map((t) => {
+      const id = t.detail.identity;
+      return '<div class="card"><div class="row"><b>' + esc(name) + '</b> <span class="pill">as ' + esc(t.town) + ' sees it</span></div>'
+        + '<h3>the agent behind this name</h3><div class="scroll"><table>'
+        + '<tr><th>agent (canonical id)</th><td>' + (id.canonical ? '<code>' + esc(id.canonical) + '</code><br><span class="k">the account this name is a name of; its Home and custody live on eip155:' + id.canonicalChainId + (id.canonicalTown ? ' · the ' + esc(id.canonicalTown) + ' town' : '') + '</span>' : '<b>not declared</b> <span class="k">— the name lists no home account (atl:nativeId); nothing on chain says which account is the agent\\'s canonical id</span>') + '</td></tr>'
+        + '<tr><th>on ' + esc(t.town) + '\\'s chain</th><td><code>' + esc(id.here.account) + '</code><br><span class="k">' + (id.here.role === 'home' ? 'the agent\\'s home account: the canonical id, on this chain' : id.here.role === 'satellite' ? 'the agent\\'s account here — it holds the name on ' + chainWord(id.here) + '; a satellite, NOT the canonical id' : 'the agent\\'s account on ' + chainWord(id.here) + '; whether it is the home is not written') + '</span></td></tr>'
+        + (id.estate ? '<tr><th>estate and Home</th><td>' + (id.estate.home ? '<a href="' + esc(id.estate.home) + '">' + esc(String(id.estate.home).replace(/^https?:\\/\\//, '')) + '</a>' : '—') + (id.estate.id ? ' · the <b>' + esc(id.estate.id) + '</b> estate' : '') + (id.estate.town ? ' · the ' + esc(id.estate.town) + ' town' : '') + '<br><span class="k">' + (id.estate.how === 'declared' ? 'declared by the agent itself (atl:estate)' : 'placed by its endpoint against the towns\\' manifests — an inference') + '</span></td></tr>' : '')
+        + (id.accounts.length > 1 ? '<tr><th>accounts by chain</th><td>' + id.accounts.map((a) => '<code>' + esc(a.account) + '</code> <span class="k">· ' + chainWord(a) + ' · ' + roleWord(a.role) + (a.here ? ' · this chain' : '') + '</span>').join('<br>') + '</td></tr>' : '')
+        + '</table></div><div class="note">A name is a projection of the agent\\'s identity, not the identity. The root chain is where the name lives; the home account is where the agent lives. A grant lives on one chain, so an act is signed by the account on the chain it runs on.</div></div>';
+    });
+    $('#identities').insertAdjacentHTML('beforeend', cards.join(''));
+  }
 };
 </script></body></html>`;
 }

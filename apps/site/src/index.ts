@@ -109,7 +109,10 @@ async function nameAcross(fed: Federation, name: string) {
     return {
       town: t.id, chainId: t.chainId, ok: r.ok, block: b?.block ?? null, error: r.ok ? undefined : (r.error ?? `HTTP ${r.status}`),
       row,
-      detail: b ? { displayName: b.displayName ?? null, owner: b.owner ?? null, presented: b.presented ?? null, presentsThis: b.presentsThis ?? null, declared: b.declared ?? null, signals: b.signals ?? null, records: b.records ?? null, issuedBy: b.estate ?? b.by ?? null } : null,
+      // `identity` (the town naming service, 2026-10-15): the agent's canonical id (its HOME account, atl:nativeId), the
+      // account the name points at on THAT chain and its role (home | satellite | undeclared), every account by chain, the
+      // estate and Home. Passed through as the town says it; the site adds nothing and promotes nothing.
+      detail: b ? { displayName: b.displayName ?? null, owner: b.owner ?? null, presented: b.presented ?? null, presentsThis: b.presentsThis ?? null, declared: b.declared ?? null, signals: b.signals ?? null, records: b.records ?? null, issuedBy: b.estate ?? b.by ?? null, identity: b.identity ?? null } : null,
     };
   }));
   return { name, rootChain: fed.naming.rootChain, towns, home: towns.find((t) => t.row?.status === 'registered')?.town ?? null };
@@ -171,13 +174,14 @@ export default {
     if (p === '/api/scene' || p === '/api/scene.svg') {
       const live = fed.towns.filter((t) => t.status !== 'retired');
       const root = rootTown(fed);
-      const [towns, naming, kms, doors] = await Promise.all([
+      const [towns, townEstates, naming, kms, doors] = await Promise.all([
         Promise.all(live.map(async (t) => [t.id, t.agent ? (await probe(`${t.agent}/api/health`)).ok : null] as const)),
+        Promise.all(live.map(async (t) => { const r = t.agent ? await probe(`${t.agent}/api/town`) : null; const es = obj(r?.body)?.estates; return [t.id, Array.isArray(es) ? es.map((e) => String(obj(e)?.id ?? '')).filter(Boolean) : null] as const; })),
         root?.naming ? probe(`${root.naming}/api/health`) : null,
         probe(fed.kms.probe),
         Promise.all(fed.doors.map(async (d) => [d.estate, (await probe(`${d.url}/health`)).ok] as const)),
       ]);
-      const signals = { towns: Object.fromEntries(towns), naming: naming ? naming.ok : null, kms: kms.ok, doors: Object.fromEntries(doors) };
+      const signals = { towns: Object.fromEntries(towns), townEstates: Object.fromEntries(townEstates.filter((x): x is readonly [string, string[]] => x[1] !== null)), naming: naming ? naming.ok : null, kms: kms.ok, doors: Object.fromEntries(doors) };
       const scene = groundScene(fed, signals, env.PUBLIC_ORIGIN ?? url.origin);
       if (p === '/api/scene') return json({ scene, signals, at: new Date().toISOString() }, 200, 30);
       return new Response(sceneSvg(scene), { headers: { ...CORS, 'content-type': 'image/svg+xml; charset=utf-8', 'cache-control': 'public, max-age=30' } });

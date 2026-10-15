@@ -42,9 +42,16 @@ check('a retired town is never queried for names (twin)', names.body.towns.every
 
 const one = await get('/api/names/alice.me');
 check('one name across the towns names its home', one.status === 200 && typeof one.body?.home === 'string', `home=${one.body?.home}`);
+// The identity twin (2026-10-15): a name whose agent lives on ANOTHER chain is answered with the home as canonical and the
+// root-chain account as a satellite — the root chain's address is never promoted to canonical.
+const moved = await get('/api/names/maya-fernandes.me');
+const rootRow = moved.body?.towns?.find((t: any) => t.chainId === rootChain);
+const idn = rootRow?.detail?.identity;
+check('the agent behind a name is answered: canonical id, this chain\'s account and its role, accounts by chain', !!idn && typeof idn.canonical === 'string' && !!idn.here && Array.isArray(idn.accounts) && idn.accounts.length >= 1, idn ? `canonical=${idn.canonical} here=${idn.here?.role}` : 'no identity');
+check('the root-chain account of an agent whose home is elsewhere is a satellite, never canonical (twin)', !!idn && idn.canonicalChainId !== rootChain && idn.here?.role === 'satellite' && idn.here?.account !== idn.canonical, idn ? `home chain ${idn.canonicalChainId}, here ${idn.here?.role}` : '');
 const chainInName = await get('/api/names/alice.me%40faithchain');
 check('a chain in the name is refused (twin)', chainInName.status === 400, `HTTP ${chainInName.status}`);
 
 const failed = checks.filter((c) => !c.ok);
-console.log(failed.length ? `\nFEDERATION SITE GATE RED · ${failed.length} of ${checks.length} failed` : `\nFEDERATION SITE GATE GREEN · ${checks.length} checks incl. 5 twins`);
+console.log(failed.length ? `\nFEDERATION SITE GATE RED · ${failed.length} of ${checks.length} failed` : `\nFEDERATION SITE GATE GREEN · ${checks.length} checks incl. 6 twins`);
 process.exit(failed.length ? 1 : 0);
