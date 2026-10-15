@@ -37,7 +37,7 @@ const names = await get('/api/names?q=alice');
 const rows: any[] = names.body?.rows ?? [];
 check('a label resolves across every live town', names.status === 200 && rows.length > 0 && names.body.towns.every((t: any) => t.ok), `${rows.length} row(s) from ${names.body?.towns?.length ?? 0} town(s)`);
 check('every row is qualified — never bare (twin)', rows.every((r) => r.display !== r.name && r.display.includes(r.town) && r.display.includes(`eip155:${r.chainId}`)), rows[0]?.display ?? '');
-check('every row carries { name, chain } and, when registered, a CAIP-10 identity', rows.every((r) => r.federated?.name === r.name && /^eip155:\d+$/.test(r.federated?.chain) && (r.status !== 'registered' || /^eip155:\d+:0x[0-9a-f]{40}$/.test(r.identity ?? ''))), '');
+check('every row carries { name, chain } and, when registered, a CAIP-10 account', rows.every((r) => r.federated?.name === r.name && /^eip155:\d+$/.test(r.federated?.chain) && (r.status !== 'registered' || /^eip155:\d+:0x[0-9a-f]{40}$/.test(r.account ?? ''))), '');
 check('a retired town is never queried for names (twin)', names.body.towns.every((t: any) => t.town !== 'base-sepolia'), '');
 
 const one = await get('/api/names/alice.me');

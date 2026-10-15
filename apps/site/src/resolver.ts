@@ -22,7 +22,7 @@ export interface NameRow {
   town: string;
   chainId: number;
   /** CAIP-10 of the agent on the row's chain, or null when the name points at nobody. */
-  identity: string | null;
+  account: string | null;
   agent: string | null;
   kind: string | null;
   status: string;
@@ -34,7 +34,7 @@ export interface NameRow {
 
 export const chainOf = (chainId: number): string => `eip155:${chainId}`;
 
-export function identityOf(chainId: number, address: string | null | undefined): string | null {
+export function accountOf(chainId: number, address: string | null | undefined): string | null {
   if (!address || !/^0x[0-9a-fA-F]{40}$/.test(address)) return null;
   return `eip155:${chainId}:${address.toLowerCase()}`;
 }
@@ -54,7 +54,7 @@ export function toNameRow(row: TownSearchRow, town: TownRef, rootChain: number, 
     name: row.name,
     town: town.id,
     chainId: town.chainId,
-    identity: identityOf(town.chainId, agent),
+    account: accountOf(town.chainId, agent),
     agent,
     kind: row.kind ?? null,
     status: row.status ?? 'unknown',
