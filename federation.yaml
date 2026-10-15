@@ -179,7 +179,22 @@ kms:
   # invalidated no credential.
   hostRetiring: akcs-pilot.faithnet.io
   probe: https://kms.faithnet.io/healthz
-  attestation: null                          # spec 440 A5 step 4 — the CVM attestation, published at the operator host; null until it is
+  # THE CVM'S ATTESTATION (spec 440 A5 step 4), minted 2026-10-14 and served at the operator host by the
+  # federation site, which holds a route for this one path while the rest of kms.faithnet.io goes down the
+  # tunnel to the KMS. MAA says: sevsnpvm · azure-compliant-cvm · is-debuggable false · bootloader/SNP/microcode
+  # SVN 10/27/88 · launch measurement aa7c9da55c1386e5b1653b125978beda7b3f95a85aeb0f9ddbbdb783ce05…
+  #
+  # IT IS A DATED STATEMENT AND THE ENDPOINT SAYS SO. MAA signs for eight hours; the launch measurement it
+  # attests changes only when the VM image does. `?format=json` returns `fresh`, the window, and the
+  # measurement. An expired token is still served rather than hidden — silence is not a safer answer than a
+  # stale one that admits it. Re-mint with scripts/mint-cvm-attestation.mts after an image upgrade.
+  #
+  # THE CVM HAS NO OUTBOUND NETWORK AND NEEDS NONE. The report comes off the vTPM with no network at all (raw
+  # TPM2 over /dev/tpmrm0 — the guest has libtss2 but no tpm2-tools and cannot install them), the VCEK chain
+  # comes from AMD's public KDS, and the MAA call is made from the operator's workstation. MAA verifies the
+  # AMD signature chain inside the report, so who posts it is not part of the claim. The NAT gateway written
+  # for this (faithkms infra/bicep) stays default-off and is, on this evidence, not needed at all.
+  attestation: https://kms.faithnet.io/.well-known/attestation
   azureResources:
     - /subscriptions/5a656e13-849d-4b56-9101-53f987cf971b/resourceGroups/RG-AKCS-PILOT-WESTUS/providers/Microsoft.Compute/virtualMachines/vm-akcs-pilot-0
     - /subscriptions/5a656e13-849d-4b56-9101-53f987cf971b/resourceGroups/RG-AKCS-PILOT-WESTUS/providers/Microsoft.Compute/virtualMachines/vm-akcs-tunnel-pilot
@@ -308,37 +323,27 @@ kms:
       detail: "protectionLevels above; the check refuses a caller with AZURE_HSM_DIRECT and no billedTo"
     - id: 4
       condition: "The CVM attestation document is published at the operator host and linked from this record"
-      status: open
+      status: met
       detail: >-
-        operator action — spec 440 A5 step 4. **THE HOST MOVE IS DONE (2026-10-14)**: `kms.faithnet.io` is a
-        published-application route on the same tunnel, answering `healthz=200`, and both estates were
-        re-pointed and redeployed with every live gate green. What remains of this condition is the
-        attestation itself, and it has ONE blocker, corrected from an earlier overstatement.
-        THE HARDWARE IS REAL: vm-akcs-pilot-0 is a Standard_DC4as_v5 and the guest itself says so — "Memory
-        Encryption Features active: AMD SEV" and systemd's "Detected confidential virtualization sev-snp" — with
-        secure boot and a vTPM at /dev/tpm0. The direct report path is closed on this kernel (6.17.0-azure-fde):
-        no /dev/sev-guest, no module to load, and /sys/kernel/config/tsm/report refuses a report directory with
-        ENXIO. That does NOT block the attestation: Azure's own guest attestation reads the SNP report through
-        the vTPM, which is present.
-        THE ONE BLOCKER IS EGRESS, and an earlier note here said "no outbound network at all", which was too
-        strong and in the wrong direction. The CVM's NSG DELIBERATELY PERMITS AzureActiveDirectory,
-        AzureKeyVault, AzureAttestation and AzureMonitor outbound on 443, denying only Internet — so reaching
-        MAA was always the intent. DNS resolves from the guest and a default route exists, yet every outbound
-        connection returns 000, while the TUNNEL VM reaches both Cloudflare and MAA. The difference: there is no
-        NAT gateway on any subnet and no public IP in the resource group, so snet-akcs-cvm has no SNAT path. It
-        is a missing egress PATH, not a missing permission.
-        THE FIX IS WRITTEN AND DEFAULTS TO OFF (faithkms infra/bicep/modules/network.bicep, 2026-10-14): a NAT
-        Gateway on snet-akcs-cvm alone, behind `deployNatGateway`. It adds SNAT and no permission — the
-        deny-Internet rule stays, so the reachable set is still the four service tags, and a NAT gateway is
-        outbound-only so nothing new can reach the CVM. The other subnets keep no egress: Key Vault, Postgres
-        and ACR are private endpoints and must stay that way.
-        IT DEFAULTS OFF BECAUSE EGRESS IS NOT FREE. Azure's published rates are $0.045/hour for the gateway and
-        $0.005/hour for the static IP — about $36.50/month, against this estate's total Azure spend of $323.85
-        and a Key Vault spend of $5.00. Seven times the whole key bill to serve a document that changes only
-        when the VM image does. So the pattern is EPISODIC and costs cents: flip the flag true, redeploy,
-        attest, publish the JWT at https://kms.faithnet.io/.well-known/attestation, flip it false. An hour of
-        gateway is 4.5 cents, and an attestation is a point-in-time measurement re-taken per image version
-        rather than per request. This does not touch `billableKeyBudget`: it is network, not a key.
+        MET 2026-10-14, in two halves. THE HOST: kms.faithnet.io is a published-application route on the same
+        Cloudflare Tunnel as akcs-pilot, so both answer and nothing broke when it was added; both estates were
+        re-pointed and redeployed with every live gate green, and the pilot host is retiring rather than retired.
+        THE ATTESTATION: MAA says sevsnpvm · azure-compliant-cvm · is-debuggable false · bootloader/SNP/microcode
+        SVN 10/27/88, served at https://kms.faithnet.io/.well-known/attestation (`?format=json` for the claims
+        and freshness).
+        WHAT WAS LEARNED, because the obvious reading of this condition was wrong twice. First: an earlier note
+        here said the CVM has "no outbound network at all". It does have a deliberate allowlist —
+        AzureActiveDirectory, AzureKeyVault, AzureAttestation and AzureMonitor on 443 — and what was missing was
+        a SNAT path, not permission. Second, and the one that matters: IT NEEDS NEITHER. The vTPM produces the
+        report with no network, AMD's KDS serves the VCEK chain publicly, and MAA verifies the AMD signature
+        chain inside the report — so who posts it is not part of the claim. The attestation was minted entirely
+        without giving the CVM a way out, and the NAT gateway written for this (faithkms infra/bicep,
+        `deployNatGateway`) stays default-off and is, on this evidence, unnecessary. It cost about 1.5 cents to
+        learn, and would have been $36.50 a month to assume.
+        IT IS A DATED STATEMENT. MAA signs for eight hours; the launch measurement it attests changes only with
+        the VM image. The endpoint serves an expired token with `fresh: false` rather than hiding it — silence
+        is not a safer answer than a stale one that admits it. Re-mint after an image upgrade:
+        `npx tsx scripts/mint-cvm-attestation.mts`.
 
 # ── THE UNIVERSAL NAMESPACE (spec 440 §C) ─────────────────────────────────────────────────────────────
 # One namespace, rooted on ONE chain the way ENS v2 is rooted on Ethereum L1: the typed roots on the root chain are

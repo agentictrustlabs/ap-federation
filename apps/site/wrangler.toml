@@ -10,11 +10,25 @@ type = "Text"
 globs = ["**/*.yaml"]
 fallthrough = true
 
+# The CVM's attestation JWT (spec 440 A5 step 4), bundled as text. It is EVIDENCE, not a secret: anyone may
+# read it, and MAA's signature over it is the whole point. Minted by scripts/mint-cvm-attestation.mts.
+[[rules]]
+type = "Text"
+globs = ["**/*.jwt"]
+fallthrough = true
+
 [vars]
 PUBLIC_ORIGIN = "http://localhost:8787"
 
 [env.faithnet]
 name = "ap-federation-site"
-routes = [{ pattern = "ap-federation.faithnet.io", custom_domain = true }]
+# THE OPERATOR HOST SERVES ITS OWN ATTESTATION. A route on kms.faithnet.io for this one path only — the rest
+# of that hostname keeps going down the Cloudflare Tunnel to the KMS, which serves no well-known documents and
+# should not learn to. The condition asks for the attestation at the operator host, and this is that, without
+# teaching a key-custody service to be a web server.
+routes = [
+  { pattern = "ap-federation.faithnet.io", custom_domain = true },
+  { pattern = "kms.faithnet.io/.well-known/attestation*", zone_name = "faithnet.io" },
+]
 [env.faithnet.vars]
 PUBLIC_ORIGIN = "https://ap-federation.faithnet.io"

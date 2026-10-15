@@ -13,6 +13,8 @@
 //   GET /api/names?q=          the universal resolver (wave 1: over every live town's naming read API)
 //   GET /api/names/<name>      one name across every live town
 import federationYaml from '../../../federation.yaml';
+// The CVM's attestation, bundled as text (apps/site/wrangler.toml [[rules]]). Evidence, never a secret.
+import ATTESTATION_JWT from '../assets/attestation.jwt';
 import { parseFederation, validateFederation, type Federation, type FederationTown } from './federation';
 import { looksLikeName, mergeTownRows, toNameRow, type NameRow, type TownNameResult, type TownSearchRow } from './resolver';
 import { page } from './html';
@@ -118,6 +120,32 @@ export default {
     if (req.method !== 'GET') return json({ error: 'method_not_allowed' }, 405);
     const { fed, errors } = register();
     const p = url.pathname.replace(/\/+$/, '') || '/';
+
+    // THE ATTESTATION, served at the operator host. A dated statement, and it says so: MAA signs it for eight
+    // hours while what it attests — the launch measurement — changes only when the VM image does. An expired
+    // token is still served, with `fresh: false`, because hiding it would leave a verifier with nothing to
+    // check; silence is not a safer answer than a stale one that admits it.
+    if (p === '/.well-known/attestation') {
+      const token = String(ATTESTATION_JWT).trim();
+      const claims = (() => { try { return JSON.parse(atob((token.split('.')[1] ?? '').replace(/-/g, '+').replace(/_/g, '/'))) as Record<string, unknown>; } catch { return {}; } })();
+      const exp = Number(claims.exp ?? 0) * 1000;
+      if (url.searchParams.get('format') === 'json' || req.headers.get('accept')?.includes('application/json')) {
+        return json({
+          token,
+          fresh: Date.now() < exp,
+          issuedAt: claims.iat ? new Date(Number(claims.iat) * 1000).toISOString() : null,
+          expiresAt: exp ? new Date(exp).toISOString() : null,
+          attestationType: claims['x-ms-attestation-type'] ?? null,
+          complianceStatus: claims['x-ms-compliance-status'] ?? null,
+          isDebuggable: claims['x-ms-sevsnpvm-is-debuggable'] ?? null,
+          launchMeasurement: claims['x-ms-sevsnpvm-launchmeasurement'] ?? null,
+          issuer: claims.iss ?? null,
+          verify: 'the signing keys are at the issuer\'s /certs (jku in the JWT header); the launch measurement is what survives the token\'s expiry',
+          mintedBy: 'ap-federation scripts/mint-cvm-attestation.mts — the CVM has no outbound network and needs none',
+        }, 200, 60);
+      }
+      return new Response(token + '\n', { status: 200, headers: { 'content-type': 'application/jwt', 'cache-control': 'public, max-age=60', 'access-control-allow-origin': '*' } });
+    }
 
     if (p === '/api/federation') return json({ ...fed, registerErrors: errors, generatedBy: 'ap-federation apps/site', readOnly: true }, 200, 60);
     if (p === '/api/towns') return json({ towns: await Promise.all(fed.towns.map(townView)), at: new Date().toISOString() }, 200, 15);
