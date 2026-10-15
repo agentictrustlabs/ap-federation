@@ -59,7 +59,11 @@ export class DoorLedgerDO {
       const last = this.sql.exec<{ record_hash: string }>(`SELECT record_hash FROM receipts ORDER BY seq DESC LIMIT 1`).toArray()[0];
       const prevHash = last?.record_hash ?? 'sha256:genesis';
       const at = new Date().toISOString();
-      const receiptId = `rcpt-${at.replace(/[-:.TZ]/g, '').slice(0, 17)}-${Math.random().toString(36).slice(2, 8)}`;
+      // THE ID IS THE CAPABILITY (spec 442 §7.6, 443 W0): 128 random bits, so holding a receipt id — the presenter from the
+      // knock response, the receiving origin from the forwarded header — is what reads the full record. The public list
+      // carries no ids. (Older ids were 6 base36 chars after a timestamp; they stay readable and are said to be weaker.)
+      const rnd = new Uint8Array(16); crypto.getRandomValues(rnd);
+      const receiptId = `rcpt-${at.replace(/[-:.TZ]/g, '').slice(0, 17)}-${[...rnd].map((b) => b.toString(16).padStart(2, '0')).join('')}`;
       const body = JSON.stringify({ receiptId, prevHash, record, at });
       const recordHash = `sha256:${await sha256Hex(body)}`;
       this.sql.exec(`INSERT INTO receipts (receipt_id, record, prev_hash, record_hash, at) VALUES (?, ?, ?, ?, ?)`, receiptId, JSON.stringify(record), prevHash, recordHash, at);
@@ -69,7 +73,13 @@ export class DoorLedgerDO {
       const id = url.pathname.slice('/receipt/'.length);
       const row = this.sql.exec<{ receipt_id: string; record: string; prev_hash: string; record_hash: string; at: string }>(`SELECT * FROM receipts WHERE receipt_id = ?`, id).toArray()[0];
       if (!row) return json({ error: 'not_found' }, 404);
-      return json({ receiptId: row.receipt_id, record: JSON.parse(row.record), prevHash: row.prev_hash, recordHash: row.record_hash, at: row.at });
+      const record = JSON.parse(row.record) as { decisionId?: string };
+      // The records written BESIDE a decision under the same decisionId (door.credential, door.signer-cross-check): the
+      // holder of the receipt reads them here; the public list never did and still does not.
+      const companions = record.decisionId
+        ? this.sql.exec<{ record: string; record_hash: string; at: string }>(`SELECT record, record_hash, at FROM receipts WHERE receipt_id != ? AND json_extract(record, '$.decisionId') = ? ORDER BY seq ASC`, id, record.decisionId).toArray().map((c) => ({ record: JSON.parse(c.record), recordHash: c.record_hash, at: c.at }))
+        : [];
+      return json({ receiptId: row.receipt_id, record, prevHash: row.prev_hash, recordHash: row.record_hash, at: row.at, companions });
     }
     if (req.method === 'GET' && url.pathname === '/receipts') {
       const rows = this.sql.exec<{ receipt_id: string; record: string; record_hash: string; at: string }>(`SELECT receipt_id, record, record_hash, at FROM receipts ORDER BY seq DESC LIMIT 50`).toArray();

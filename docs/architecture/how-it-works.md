@@ -23,13 +23,13 @@ root read from the chain; refuses a stale presentation, a wrong subject, a wrong
 
 | Step | What happens | Where |
 | --- | --- | --- |
-| 7 | **Challenge.** The visitor asks the door for a nonce for its subject. The door hands back a nonce, an expiry and an HMAC ticket. Stateless: the door recognises its own ticket later. | `GET /federation/challenge?subject=`, `apps/door/src/challenge.ts` |
+| 7 | **Challenge.** The visitor asks the door for a nonce for its subject — the subject in the POST body, never in a URL (spec 442 §7.6: a query string lands in logs, referers and caches). The door hands back a nonce, an expiry and an HMAC ticket. Stateless: the door recognises its own ticket later. | `POST /federation/challenge { subject }`, `apps/door/src/challenge.ts` |
 | 8 | **Presentation.** The projector builds the leaf's Merkle path at the **anchored** sequence, bound to the nonce and the door's origin. | `pnpm projector present`, `makeAuthorityPresentation` |
 | 9 | **Request proof.** The visitor signs the exact request: method, host, path, body digest, audience, replay id, expiry. | `x-ap-request-proof`, `@agenticprimitives/admission` `requestProofDigest` |
 | 10 | **The door authenticates.** Replay id spent first, then the signature verified through `UniversalSignatureValidator` on chain (an EOA or a Smart Agent alike). A failure answers a generic 401; the precise code is logged, never returned. | `apps/door/src/index.ts` step 1 |
 | 11 | **The door admits.** The admission engine runs the foreign-estate evaluator: it reads `roots(estateId)` from neutral ground **now**, verifies the path against the live-grant root, checks sequence, age, challenge and subject. | `createAdmissionEngine`, `foreignEstateEvaluator`, `verifyAuthorityPresentation` |
 | 12 | **The door cross-checks the signer** (F2.5): `signerOf(estateId)` versus the estate agent's declared `atl:projectionSigner`. Equal: `FOREIGN_ESTATE_SIGNER_DECLARED`. Different: refused. Undeclared: admitted, and said. | `apps/door/src/index.ts` step 3b |
-| 13 | **A receipt is written**, hash-chained, in the door's Durable Object, and returned by reference. It names the acting account, the boundary and the reason codes, and nothing else about the estate. | `apps/door/src/ledger-do.ts`, `GET /federation/receipts/<id>` |
+| 13 | **A receipt is written**, hash-chained, in the door's Durable Object, and returned by reference. It names the acting account, the boundary and the reason codes, and nothing else about the estate. The id is the capability to read it (128 random bits): the presenter has it from the response, the receiving estate from the forwarded header, nobody else. The PUBLIC face of the ledger is counts, decision codes and a per-door subject digest — no ids, no accounts (443 W0). | `apps/door/src/ledger-do.ts`, `GET /federation/receipts/<id>`, `GET /federation/receipts` |
 
 Gate: `scripts/gate-f2-door.mts`. Proves ADMIT with `FOREIGN_ESTATE_LIVE_GRANT` and the receipt; refuses stale,
 another door's challenge, another subject, a replayed proof, no proof; admits a request with no presentation as

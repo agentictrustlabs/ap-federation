@@ -19,8 +19,9 @@
 //      nothing. A refusal is a generic 403 with the receipt reference and the FEDERATION's own reason codes
 //      (FOREIGN_ESTATE_*); authentication failures stay generic (their codes are a map of how to forge one).
 //
-//   GET  /health · GET /federation/challenge?subject=0x… · POST /federation/knock (decide, do not forward)
-//   POST /a2a, /api/a2a (decide, forward) · GET /federation/receipts/<id>
+//   GET  /health · POST /federation/challenge { subject } · POST /federation/knock (decide, do not forward)
+//   POST /a2a, /api/a2a (decide, forward) · GET /federation/receipts (counts + codes + subject digests, no ids)
+//   GET  /federation/receipts/<id> (the full record + its companions — the id is the capability; spec 442 §7.6)
 //   GET  /federation/credentials — the door's `predicate` grade (spec 443 W5): its credential policy, the issuers it
 //        trusts (from the register), the verifier's health. POST /federation/present { presentation } → a reference the
 //        door holds for ten minutes; the knock then carries `x-ap-credential-presentation: <reference>`.
@@ -312,6 +313,34 @@ async function admit(req: Request, env: Env, rawBody: Uint8Array): Promise<Knock
   return { decision, publicReasons, standing, actingAgentId: proof.claims.actingAgentId, presentationRef: presRef, credential };
 }
 
+/** HMAC-SHA256 under the door's secret, first 16 bytes hex: stable per visitor at THIS door, meaningless anywhere else. */
+async function subjectDigest(env: Env, actingAgentId: string): Promise<string | null> {
+  if (!env.DOOR_SECRET || !actingAgentId) return null;
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(env.DOOR_SECRET), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const mac = new Uint8Array(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(`subject:${actingAgentId.toLowerCase()}`)));
+  return [...mac.slice(0, 16)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+const PUBLIC_CODE = /^(FOREIGN_ESTATE_|CREDENTIAL_)/;
+
+/** The public list: counts · codes · recent rows with a subject digest. What a stranger may learn from a door's ledger. */
+async function minimizeReceipts(env: Env, rows: Array<{ record?: Record<string, unknown>; at?: string }>) {
+  const byCode: Record<string, number> = {};
+  const counts = { records: rows.length, decisions: 0, admitted: 0, refused: 0, authentication: 0, credential: 0 };
+  const recent: Array<{ at: string | null; kind: string; effect: string | null; reasonCodes: string[]; subjectDigest: string | null }> = [];
+  for (const r of rows) {
+    const rec = r.record ?? {};
+    const kind = String(rec.kind ?? 'unknown');
+    const effect = typeof rec.effect === 'string' ? rec.effect : null;
+    const codes = (Array.isArray(rec.reasonCodes) ? (rec.reasonCodes as unknown[]).map(String) : []).filter((c) => PUBLIC_CODE.test(c));
+    if (kind === 'admission.decision') { counts.decisions++; if (effect && /^ADMIT/.test(effect)) counts.admitted++; else counts.refused++; for (const c of codes) byCode[c] = (byCode[c] ?? 0) + 1; }
+    else if (kind === 'door.authentication') counts.authentication++;
+    else if (kind === 'door.credential') counts.credential++;
+    recent.push({ at: r.at ?? null, kind, effect, reasonCodes: codes, subjectDigest: await subjectDigest(env, String(rec.actingAgentId ?? '')) });
+  }
+  return { boundaryId: env.BOUNDARY_ID, window: 50, counts, byCode, recent, says: 'counts and decision codes; a subject digest tells the same visitor from another and names nobody; the full receipt is read by its id, which only the presenter and the receiving estate hold' };
+}
+
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
     const url = new URL(req.url);
@@ -319,12 +348,18 @@ export default {
     const p = url.pathname.replace(/\/+$/, '') || '/';
 
     if (req.method === 'GET' && (p === '/' || p === '/health')) return json({ ok: true, service: 'ap-federation-door', boundaryId: env.BOUNDARY_ID, receivingEstate: env.RECEIVING_ESTATE, origin: env.ORIGIN_A2A, registry: env.REGISTRY_ADDRESS, chainId: Number(env.CHAIN_ID), configured: !!(env.FEDERATION_RPC_URL && env.DOOR_SECRET), says: 'it admits on evidence read from neutral ground; it never decides what the agent may do' });
-    if (req.method === 'GET' && p === '/federation/challenge') {
-      const subject = (url.searchParams.get('subject') ?? '').toLowerCase();
-      if (!/^0x[0-9a-f]{40}$/.test(subject)) return json({ error: 'subject_required', hint: '?subject=0x… the account the presentation will be about (the proof signer)' }, 400);
+    if (p === '/federation/challenge') {
+      // THE SUBJECT NEVER RIDES IN A URL (spec 442 §7.6, finding P4): a query string lands in logs, referers and caches —
+      // the placement ban of spec 338 §4. The subject comes in the body; a GET is refused with the reason, never served.
+      if (req.method !== 'POST') return json({ error: 'method_not_allowed', hint: 'POST /federation/challenge { "subject": "0x…" } — the account the presentation will be about (the proof signer); a subject is never put in a URL' }, 405, { allow: 'POST' });
+      let body: { subject?: unknown } = {};
+      try { body = (await req.json()) as { subject?: unknown }; } catch { return json({ error: 'not_json', hint: '{ "subject": "0x…" }' }, 400); }
+      const subject = String(body.subject ?? '').toLowerCase();
+      if (!/^0x[0-9a-f]{40}$/.test(subject)) return json({ error: 'subject_required', hint: '{ "subject": "0x…" } — the account the presentation will be about (the proof signer)' }, 400);
       if (!env.DOOR_SECRET) return json({ error: 'door_unconfigured' }, 503);
       const c = await issueChallenge(env.DOOR_SECRET, subject as `0x${string}`, env.PUBLIC_ORIGIN);
-      return json({ ...c, header: `${c.nonce}.${c.expiresAt}.${c.ticket}`, present: `projector present --estate <yours> --digest 0x… --audience ${env.PUBLIC_ORIGIN} --nonce ${c.nonce}` });
+      // The subject is not echoed: the presenter knows whom it asked for.
+      return json({ nonce: c.nonce, audience: c.audience, expiresAt: c.expiresAt, ticket: c.ticket, header: `${c.nonce}.${c.expiresAt}.${c.ticket}`, present: `projector present --estate <yours> --digest 0x… --audience ${env.PUBLIC_ORIGIN} --nonce ${c.nonce}` });
     }
     if (req.method === 'GET' && p === '/federation/credentials') {
       // THE `predicate` GRADE, declared: what this door asks a credential to prove, which issuer facets it trusts (from
@@ -338,7 +373,7 @@ export default {
         predicateDigest: policy ? predicateDigestOf(proofRequestFor(policy, env.PUBLIC_ORIGIN, { nonce: '0x00', audience: env.PUBLIC_ORIGIN })) : null,
         issuers: register().issuers.map((i) => ({ id: i.id, estate: i.estate, sa: i.sa, chainId: i.chainId, facets: (i.facets ?? []).map((f) => ({ keyId: f.keyId, attestation: f.attestation ?? null, thumbprint: f.document?.facet ? (f.document.facet as { publicKeyJwk?: { kid?: string } }).publicKeyJwk?.kid ?? null : null })) })),
         verifier: v ? ('error' in v ? { configured: false, error: v.error } : { configured: true, placement: `node:${v.placement}`, ...health }) : { configured: false, error: 'this door has no credential policy' },
-        challenge: `GET /federation/challenge?subject=<the pairwise account>; POST /federation/present { presentation } → ref; then knock with x-ap-request-proof (signed by it), x-ap-challenge and x-ap-credential-presentation: <ref>`,
+        challenge: `POST /federation/challenge { subject: <the pairwise account> }; POST /federation/present { presentation } → ref; then knock with x-ap-request-proof (signed by it), x-ap-challenge and x-ap-credential-presentation: <ref>`,
         says: 'A predicate held is evidence about a credential, never a claim about a person and never authority: the estate\'s own mandate still governs every act.',
       }, 200, { 'cache-control': 'public, max-age=30' });
     }
@@ -357,8 +392,12 @@ export default {
       return json({ ref, expiresAt, knock: `x-ap-credential-presentation: ${ref}`, says: 'held, not verified: the knock that cites it is where the proof is checked' });
     }
     if (req.method === 'GET' && p === '/federation/receipts') {
+      // THE PUBLIC FACE OF THE LEDGER CARRIES NO SUBJECT (spec 442 §7.6, finding P4): counts, decision codes, and a
+      // subjectDigest (HMAC under the door's secret) so a reader can tell "the same visitor again" from "another one" and
+      // nothing else. No receipt ids (the id is the capability to read the full record), no acting account, no bodies.
       const r = await ledger(env).recent();
-      return json(r.body, r.status);
+      if (r.status !== 200) return json(r.body, r.status);
+      return json(await minimizeReceipts(env, (r.body as { receipts?: Array<{ record?: Record<string, unknown>; at?: string }> }).receipts ?? []), 200, { 'cache-control': 'public, max-age=10' });
     }
     if (req.method === 'GET' && p.startsWith('/federation/receipts/')) {
       const r = await ledger(env).receipt(p.slice('/federation/receipts/'.length));

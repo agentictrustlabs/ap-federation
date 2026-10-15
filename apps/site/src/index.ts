@@ -203,7 +203,8 @@ export default {
       const doors = await Promise.all(fed.doors.map(async (d) => {
         const [health, receipts] = await Promise.all([probe(`${d.url}/health`), probe(`${d.url}/federation/receipts`)]);
         const rb = obj(receipts.body);
-        return { ...d, health: { ok: health.ok, status: health.status, ms: health.ms, configured: obj(health.body)?.configured ?? null, boundaryId: obj(health.body)?.boundaryId ?? null }, receipts: Array.isArray(rb?.receipts) ? (rb!.receipts as Record<string, unknown>[]).slice(0, 25) : [], receiptsError: receipts.ok ? undefined : (receipts.error ?? `HTTP ${receipts.status}`) };
+        // 443 W0: the door's public ledger face is counts · codes · subject digests (no ids, no accounts); the site shows that and holds no copy.
+        return { ...d, health: { ok: health.ok, status: health.status, ms: health.ms, configured: obj(health.body)?.configured ?? null, boundaryId: obj(health.body)?.boundaryId ?? null }, ledger: rb && typeof rb.counts === 'object' ? { counts: rb.counts, byCode: rb.byCode ?? {}, recent: Array.isArray(rb.recent) ? (rb.recent as Record<string, unknown>[]).slice(0, 25) : [] } : null, receiptsError: receipts.ok ? undefined : (receipts.error ?? `HTTP ${receipts.status}`) };
       }));
       return json({ doors, at: new Date().toISOString() }, 200, 10);
     }

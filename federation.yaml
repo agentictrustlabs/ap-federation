@@ -476,3 +476,27 @@ naming:
   roots: [me, org, team, svc, workspace, treasury, registry, church, circle, household, estate]
   resolver: https://ap-federation.faithnet.io/api/names           # wave 1: over every live town's naming read API; later waves read the root chain and its proofs
   note: "the priced roots' governor is naming.svc under the town clerk persona (ap-town spec 431) — the one trust position a shared root creates; spec 440 C7 names it, Ring 0 decides its council shape"
+
+# ── PROTOCOLS: WHAT AN ESTATE PRESENTS AT COMPANIES' DOORS (spec 443 §2; Ring 0 spec 442) ─────────────────────────────
+# Declared per estate; nothing here grants anything. The client at every company's door is the estate's personal-agent
+# SERVICE — never a person: a per-person client_id would publish the person's label and estate to every company and is
+# refused by `check:federation` and by Ring 0's `check:no-person-client-id`. The person is only a pairwise `sub` derived from
+# a secret in her vault (442 §4). Versions are the ones Ring 0's standards lock pins (`pap` · `acp-checkout` · `ucp` ·
+# `visa-tap`); this register proposes, Ring 0 pins (439 §10). `status: declared` until pap.svc is chartered (443 W1) and its
+# documents serve — the site says "declared", never "live", until a gate has seen them.
+protocols:
+  - estate: faithnet
+    status: declared
+    personalAgent:
+      service: pap.svc@faithnet
+      clientId: https://pap.faithnet.io/client.json
+      jwks: https://pap.faithnet.io/jwks.json
+      keyDirectory: https://pap.faithnet.io/.well-known/http-message-signatures-directory
+      binding: atl:clientKeys
+      speaks: { pap: "0.1", acp: "2026-04-17", ucp: "latest", tap: "sample-2026" }
+      mediatedSignIn: refused
+    companyDoors:
+      - agent: ligonier.svc
+        poppy: https://ligonier.faithnet.ai/.well-known/poppy.json
+        requiresInvitation: false
+        proofGrades: [identity, standing, predicate]

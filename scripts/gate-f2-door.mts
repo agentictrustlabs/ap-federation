@@ -48,7 +48,8 @@ const health = await (await fetch(`${DOOR}/health`)).json() as { configured?: bo
 check('the door is up and configured', health.configured === true, health.boundaryId ?? '');
 
 async function challenge(subject = me.address) {
-  return (await (await fetch(`${DOOR}/federation/challenge?subject=${subject}`)).json()) as { nonce: Hex; audience: string; header: string };
+  // The subject goes in the body, never in a URL (spec 442 §7.6; 443 W0).
+  return (await (await fetch(`${DOOR}/federation/challenge`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ subject }) })).json()) as { nonce: Hex; audience: string; header: string };
 }
 function present(nonce: Hex, audience: string): unknown {
   const file = `.submissions/presentation-f2-${Date.now()}.json`;

@@ -76,7 +76,8 @@ const mc = mandateChecks({ chainId: standing.chainId, rpcUrl: rpc, delegationMan
 const runtimeSign = (digest: Hex) => runtime.signMessage({ message: { raw: digest } });
 
 async function challenge(subject = me.address) {
-  return (await (await fetch(`${DOOR}/federation/challenge?subject=${subject}`)).json()) as { nonce: Hex; audience: string; header: string };
+  // The subject goes in the body, never in a URL (spec 442 §7.6; 443 W0).
+  return (await (await fetch(`${DOOR}/federation/challenge`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ subject }) })).json()) as { nonce: Hex; audience: string; header: string };
 }
 function statusFor(digest: Hex, audience: string, nonce: string): unknown {
   const file = `.submissions/status-gate-${Date.now()}.json`;
@@ -126,8 +127,11 @@ const rc = ok.receipt ? await (await fetch(`${DOOR}/federation/receipts/${ok.rec
 const rcText = JSON.stringify(rc ?? {});
 check('the receipt is readable by reference and hash-chained', !!rc && rc.receiptId === ok.receipt && /^sha256:/.test(rc.recordHash) && /^sha256:/.test(rc.prevHash) && rc.record?.effect === 'ADMIT', ok.receipt ?? '');
 check('the receipt carries no claim value and no address of the person — only the pairwise account', !!rc && !/0000021|0900101/.test(rcText) && !rcText.toLowerCase().includes(String(standing.wire.delegator).toLowerCase().slice(2)) && rcText.includes(me.address.toLowerCase()), '');
-const recent = await (await fetch(`${DOOR}/federation/receipts`)).json() as { receipts?: Array<{ record?: Record<string, unknown> }> };
-const companion = (recent.receipts ?? []).find((r) => r.record?.kind === 'door.credential' && r.record?.decisionId === ok.json?.decisionId)?.record;
+// 443 W0: the companion record rides with the full receipt (read by its id, which the presenter holds); the PUBLIC list
+// carries counts, codes and subject digests only — and must not name the pairwise account either.
+const companion = ((rc?.companions ?? []) as Array<{ record?: Record<string, unknown> }>).find((r) => r.record?.kind === 'door.credential' && r.record?.decisionId === ok.json?.decisionId)?.record;
+const publicList = await (await fetch(`${DOOR}/federation/receipts`)).json() as { counts?: { decisions?: number }; recent?: Array<Record<string, unknown>> };
+check('the public ledger face is counts, codes and subject digests — no receipt id, no account, no address of the person', Array.isArray(publicList.recent) && publicList.recent.length > 0 && !JSON.stringify(publicList).toLowerCase().includes(me.address.toLowerCase().slice(2)) && !JSON.stringify(publicList).includes(ok.receipt ?? 'rcpt-') && !JSON.stringify(publicList).toLowerCase().includes(String(standing.wire.delegator).toLowerCase().slice(2)), `${publicList.counts?.decisions ?? '?'} decisions in the window`);
 check('the ledger holds the predicate record beside the decision: facet, predicate digest, nullifier grade, status sequence, verifier placement — and nothing of the person', !!companion && companion.issuerKeyId === credential.issuerKeyId && String(companion.predicateDigest).toLowerCase() === p1.predicateDigest.toLowerCase() && companion.nullifierGrade === 'asserted' && typeof companion.statusSequence === 'number' && !JSON.stringify(companion).toLowerCase().includes(String(standing.wire.delegator).toLowerCase().slice(2)), companion ? `${companion.verifierPlacement} · status seq ${companion.statusSequence}` : 'no door.credential record');
 // the holder's OWN receipt: this presentation, under this mandate, for this challenge — the mandate named (Ring 0 Z2)
 const bundle = JSON.parse(p1.presentation.payload).bundle as string;

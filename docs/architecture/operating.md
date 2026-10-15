@@ -64,7 +64,8 @@ against the shortest verifier window it serves.**
 
 ```
 pnpm door:deploy                            # both; then wrangler secret put FEDERATION_RPC_URL / DOOR_SECRET per env
-GET  <door>/health · /federation/challenge?subject=0x… · /federation/receipts · /federation/receipts/<id>
+GET  <door>/health · /federation/receipts (counts · codes · subject digests) · /federation/receipts/<id> (full; the id is the capability)
+POST <door>/federation/challenge { "subject": "0x…" }   # the subject never rides in a URL (spec 442 §7.6)
 POST <door>/federation/knock                # decide, do not forward
 POST <door>/a2a                             # decide, forward to the estate's A2A door with the evidence
 ```

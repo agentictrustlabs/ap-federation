@@ -75,3 +75,26 @@ describe('the register', () => {
     expect(validateFederation(fed).some((e) => e.includes('CF-1042'))).toBe(true);
   });
 });
+
+describe('protocols (spec 443 §2 — the person is never the client)', () => {
+  const base = () => parseFederation(readFileSync(new URL('../../../federation.yaml', import.meta.url), 'utf8'));
+  it('the register declares faithnet\'s personal-agent service and validates', () => {
+    const fed = base();
+    expect(fed.protocols?.[0]?.personalAgent.service).toBe('pap.svc@faithnet');
+    expect(validateFederation(fed)).toEqual([]);
+  });
+  it('refuses a per-person client_id, a person as the service, an unpinned version, a public-less door without invitation', () => {
+    const fed = base();
+    const pr = JSON.parse(JSON.stringify(fed.protocols![0]));
+    pr.personalAgent.clientId = 'https://www.faithnet.me/agents/alice/client.json';
+    pr.personalAgent.service = 'alice.me@faithnet';
+    pr.personalAgent.speaks = { pap: '0.2', xmpp: '1' };
+    pr.companyDoors = [{ agent: 'quiet.svc', poppy: null, requiresInvitation: false }];
+    const errs = validateFederation({ ...fed, protocols: [pr] });
+    expect(errs.some((e) => e.includes('looks per-person'))).toBe(true);
+    expect(errs.some((e) => e.includes('never a person'))).toBe(true);
+    expect(errs.some((e) => e.includes('not the pinned version'))).toBe(true);
+    expect(errs.some((e) => e.includes('not a family'))).toBe(true);
+    expect(errs.some((e) => e.includes('requires an invitation'))).toBe(true);
+  });
+});

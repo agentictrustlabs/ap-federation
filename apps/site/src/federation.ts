@@ -112,8 +112,29 @@ export interface FederationIssuerFacet { keyId: string; thumbprint?: string; att
 export interface FederationIssuer { id: string; estate: string; sa: string; chainId: number; kind?: string; attestationRegistry?: string; universalSignatureValidator?: string; rpcEnv?: string; anchorDelegateKeyEnv?: string; anchoringWire?: string; since?: string; note?: string; facets?: FederationIssuerFacet[] }
 export interface FederationCredentials { suite: string; backend?: { package: string; version: string; role: string }; verifierPlacement?: string; issuerTrust?: string; issuers?: FederationIssuer[] }
 
+/** Spec 443 §2 — what an estate PRESENTS at companies' doors and which company doors it runs. Declared; nothing here grants. */
+export interface FederationProtocolsEstate {
+  estate: string;
+  /** `declared` until pap.svc is chartered and its documents serve; then `live`. */
+  status?: 'declared' | 'live';
+  personalAgent: {
+    /** The estate's personal-agent SERVICE (`<label>.svc@<estate>`) — NEVER a person. */
+    service: string;
+    clientId: string;
+    jwks?: string;
+    keyDirectory?: string;
+    /** Where the public half of the binding is read: the SA-keyed record, thumbprints only. */
+    binding: 'atl:clientKeys';
+    /** Versions as Ring 0's standards lock pins them; an unpinned family is refused by check:federation. */
+    speaks: Record<string, string>;
+    mediatedSignIn: 'refused' | { allowedIssuers: string[]; audit: 'fail-hard' };
+  };
+  companyDoors?: Array<{ agent: string; poppy: string | null; requiresInvitation: boolean; proofGrades?: string[] }>;
+}
+
 export interface Federation {
   federation: string;
+  protocols?: FederationProtocolsEstate[];
   doors: FederationDoor[];
   registry: { chainId: number; chain: string; address: string; deployed?: string; rpcEnv?: string };
   estates: FederationEstate[];
@@ -135,6 +156,7 @@ export function parseFederation(text: string): Federation {
     kms: raw.kms as FederationKms,
     naming: raw.naming as FederationNaming,
     ...(raw.credentials ? { credentials: raw.credentials as FederationCredentials } : {}),
+    ...((raw as { protocols?: FederationProtocolsEstate[] }).protocols ? { protocols: (raw as { protocols?: FederationProtocolsEstate[] }).protocols } : {}),
   };
 }
 
@@ -293,6 +315,35 @@ export function validateFederation(f: Federation): string[] {
     if (!isUrl(n.resolver)) errs.push('naming.resolver: https URL of the universal resolver');
     const roots = (f.towns ?? []).filter((t) => t.status === 'live' && t.chainId === n.rootChain);
     if (roots.length !== 1) errs.push('naming: exactly one live town on the root chain');
+  }
+  // ── protocols (spec 443 §2): the personal-agent service is a .svc, never a person; versions pinned to Ring 0's lock ──
+  const LOCK_PINS: Record<string, string[]> = { pap: ['0.1'], acp: ['2026-04-17'], ucp: ['latest'], tap: ['sample-2026'] };
+  const PERSON_PATH = /\/(agents|people|persons|members|u)\/[^/]+\//i;
+  for (const pr of f.protocols ?? []) {
+    const at = `protocols[${pr.estate}]`;
+    if (!(f.estates ?? []).some((e) => e.id === pr.estate)) errs.push(`${at}: not an estate in the register`);
+    if (pr.status && !['declared', 'live'].includes(pr.status)) errs.push(`${at}.status: declared | live`);
+    const pa = pr.personalAgent;
+    if (!pa) { errs.push(`${at}: personalAgent is required`); continue; }
+    if (!/^[a-z0-9-]+\.svc@[a-z0-9-]+$/.test(pa.service ?? '')) errs.push(`${at}.personalAgent.service: <label>.svc@<estate> — the client at a company's door is the estate's personal-agent SERVICE, never a person (spec 442 §7.1)`);
+    else if (pa.service.split('@')[1] !== pr.estate) errs.push(`${at}.personalAgent.service: chartered under another estate`);
+    if (!isUrl(pa.clientId)) errs.push(`${at}.personalAgent.clientId: https URL required`);
+    else if (PERSON_PATH.test(pa.clientId) || /\.me\//.test(pa.clientId)) errs.push(`${at}.personalAgent.clientId: looks per-person — a person is never the client_id (gate check:no-person-client-id)`);
+    for (const k of ['jwks', 'keyDirectory'] as const) if (pa[k] !== undefined && !isUrl(pa[k])) errs.push(`${at}.personalAgent.${k}: https URL when declared`);
+    if (pa.binding !== 'atl:clientKeys') errs.push(`${at}.personalAgent.binding: atl:clientKeys — the public half of the binding is read from the chain`);
+    if (!pa.speaks || typeof pa.speaks !== 'object' || !Object.keys(pa.speaks).length) errs.push(`${at}.personalAgent.speaks: at least one protocol family with its pinned version`);
+    else for (const [fam, ver] of Object.entries(pa.speaks)) {
+      if (!LOCK_PINS[fam]) errs.push(`${at}.personalAgent.speaks.${fam}: not a family Ring 0's standards lock pins (pap · acp · ucp · tap)`);
+      else if (!LOCK_PINS[fam].includes(String(ver))) errs.push(`${at}.personalAgent.speaks.${fam}: "${ver}" is not the pinned version (${LOCK_PINS[fam].join(' | ')}) — this repository proposes, Ring 0 pins (439 §10)`);
+    }
+    if (pa.mediatedSignIn !== 'refused' && !(pa.mediatedSignIn && typeof pa.mediatedSignIn === 'object' && Array.isArray(pa.mediatedSignIn.allowedIssuers) && pa.mediatedSignIn.audit === 'fail-hard')) errs.push(`${at}.personalAgent.mediatedSignIn: refused | { allowedIssuers: [...], audit: fail-hard }`);
+    for (const d of pr.companyDoors ?? []) {
+      const dat = `${at}.companyDoors[${d.agent}]`;
+      if (!/^[a-z0-9-]+\.(svc|org|team)$/.test(d.agent ?? '')) errs.push(`${dat}: agent must be a .svc / .org / .team — a person is not a company door`);
+      if (d.poppy !== null && !isUrl(d.poppy)) errs.push(`${dat}.poppy: an https URL, or null for a listing: none company (the profile travels inside the invitation)`);
+      if (d.poppy === null && d.requiresInvitation !== true) errs.push(`${dat}: a door with no public document requires an invitation`);
+      for (const g of d.proofGrades ?? []) if (!['identity', 'standing', 'predicate'].includes(g)) errs.push(`${dat}.proofGrades: identity | standing | predicate`);
+    }
   }
   return errs;
 }

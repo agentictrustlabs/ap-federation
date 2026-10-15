@@ -110,19 +110,19 @@ towns().catch((e) => ($('#towns-body').innerHTML = '<span class="bad">towns: ' +
 async function doors() {
   const d = await (await fetch('/api/doors')).json();
   if (!d.doors.length) { $('#doors-body').innerHTML = '<div class="empty">no doors declared</div>'; return; }
-  $('#doors-body').innerHTML = d.doors.map((x, i) => {
-    const rows = x.receipts || [];
-    const dec = rows.filter((rc) => rc.record && rc.record.kind === 'admission.decision');
-    const admitted = dec.filter((rc) => /^ADMIT/.test(rc.record.effect || '')).length;
-    const auth = rows.filter((rc) => rc.record && rc.record.kind === 'door.authentication').length;
+  $('#doors-body').innerHTML = d.doors.map((x) => {
+    const L = x.ledger || { counts: { records: 0, decisions: 0, admitted: 0, refused: 0, authentication: 0, credential: 0 }, byCode: {}, recent: [] };
+    const c = L.counts;
     const head = '<div class="row"><b>' + esc(new URL(x.url).host) + '</b> <span class="pill">in front of ' + esc(x.estate) + '</span>' + (x.target ? ' <span class="k">receiving agent</span> <code>' + esc(x.target) + '</code>' : '') + ' ' + st(x.health.ok, x.health.ok ? 'up ' + x.health.ms + 'ms · ' + (x.health.configured ? 'configured' : 'unconfigured') : (x.health.error || 'HTTP ' + x.health.status)) + '</div>'
-      + '<div class="note" style="margin:6px 0"><span class="stat">last <b>' + rows.length + '</b> records</span><span class="stat">admitted <b class="ok">' + admitted + '</b></span><span class="stat">refused at admission <b class="bad">' + (dec.length - admitted) + '</b></span><span class="stat">refused at authentication <b class="bad">' + auth + '</b></span></div>';
+      + '<div class="note" style="margin:6px 0"><span class="stat">last <b>' + c.records + '</b> records</span><span class="stat">admitted <b class="ok">' + c.admitted + '</b></span><span class="stat">refused at admission <b class="bad">' + c.refused + '</b></span><span class="stat">refused at authentication <b class="bad">' + c.authentication + '</b></span><span class="stat">predicates held <b>' + (c.credential || 0) + '</b></span></div>';
     if (x.receiptsError) return '<div class="card">' + head + '<div class="warn">receipts: ' + esc(x.receiptsError) + '</div></div>';
-    const row = (rc) => { const rec = rc.record || {}; const codes = (rec.reasonCodes || []).filter((c) => /^FOREIGN_ESTATE_/.test(c)).map((c) => c.replace('FOREIGN_ESTATE_', '').toLowerCase().replace(/_/g, ' ')); return '<tr><td class="note" style="white-space:nowrap">' + when(rc.at) + '</td><td>' + (rec.kind === 'door.authentication' ? '<span class="k">authentication</span>' : 'admission') + '</td><td>' + st(/^ADMIT/.test(rec.effect || ''), rec.effect || '—') + '</td><td class="mono" title="' + esc(rec.actingAgentId || '') + '">' + short(String(rec.actingAgentId || '').replace(/^eip155:\\d+:/, '')) + '</td><td class="note">' + (codes.length ? esc(codes.join(' · ')) : rec.code ? '<i>logged, not shown</i>' : '—') + '</td><td class="mono"><a href="' + esc(x.url) + '/federation/receipts/' + esc(rc.receiptId) + '">' + esc(String(rc.receiptId).slice(-6)) + '</a></td></tr>'; };
+    const codes = Object.entries(L.byCode || {}).sort((a, b) => b[1] - a[1]).map(([k, n]) => '<span class="stat"><code>' + esc(k.replace(/^FOREIGN_ESTATE_|^CREDENTIAL_/, '').toLowerCase().replace(/_/g, ' ')) + '</code> <b>' + n + '</b></span>').join('');
+    const row = (r) => '<tr><td class="note" style="white-space:nowrap">' + when(r.at) + '</td><td>' + (r.kind === 'door.authentication' ? '<span class="k">authentication</span>' : r.kind === 'door.credential' ? '<span class="k">predicate</span>' : r.kind === 'admission.decision' ? 'admission' : esc(r.kind)) + '</td><td>' + (r.effect ? st(/^ADMIT/.test(r.effect), r.effect) : '—') + '</td><td class="mono" title="a digest under the door\'s secret: the same visitor again, nobody named">' + esc(String(r.subjectDigest || '').slice(0, 8) || '—') + '</td><td class="note">' + ((r.reasonCodes || []).length ? esc(r.reasonCodes.map((k) => k.replace(/^FOREIGN_ESTATE_|^CREDENTIAL_/, '').toLowerCase().replace(/_/g, ' ')).join(' · ')) : '—') + '</td></tr>';
+    const rows = L.recent || [];
     const first = rows.slice(0, 8).map(row), rest = rows.slice(8).map(row);
-    return '<div class="card">' + head + tbl(['at (UTC)', 'kind', 'effect', 'acting account', 'reason', 'receipt'], first, rest)
+    return '<div class="card">' + head + (codes ? '<div class="note" style="margin:6px 0">' + codes + '</div>' : '') + tbl(['at (UTC)', 'kind', 'effect', 'visitor', 'reason'], first, rest)
       + (rest.length ? '<button class="more" data-more="1">show ' + rest.length + ' more</button>' : '') + '</div>';
-  }).join('') + '<div class="note">A receipt names the acting account, the boundary and the reason codes, and nothing else about the estate. Authentication failures are logged with their precise code and shown generically, by design.</div>';
+  }).join('') + '<div class="note">The ledger\'s public face is counts, decision codes and a per-door subject digest — the same visitor again, and nobody named (spec 442 §7.6). The full receipt is read by its id, which only the presenter and the receiving estate hold. Authentication failures are logged with their precise code and shown generically, by design.</div>';
 }
 document.addEventListener('click', (ev) => { const b = ev.target.closest('button[data-more]'); if (!b) return; const more = b.parentElement.querySelector('tbody.more'); if (more) more.hidden = false; b.remove(); });
 doors().catch((e) => ($('#doors-body').innerHTML = '<span class="bad">doors: ' + esc(e.message) + '</span>'));
