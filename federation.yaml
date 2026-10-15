@@ -35,7 +35,14 @@ registry:
 # permanent id from a provisional address is the kind of thing nobody can undo.
 estates:
   - id: impact-agent
+    # TWO CHAINS, TWO FACTS (W4, 2026-10-15). `chainId` is where the estate's PROJECTION anchors and the chain its permanent
+    # id derives from (eip155:34348 + the governance agent) — it stays 34348 after the move, because an estate id does not
+    # change. `homeChainId` is where its PEOPLE live: their accounts, their Home, their custody, their grants (so revocation
+    # is read THERE, over `rpcEnv`). A presenter from this estate signs on 34349; the door verifies the signature on 34349
+    # and reads the roots on 34348. Neither chain is "the" chain of the estate; a reader that infers one from the other is wrong.
     chainId: 34348
+    homeChainId: 34349
+    rpcEnv: HOPECHAIN_RPC_URL
     home: https://www.impact-agent.me
     a2a: https://a2a.impact-agent.io
     governance: "0x4457aadf6ADeB31bA8F166fafcC0d0579ECd1015"
@@ -56,6 +63,9 @@ estates:
     # Revocation is read on the ESTATE'S chain, and this is the contract that answers (Ring 0
     # `deployments-faithchain.json#delegationManager`). No address here means nothing can be pruned, and the
     # projector then refuses to vouch for a set it cannot narrow.
+    # The DelegationManager on the HOME chain (deployments-hopechain.json) — the same hex as faithchain's by the deployer's
+    # nonces, and a different contract; the profile resolver is the one on the PROJECTION chain, where the estate agent
+    # declares its signer (F2.5).
     delegationManager: "0x710cb1bF08C234Df397e0910331e0A29710EF4F7"
     # Where the estate agent declares `atl:projectionSigner` (spec 439 F2.5; Ring 0 deployments-faithchain.json#agentProfileResolver).
     profileResolver: "0xB03F7C06ad3274F584AB72794406D639c02A45e1"
@@ -74,6 +84,7 @@ estates:
 
   - id: faithnet
     chainId: 34348
+    homeChainId: 34348
     home: https://www.faithnet.me
     a2a: https://a2a.faithnet.io
     # ON NEUTRAL GROUND SINCE 2026-10-14. faithnet's estate agent is PERSONA-CUSTODIED (the owner's decision: "use a
@@ -138,6 +149,10 @@ towns:
     naming: https://names.faithnet.io          # the naming read API (spec 430 §4) — the universal resolver asks it
     registry: https://discovery-a2a.faithnet.io
     rpc: https://rpc.faithnet.io
+    # How the federation's own Workers read this chain (a secret naming the gateway URL with an app token), and the one
+    # contract a door needs there: the validator that answers for an EOA, a Smart Agent (ERC-1271) or a counterfactual one.
+    rpcEnv: FEDERATION_RPC_URL
+    universalSignatureValidator: "0xeDd56f500325D4701B9985A34e5Fa6EED6716137"   # deployments-faithchain.json
   - id: hopenet
     chainId: 34349
     status: demo
@@ -163,6 +178,8 @@ towns:
     # indexer projects only what this chain can prove.
     registry: https://discovery-a2a.hopenet.town
     rpc: https://rpc.hopenet.town
+    rpcEnv: HOPECHAIN_RPC_URL
+    universalSignatureValidator: "0xa5855906C0De3813E74BEe201973071e0c844115"   # deployments-hopechain.json — NOT faithchain's address
   - id: base-sepolia
     chainId: 84532
     status: retired

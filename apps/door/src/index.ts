@@ -33,6 +33,8 @@ interface Env {
   PUBLIC_ORIGIN: string; BOUNDARY_ID: string; RECEIVING_ESTATE: string; ORIGIN_A2A: string; TARGET_AGENT_ID: string; TARGET_RUNTIME_ID: string;
   CHAIN_ID: string; REGISTRY_ADDRESS: string; UNIVERSAL_SIGNATURE_VALIDATOR: string; MAX_AGE_SECONDS: string; PROFILE_RESOLVER: string;
   FEDERATION_RPC_URL?: string; DOOR_SECRET?: string;
+  /** Any other chain's endpoint, under the name the register's town row gives it (`towns[].rpcEnv`, e.g. HOPECHAIN_RPC_URL). */
+  [rpcEnv: string]: unknown;
   LEDGER: DurableObjectNamespace;
 }
 
@@ -47,12 +49,32 @@ const PROFILE_RESOLVER_ABI = [
 const ATL_PROJECTION_SIGNER = keccak256(toHex('atl:projectionSigner'));
 const SIGNER_OF_ABI = [{ type: 'function', name: 'signerOf', stateMutability: 'view', inputs: [{ name: 'estateId', type: 'bytes32' }], outputs: [{ type: 'address' }] }] as const;
 
-/** The register, bundled as text: the only thing the door needs from it is which GOVERNANCE an estate id belongs to. */
-interface RegisterEstate { id: string; chainId: number; governance: string | null; profileResolver?: string }
-let registerCache: RegisterEstate[] | null = null;
-function registerEstates(): RegisterEstate[] {
-  if (!registerCache) registerCache = ((parseYaml(federationYaml) as { estates?: RegisterEstate[] }).estates ?? []).filter((e) => !!e.governance);
+/** The register, bundled as text. From it the door needs which GOVERNANCE an estate id belongs to (and on which chain
+ *  that agent declares its signer), and, per TOWN, how to reach that chain and which validator answers for a signature
+ *  there — because a presenter signs on the chain its account lives on, which since 2026-10-15 is not always the
+ *  registry's (W4: impact-agent's people live on 34349 while its projection anchors on 34348). */
+interface RegisterEstate { id: string; chainId: number; homeChainId?: number; governance: string | null; profileResolver?: string }
+interface RegisterTown { id: string; chainId: number; rpcEnv?: string; universalSignatureValidator?: string }
+let registerCache: { estates: RegisterEstate[]; towns: RegisterTown[] } | null = null;
+function register(): { estates: RegisterEstate[]; towns: RegisterTown[] } {
+  if (!registerCache) {
+    const raw = parseYaml(federationYaml) as { estates?: RegisterEstate[]; towns?: RegisterTown[] };
+    registerCache = { estates: (raw.estates ?? []).filter((e) => !!e.governance), towns: raw.towns ?? [] };
+  }
   return registerCache;
+}
+function registerEstates(): RegisterEstate[] { return register().estates; }
+const chainOf = (caip10: string): number | null => { const m = caip10.match(/^eip155:(\d+):0x[0-9a-fA-F]{40}$/); return m ? Number(m[1]) : null; };
+/** A read client for one chain, with that chain's signature validator: the registry's own for its chain, else the town's
+ *  declared endpoint and validator. `null` when this deployment cannot reach that chain — which is an answer (refuse),
+ *  never a reason to verify on some other chain (ADR-0013). */
+function clientFor(env: Env, chainId: number): { pub: ReturnType<typeof createPublicClient>; validator: Address } | null {
+  const mk = (rpc: string) => createPublicClient({ chain: { id: chainId, name: `chain-${chainId}`, nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 }, rpcUrls: { default: { http: [rpc] } } }, transport: http(rpc) });
+  if (chainId === Number(env.CHAIN_ID)) return env.FEDERATION_RPC_URL ? { pub: mk(env.FEDERATION_RPC_URL), validator: env.UNIVERSAL_SIGNATURE_VALIDATOR as Address } : null;
+  const town = register().towns.find((t) => t.chainId === chainId);
+  const rpc = town?.rpcEnv ? String(env[town.rpcEnv] ?? '').trim() : '';
+  if (!town || !rpc || !town.universalSignatureValidator) return null;
+  return { pub: mk(rpc), validator: town.universalSignatureValidator as Address };
 }
 
 const VALIDATOR_ABI = [
@@ -121,13 +143,21 @@ async function admit(req: Request, env: Env, rawBody: Uint8Array): Promise<Knock
   if (!proof?.claims || typeof proof.signature !== 'string') return json({ error: 'authentication_required', hint: 'x-ap-request-proof: base64url({ claims: AgenticRequestProofClaims, signature })' }, 401);
   const signer = addressOf(proof.claims.actingAgentId ?? '');
   if (!signer || addressOf(proof.claims.principalAgentId ?? '') === null) return json({ error: 'authentication_failed' }, 401);
+  // THE SIGNATURE IS VERIFIED ON THE SIGNER'S CHAIN — the one its CAIP-10 names, where its account lives — never on the
+  // registry's because that is the chain at hand. A chain this door cannot reach is refused and logged as such.
+  const signerChain = chainOf(proof.claims.actingAgentId ?? '');
+  const signerSide = signerChain === null ? null : clientFor(env, signerChain);
+  if (!signerSide) {
+    await L.audit.append({ kind: 'door.authentication', effect: 'DENY', code: 'SIGNER_CHAIN_UNREACHABLE', detail: `no endpoint or validator for eip155:${signerChain ?? '?'}`, actingAgentId: proof.claims.actingAgentId, at: new Date().toISOString() }).catch(() => undefined);
+    return json({ error: 'authentication_failed' }, 401);
+  }
   const verified = await verifyRequestProof({
     claims: proof.claims, signature: proof.signature,
     observed: { method: req.method, authority: url.host, pathAndQuery: url.pathname + url.search, rawBody },
     expectedAudience: env.PUBLIC_ORIGIN,
     // The principal's own key signed the proof digest (EIP-191 over the digest string); the universal validator
     // answers for an EOA, a deployed Smart Agent (ERC-1271) or a counterfactual one (ERC-6492) alike.
-    verifySignature: async ({ keyId, digest, signature }) => (await pub.readContract({ address: env.UNIVERSAL_SIGNATURE_VALIDATOR as Address, abi: VALIDATOR_ABI, functionName: 'isValidSig', args: [keyId as Address, hashMessage(digest), signature as Hex] })) as boolean,
+    verifySignature: async ({ keyId, digest, signature }) => (await signerSide.pub.readContract({ address: signerSide.validator, abi: VALIDATOR_ABI, functionName: 'isValidSig', args: [keyId as Address, hashMessage(digest), signature as Hex] })) as boolean,
     keyId: signer,
     replayStore: L.replayStore, replayNamespace: env.BOUNDARY_ID,
   });
@@ -182,9 +212,12 @@ async function admit(req: Request, env: Env, rawBody: Uint8Array): Promise<Knock
     if (!row) extra.push('FOREIGN_ESTATE_SIGNER_UNKNOWN_ESTATE');
     else {
       try {
+        // The estate agent declares its signer on the chain its PROJECTION anchors on (`row.chainId`), which may not be the registry's.
+        const estateSide = clientFor(env, row.chainId);
+        if (!estateSide) throw new Error(`no endpoint for eip155:${row.chainId}`);
         const [registered, declared] = await Promise.all([
           pub.readContract({ address: env.REGISTRY_ADDRESS as Address, abi: SIGNER_OF_ABI, functionName: 'signerOf', args: [estateId as Hex] }) as Promise<Address>,
-          pub.readContract({ address: (row.profileResolver ?? env.PROFILE_RESOLVER) as Address, abi: PROFILE_RESOLVER_ABI, functionName: 'getAddressProperty', args: [row.governance as Address, ATL_PROJECTION_SIGNER] }) as Promise<Address>,
+          estateSide.pub.readContract({ address: (row.profileResolver ?? env.PROFILE_RESOLVER) as Address, abi: PROFILE_RESOLVER_ABI, functionName: 'getAddressProperty', args: [row.governance as Address, ATL_PROJECTION_SIGNER] }) as Promise<Address>,
         ]);
         if (/^0x0{40}$/i.test(declared)) extra.push('FOREIGN_ESTATE_SIGNER_UNDECLARED');
         else if (declared.toLowerCase() !== registered.toLowerCase()) extra.push('FOREIGN_ESTATE_SIGNER_MISMATCH');

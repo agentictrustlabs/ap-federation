@@ -23,7 +23,9 @@ PUBLIC_ORIGIN = "http://localhost:8787"
 BOUNDARY_ID = "ap-federation-door:local"
 RECEIVING_ESTATE = "impact-agent"
 ORIGIN_A2A = "https://edge.impact-agent.io/api/a2a/maya-fernandes.me"
-TARGET_AGENT_ID = "eip155:34348:0x013fb41c28fe7919f9abfa03884110ef629006e5"
+# W4 (2026-10-15): the receiving agent is maya-fernandes.me, whose account lives on hopechain (her canonical id); the
+# faithchain address this said before is her satellite there, which holds her root name and receives nothing.
+TARGET_AGENT_ID = "eip155:34349:0x3f96a0b26c59260b4fe74b40726b000b12ef33d3"
 TARGET_RUNTIME_ID = "urn:ap:runtime:impact-agent:prod"
 CHAIN_ID = "34348"
 REGISTRY_ADDRESS = "0xb4E116F5C6915a4f1e649E0877e4a0A7a1c1147b"
@@ -51,7 +53,9 @@ PUBLIC_ORIGIN = "https://door.ap-federation.faithnet.io"
 BOUNDARY_ID = "ap-federation-door:impact-agent"
 RECEIVING_ESTATE = "impact-agent"
 ORIGIN_A2A = "https://edge.impact-agent.io/api/a2a/maya-fernandes.me"
-TARGET_AGENT_ID = "eip155:34348:0x013fb41c28fe7919f9abfa03884110ef629006e5"
+# W4 (2026-10-15): the receiving agent is maya-fernandes.me, whose account lives on hopechain (her canonical id); the
+# faithchain address this said before is her satellite there, which holds her root name and receives nothing.
+TARGET_AGENT_ID = "eip155:34349:0x3f96a0b26c59260b4fe74b40726b000b12ef33d3"
 TARGET_RUNTIME_ID = "urn:ap:runtime:impact-agent:prod"
 CHAIN_ID = "34348"
 REGISTRY_ADDRESS = "0xb4E116F5C6915a4f1e649E0877e4a0A7a1c1147b"

@@ -28,7 +28,9 @@ export async function isRevokedReader(row: EstateRow, env: NodeJS.ProcessEnv = p
     throw new Error(`estate ${row.id} names no delegationManager, so nothing here can tell a live grant from a revoked one — refusing to vouch for a set it cannot prune`);
   }
   const rpcUrl = estateRpc(row, env);
-  const chain = { id: row.chainId, name: `chain-${row.chainId}`, nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 }, rpcUrls: { default: { http: [rpcUrl] } } } as const;
+  // Grants are issued and revoked where the people live (`homeChainId`), not where the projection anchors.
+  const chainId = row.homeChainId ?? row.chainId;
+  const chain = { id: chainId, name: `chain-${chainId}`, nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 }, rpcUrls: { default: { http: [rpcUrl] } } } as const;
   const pub = createPublicClient({ chain, transport: http(rpcUrl) });
   const manager = row.delegationManager as Address;
   return async (digest: Hex) => (await pub.readContract({ address: manager, abi: IS_REVOKED_ABI, functionName: 'isRevoked', args: [digest] })) as boolean;

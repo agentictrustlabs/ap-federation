@@ -31,15 +31,18 @@ if (!existsSync('.secrets/f2-test-agent.env') || !existsSync(wireFile)) throw ne
 const key = /F2_TEST_AGENT_KEY=(0x[0-9a-fA-F]{64})/.exec(readFileSync('.secrets/f2-test-agent.env', 'utf8'))![1] as Hex;
 const me = privateKeyToAccount(key);
 const wire = JSON.parse(readFileSync(wireFile, 'utf8')) as { digest: Hex; chainId: number };
-const fed = parse(readFileSync('federation.yaml', 'utf8')) as { registry: { address: string; chainId: number }; estates: { id: string; governance: string | null }[] };
+const fed = parse(readFileSync('federation.yaml', 'utf8')) as { registry: { address: string; chainId: number }; estates: { id: string; homeChainId?: number; governance: string | null }[] };
 const rpc = process.env.FEDERATION_RPC_URL ?? (() => { throw new Error('FEDERATION_RPC_URL is not set'); })();
 const pub = createPublicClient({ chain: { id: fed.registry.chainId, name: 'x', nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 }, rpcUrls: { default: { http: [rpc] } } }, transport: http(rpc) });
 const REGISTRY_ABI = [{ type: 'function', name: 'estateIdOf', stateMutability: 'pure', inputs: [{ name: 'chainId', type: 'uint256' }, { name: 'governance', type: 'address' }], outputs: [{ type: 'bytes32' }] },
   { type: 'function', name: 'roots', stateMutability: 'view', inputs: [{ name: 'estateId', type: 'bytes32' }], outputs: [{ name: 'liveGrantRoot', type: 'bytes32' }, { name: 'membershipRoot', type: 'bytes32' }, { name: 'charterHash', type: 'bytes32' }, { name: 'sequence', type: 'uint64' }, { name: 'anchoredAt', type: 'uint64' }] }] as const;
 const estate = fed.estates.find((e) => e.id === estateId)!;
+// W4: the presenter signs as the account on its estate's HOME chain (where its people live), which the door verifies on THAT
+// chain's validator; the roots it is proved against stay on the registry's chain. One chain today for faithnet, two for impact-agent.
+const presenterChain = estate.homeChainId ?? wire.chainId;
 const estateKey = (await pub.readContract({ address: fed.registry.address as Address, abi: REGISTRY_ABI, functionName: 'estateIdOf', args: [BigInt(wire.chainId), estate.governance as Address] })) as Hex;
 const anchored = (await pub.readContract({ address: fed.registry.address as Address, abi: REGISTRY_ABI, functionName: 'roots', args: [estateKey] })) as readonly [Hex, Hex, Hex, bigint, bigint];
-console.log(`presenter ${me.address} · estate ${estateId} ${estateKey.slice(0, 10)}… anchored at sequence ${anchored[3]} · door ${DOOR}`);
+console.log(`presenter eip155:${presenterChain}:${me.address} · estate ${estateId} ${estateKey.slice(0, 10)}… anchored at sequence ${anchored[3]} · door ${DOOR}`);
 
 const health = await (await fetch(`${DOOR}/health`)).json() as { configured?: boolean; boundaryId?: string; origin?: string };
 check('the door is up and configured', health.configured === true, health.boundaryId ?? '');
@@ -58,7 +61,7 @@ async function knock(opts: { pres?: unknown; challengeHeader?: string; path?: st
   const now = Math.floor(Date.now() / 1000);
   const presRef = opts.pres ? `estate:${String((opts.pres as { estateId: string }).estateId).toLowerCase()}:presentation:${(await sha256Of(JSON.stringify(opts.pres))).slice(7, 39)}` : null;
   const claims: AgenticRequestProofClaims = {
-    schemaVersion: '1', principalAgentId: `eip155:${wire.chainId}:${me.address.toLowerCase()}`, actingAgentId: `eip155:${wire.chainId}:${me.address.toLowerCase()}`, runtimeId: 'urn:ap:runtime:ap-federation:f2-presenter',
+    schemaVersion: '1', principalAgentId: `eip155:${presenterChain}:${me.address.toLowerCase()}`, actingAgentId: `eip155:${presenterChain}:${me.address.toLowerCase()}`, runtimeId: 'urn:ap:runtime:ap-federation:f2-presenter',
     sessionKeyId: me.address.toLowerCase(), delegationRefs: presRef ? [presRef] : [], audience: opts.audience ?? DOOR, issuedAt: now, expiresAt: now + 120, replayId: opts.replayId ?? crypto.randomUUID(),
     http: { method: 'POST', authority: new URL(DOOR).host, pathAndQuery: path, bodySha256: await sha256Of(body) },
     a2a: { protocolVersion: '1.0', protocolBinding: 'HTTP+JSON', operation: 'SendMessage', requestedCapabilityId: 'harness.read' },
@@ -90,7 +93,7 @@ check('ADMIT on a live leaf proved against the root read from neutral ground', o
 const rc = ok.receipt ? await (await fetch(`${DOOR}/federation/receipts/${ok.receipt}`)).json() as any : null;
 check('F2.5: the estate agent\'s declared signer agrees with neutral ground (first-come-wins closed)', ok.json?.reasonCodes?.includes('FOREIGN_ESTATE_SIGNER_DECLARED') === true, JSON.stringify(ok.json?.reasonCodes));
 check('the receipt is readable by reference and hash-chained', !!rc && rc.receiptId === ok.receipt && /^sha256:/.test(rc.recordHash) && /^sha256:/.test(rc.prevHash) && rc.record?.effect === 'ADMIT', ok.receipt ?? '');
-check('the receipt names the acting account and the boundary, nothing else of the estate', !!rc && rc.record?.actingAgentId === `eip155:${wire.chainId}:${me.address.toLowerCase()}` && typeof rc.record?.boundaryId === 'string' && !JSON.stringify(rc.record).includes('blind'), '');
+check('the receipt names the acting account and the boundary, nothing else of the estate', !!rc && rc.record?.actingAgentId === `eip155:${presenterChain}:${me.address.toLowerCase()}` && typeof rc.record?.boundaryId === 'string' && !JSON.stringify(rc.record).includes('blind'), '');
 
 // ── forward: the same, through the A2A path, lands at the estate's door with the standing in headers ──
 const c2 = await challenge();

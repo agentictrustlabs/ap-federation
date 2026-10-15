@@ -25,7 +25,10 @@ export interface RegistryRow {
 
 export interface EstateRow {
   id: string;
+  /** Where the PROJECTION anchors and the estate id derives from. */
   chainId: number;
+  /** Where the estate's PEOPLE live — where their grants are issued and revoked. Absent ⇒ `chainId`. */
+  homeChainId?: number;
   home?: string;
   a2a?: string;
   /** null = this estate has no durable governance identity yet; the row says why in `blocked`. */

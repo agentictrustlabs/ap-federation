@@ -23,12 +23,20 @@ export interface FederationTown {
   namesRootedAt?: string;
   registry?: string;
   rpc?: string;
+  /** The env var naming the gateway URL (with an app token) the federation's Workers read this chain over. */
+  rpcEnv?: string;
+  /** The UniversalSignatureValidator on this chain — what a door verifies a presenter's signature with. */
+  universalSignatureValidator?: string;
   note?: string;
 }
 
 export interface FederationEstate {
   id: string;
+  /** Where the estate's PROJECTION anchors and its permanent id derives from. Never changes. */
   chainId: number;
+  /** Where the estate's PEOPLE live — accounts, Home, custody, grants. Absent ⇒ the projection chain. */
+  homeChainId?: number;
+  rpcEnv?: string;
   home?: string;
   a2a?: string;
   governance: string | null;
@@ -168,6 +176,15 @@ export function validateFederation(f: Federation): string[] {
     estateIds.add(e.id);
     if (!townIds.size) continue;
     if (![...(f.towns ?? [])].some((t) => t.chainId === e.chainId)) errs.push(`estates[${e.id}]: chainId ${e.chainId} is not a town's chain`);
+    // An estate whose people live on another chain names it, and that chain must be a town this register can verify on.
+    if (e.homeChainId !== undefined) {
+      const home = (f.towns ?? []).find((t) => t.chainId === e.homeChainId);
+      if (!home) errs.push(`estates[${e.id}]: homeChainId ${e.homeChainId} is not a town's chain`);
+      else if (e.homeChainId !== e.chainId) {
+        if (!e.rpcEnv) errs.push(`estates[${e.id}]: lives on ${e.homeChainId} but names no rpcEnv — revocation is read on the home chain, and a projector with no endpoint there vouches for nothing`);
+        if (!home.rpcEnv || !home.universalSignatureValidator) errs.push(`estates[${e.id}]: its home town ${home.id} declares no rpcEnv/universalSignatureValidator — a door cannot verify a presenter from there`);
+      }
+    }
   }
 
   const k = f.kms;
