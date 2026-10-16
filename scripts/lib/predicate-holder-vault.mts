@@ -27,7 +27,7 @@ export interface HolderCredentialRecordV1 {
  *  scalar never leaves the service; the record is a reference, ADR-0055). */
 export type HolderDeviceKeyRecordV1 =
   | { type: 'ap.device-key.v1'; thumbprint: string; privateKeyHex: string; /** The public half, so her agent can name the key (spec 444 `credential.request`) without reading the scalar. */ publicJwk?: { kty: 'EC'; crv: 'P-256'; x: string; y: string }; createdAt: string }
-  | { type: 'ap.device-key.v1'; thumbprint: string; managed: { backend: 'akcs'; keyId: string; baseUrl: string; tenantId: string }; createdAt: string };
+  | { type: 'ap.device-key.v1'; thumbprint: string; managed: { backend: 'akcs'; keyId: string; baseUrl: string; tenantId: string }; publicJwk?: { kty: 'EC'; crv: 'P-256'; x: string; y: string }; createdAt: string };
 export function deviceRefOf(r: HolderDeviceKeyRecordV1): DeviceKeyRef {
   if ('managed' in r && r.managed) return { kind: 'akcs', keyId: r.managed.keyId, baseUrl: r.managed.baseUrl, tenantId: r.managed.tenantId };
   if ('privateKeyHex' in r && r.privateKeyHex) return { kind: 'local', privateKeyHex: r.privateKeyHex };

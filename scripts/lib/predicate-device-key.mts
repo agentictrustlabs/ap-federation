@@ -25,7 +25,11 @@ export type DeviceKeyRef =
   | { kind: 'akcs'; keyId: string; baseUrl: string; tenantId: string };
 
 /** The holder's key-service access (the estate-runtime caller shape, bound by the operator): read from the ceremony's env. */
-export function akcsHolderToken(env: (k: string) => string): string { return env('AKCS_HOLDER_TOKEN'); }
+export function akcsHolderToken(env: (k: string) => string, tenantId = 'faithnet'): string {
+  // ONE TOKEN PER TENANT, named: a tenant is an estate boundary, so the holder caller for imbnet's member is bound in the
+  // imb tenant and carries its own token (`AKCS_HOLDER_TOKEN_IMB`). faithnet keeps the unsuffixed name it always had.
+  return env(tenantId === 'faithnet' ? 'AKCS_HOLDER_TOKEN' : `AKCS_HOLDER_TOKEN_${tenantId.toUpperCase().replace(/[^A-Z0-9]/g, '_')}`);
+}
 
 export interface EvidenceIssuer { signerKeyHex: string; kid: string; issuer: string; audience: string }
 
@@ -59,7 +63,7 @@ export async function boundEvidenceFromEnv(env: (k: string) => string): Promise<
 /** The signer for a credential's device key. A managed key signs only with the release's sign context (see `boundEvidenceFromEnv`). */
 export async function deviceSignerFor(ref: DeviceKeyRef, i: { env: (k: string) => string }): Promise<JwsSignerPort> {
   if (ref.kind === 'local') return new LocalEs256Signer({ privateKeyHex: ref.privateKeyHex });
-  return (await akcsEs256SignerFactory())({ baseUrl: ref.baseUrl, tenantId: ref.tenantId, tokenProvider: staticTokenProvider(loadSecret<'akcs-token'>(akcsHolderToken(i.env))), acceptedProtectionLevels: ['CVM_WRAPPED', 'CVM_DERIVED'] }, { keyId: ref.keyId });
+  return (await akcsEs256SignerFactory())({ baseUrl: ref.baseUrl, tenantId: ref.tenantId, tokenProvider: staticTokenProvider(loadSecret<'akcs-token'>(akcsHolderToken(i.env, ref.tenantId))), acceptedProtectionLevels: ['CVM_WRAPPED', 'CVM_DERIVED'] }, { keyId: ref.keyId });
 }
 
 /** `--device local` or `--device akcs:<keyId>` on a ceremony's command line → the record the credential is issued against. */
@@ -74,6 +78,6 @@ export function parseDeviceArg(arg: string | undefined, env: (k: string) => stri
 /** The public JWK the credential binds to, for either custody (the managed one is READ from the service, never asserted). */
 export async function devicePublicJwk(ref: DeviceKeyRef, env: (k: string) => string): Promise<{ kty: 'EC'; crv: 'P-256'; x: string; y: string; kid: string }> {
   if (ref.kind === 'local') return new LocalEs256Signer({ privateKeyHex: ref.privateKeyHex }).publicJwk();
-  const s = await (await akcsEs256SignerFactory())({ baseUrl: ref.baseUrl, tenantId: ref.tenantId, tokenProvider: staticTokenProvider(loadSecret<'akcs-token'>(akcsHolderToken(env))), acceptedProtectionLevels: ['CVM_WRAPPED', 'CVM_DERIVED'] }, { keyId: ref.keyId });
+  const s = await (await akcsEs256SignerFactory())({ baseUrl: ref.baseUrl, tenantId: ref.tenantId, tokenProvider: staticTokenProvider(loadSecret<'akcs-token'>(akcsHolderToken(env, ref.tenantId))), acceptedProtectionLevels: ['CVM_WRAPPED', 'CVM_DERIVED'] }, { keyId: ref.keyId });
   return s.publicJwk();
 }

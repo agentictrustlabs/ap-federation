@@ -23,6 +23,7 @@ import { getVaultRecord, listVaultRecords, putVaultRecord } from '../apps/projec
 import { holderVaultCredentials, HOLDER_RECORDS, type HolderCredentialRecordV1, type HolderDeviceKeyRecordV1, type HolderSecretRecordV1 } from './lib/predicate-holder-vault.mts';
 import { predicateDigestOf, type DoorCredentialPolicy } from './lib/predicate-holder.mts';
 import { generateHolderSecret } from './lib/predicate-setup-deps.mts';
+import { devicePublicJwk, type DeviceKeyRef } from './lib/predicate-device-key.mts';
 
 const args = process.argv.slice(2);
 const flag = (n: string) => (args.includes(`--${n}`) ? args[args.indexOf(`--${n}`) + 1] : undefined);
@@ -57,35 +58,52 @@ const runtime = privateKeyToAccount((/^PREDICATE_RUNTIME_KEY=(0x[0-9a-fA-F]{64})
 const c = holderVaultCredentials({ credsFile: need('creds'), vaultUrl: need('vault'), agentName: flag('agent-name') ?? `${HOLDER}.me`, chainId });
 
 // What the ORGANIZATION'S act returned (run-act-via-home --out): the credential its agent issued, never one made here.
-const live = file(need('issued')).result as { digest: Hex; credential: { issuerKeyId: string; jwt: string; disclosures: string[]; claimSchema: string[] } };
-const revoked = file(need('revoked')).result as typeof live;
+// THE CREDENTIALS ARE IN HER VAULT ALREADY — the organization's act delivered them there (`credential.anonymous:<digest>`);
+// the act's result names only the digest. Read as her agent; a digest her vault does not hold is an error, never a file.
+const digestOf = (f: string) => String((file(f).result as { digest: string }).digest).toLowerCase() as Hex;
+const liveDigest = digestOf(need('issued')); const revokedDigest = digestOf(need('revoked'));
 const staleStatus = file(need('stale-status')) as { sequence: number };
-const device = file(need('device')) as { privateKeyHex: Hex; jwk: { kid: string } };
-const facet = issuer.facets?.find((f) => f.keyId === live.credential.issuerKeyId) ?? (() => { throw new Error(`the register names no facet ${live.credential.issuerKeyId} under ${ISSUER}`); })();
+// --device: a local scalar file (`{privateKeyHex, jwk}`) or `akcs:<keyId>` — the key service's P-256 key in HER estate's tenant
+// (`AKCS_HOLDER_TENANT`, default imb for an impact-agent member). The record names which; nothing falls back (ADR-0013).
+const deviceArg = need('device');
+const envText = readFileSync('.secrets/predicate-visitor.env', 'utf8');
+const envGet = (k: string) => new RegExp(`^${k}=(\\S+)`, 'm').exec(envText)?.[1] ?? (() => { throw new Error(`${k} missing from .secrets/predicate-visitor.env`); })();
+const deviceRef: DeviceKeyRef = deviceArg.startsWith('akcs:')
+  ? { kind: 'akcs', keyId: deviceArg.slice(5), baseUrl: process.env.AKCS_HOLDER_BASE_URL ?? 'https://kms.faithnet.io', tenantId: process.env.AKCS_HOLDER_TENANT ?? 'imb' }
+  : { kind: 'local', privateKeyHex: (file(deviceArg) as { privateKeyHex: Hex }).privateKeyHex };
+const devJwk = await devicePublicJwk(deviceRef, envGet);
+const device = { jwk: devJwk as { kid: string; x: string; y: string } };
 const now = new Date().toISOString();
-const credentialRecord = (r: typeof live, extra: Partial<HolderCredentialRecordV1> = {}): HolderCredentialRecordV1 => ({
-  type: 'ap.anonymous-credential.v1', issuerKeyId: r.credential.issuerKeyId, jwt: r.credential.jwt, disclosures: r.credential.disclosures,
-  issuerPublicKeyJwk: facet.document.facet.publicKeyJwk, digest: r.digest, claimSchema: r.credential.claimSchema, deviceKeyThumbprint: device.jwk.kid, issuedAt: now, ...extra,
-});
+const held = async (digest: Hex): Promise<HolderCredentialRecordV1> => {
+  const r = await getVaultRecord<HolderCredentialRecordV1>(c, HOLDER_RECORDS.credential(digest));
+  if (!r || r.type !== 'ap.anonymous-credential.v1') throw new Error(`her vault holds no credential.anonymous:${digest} — was it delivered?`);
+  if (r.deviceKeyThumbprint !== device.jwk.kid) throw new Error(`credential ${digest} is bound to device key ${r.deviceKeyThumbprint}, not ${device.jwk.kid} (--device names another key)`);
+  return r;
+};
+const live = await held(liveDigest); const revoked = await held(revokedDigest);
+const issuerKeyId = live.issuerKeyId;
+if (!issuer.facets?.some((f) => f.keyId === issuerKeyId)) throw new Error(`the register names no facet ${issuerKeyId} under ${ISSUER}`);
 
 // Her standing wire, at her Home, on her chain.
 const predicateDigest = predicateDigestOf(door.credentialProofs!.predicates);
 const signin = await j(await fetch(`${HOLDER_HOME}/connect/demo-signin`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ handle: HOLDER, client_id: 'demo-jp' }) }));
 const holderAgent = String(signin.agent ?? '').toLowerCase() as Address;
 if (!/^0x[0-9a-f]{40}$/.test(holderAgent) || holderAgent !== c.agent.toLowerCase()) throw new Error(`${HOLDER} at ${HOLDER_HOME} is ${holderAgent}, not the vault credential's agent ${c.agent}`);
-const { standing } = buildStandingWire({ template: 'present-as-me', delegator: holderAgent, delegate: runtime.address, capability: PRESENTATION_CAPABILITY, presentation: { audiences: [DOOR], predicateDigests: [predicateDigest], issuerKeyIds: [live.credential.issuerKeyId] }, validForSeconds: 180 * 86_400, enforcers: ENFORCERS, chainId, delegationManager: ENFORCERS.delegationManager });
+const { standing } = buildStandingWire({ template: 'present-as-me', delegator: holderAgent, delegate: runtime.address, capability: PRESENTATION_CAPABILITY, presentation: { audiences: [DOOR], predicateDigests: [predicateDigest], issuerKeyIds: [issuerKeyId] }, validForSeconds: 180 * 86_400, enforcers: ENFORCERS, chainId, delegationManager: ENFORCERS.delegationManager });
 const signed = await j(await fetch(`${HOLDER_HOME}/connect/persona-sign`, { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${signin.homeSession}` }, body: JSON.stringify({ digest: standing.ref }) }));
 if (!signed.signature) throw new Error(`persona-sign refused for ${HOLDER}: ${JSON.stringify(signed).slice(0, 200)}`);
 const ok = await pub.readContract({ address: issuer.universalSignatureValidator, abi: VALIDATOR_ABI, functionName: 'isValidSig', args: [holderAgent, hashMessage({ raw: standing.ref }), signed.signature as Hex] }).catch(() => false);
 if (!ok) throw new Error(`the standing wire's signature does not validate for ${HOLDER} (${holderAgent}) on eip155:${chainId} — nothing written`);
-const wire = { ...signedStandingWire(standing, signed.signature as Hex), holder: HOLDER, holderHome: HOLDER_HOME, door: DOOR, predicateDigest, issuerKeyId: live.credential.issuerKeyId, issuedAt: now };
-console.log(`standing wire ${standing.ref}: ${HOLDER} (${holderAgent}) → runtime ${runtime.address} · audience ${DOOR} · predicate ${predicateDigest} · issuer ${live.credential.issuerKeyId}`);
+const wire = { ...signedStandingWire(standing, signed.signature as Hex), holder: HOLDER, holderHome: HOLDER_HOME, door: DOOR, predicateDigest, issuerKeyId, issuedAt: now };
+console.log(`standing wire ${standing.ref}: ${HOLDER} (${holderAgent}) → runtime ${runtime.address} · audience ${DOOR} · predicate ${predicateDigest} · issuer ${issuerKeyId}`);
 
 const existingSecret = (await listVaultRecords(c, 'credential.holder-secret:')).length ? null : generateHolderSecret();
 const writes: Array<[string, unknown]> = [
-  [HOLDER_RECORDS.credential(live.digest), credentialRecord(live)],
-  [HOLDER_RECORDS.credential(revoked.digest), credentialRecord(revoked, { revoked: { staleStatus, revokedAtSequence: staleStatus.sequence + 1 } })],
-  [HOLDER_RECORDS.deviceKey(device.jwk.kid), { type: 'ap.device-key.v1', thumbprint: device.jwk.kid, privateKeyHex: device.privateKeyHex, publicJwk: { kty: 'EC', crv: 'P-256', x: (device.jwk as { x: string }).x, y: (device.jwk as { y: string }).y }, createdAt: now } as HolderDeviceKeyRecordV1],
+  // The live one stays as delivered; the revoked one gains the status she kept from the sequence where it was live.
+  [HOLDER_RECORDS.credential(revoked.digest), { ...revoked, revoked: { staleStatus, revokedAtSequence: staleStatus.sequence + 1 } }],
+  [HOLDER_RECORDS.deviceKey(device.jwk.kid), (deviceRef.kind === 'akcs'
+    ? { type: 'ap.device-key.v1', thumbprint: device.jwk.kid, managed: { backend: 'akcs', keyId: deviceRef.keyId, baseUrl: deviceRef.baseUrl, tenantId: deviceRef.tenantId }, publicJwk: { kty: 'EC', crv: 'P-256', x: device.jwk.x, y: device.jwk.y }, createdAt: now }
+    : { type: 'ap.device-key.v1', thumbprint: device.jwk.kid, privateKeyHex: deviceRef.privateKeyHex, publicJwk: { kty: 'EC', crv: 'P-256', x: device.jwk.x, y: device.jwk.y }, createdAt: now }) as HolderDeviceKeyRecordV1],
   ...(existingSecret ? [[HOLDER_RECORDS.holderSecret('member-holder'), { type: 'ap.holder-secret.v1', secret: existingSecret as Hex, createdAt: now } satisfies HolderSecretRecordV1] as [string, unknown]] : []),
   [HOLDER_RECORDS.mandate(standing.ref), wire],
 ];
