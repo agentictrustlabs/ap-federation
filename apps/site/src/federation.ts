@@ -103,8 +103,8 @@ export interface FederationNaming {
   note?: string;
 }
 
-export interface DoorCredentialPolicy { predicates: Array<{ claim: string; op: string; value: unknown }>; claimSchema: string[]; vcSize: string; acceptedVersions?: string[]; nullifier?: { require: boolean; grade: string; windowSeconds?: number }; status?: string; maxAgeSeconds?: number }
-export interface FederationDoor { estate: string; url: string; target?: string; since?: string; credentialProofs?: DoorCredentialPolicy }
+export interface DoorCredentialPolicy { predicates: Array<{ claim: string; op: string; value: unknown }>; claimSchema: string[]; vcSize: string; acceptedVersions?: string[]; nullifier?: { require: boolean; grade: string; windowSeconds?: number }; status?: string; maxAgeSeconds?: number; /** the trust set: ids from credentials.issuers; required when a door asks a credential */ issuers?: string[] }
+export interface FederationDoor { estate: string; url: string; target?: string; since?: string; credentialProofs?: DoorCredentialPolicy; /** receipt retention: parties leave the record after this many days */ receipts?: { fullRecordDays?: number } }
 
 /** Spec 443 §2 `credentials:` (Ring 0 zkID Z4): the verifier side the doors run, and the issuers whose facets the
  *  federation lists — read the way a stranger reads them (attested on the issuer's chain, revocation on neutral ground). */
@@ -205,6 +205,21 @@ export function validateFederation(f: Federation): string[] {
     if (t.status === 'live') liveChains.add(t.chainId);
   }
   if (!townIds.size) errs.push('towns: at least one town');
+  // Doors that ask a credential name their TRUST SET and their receipt retention (2026-10-16): a door with a credential
+  // policy and no issuers accepts none, which is a register mistake, not a posture.
+  const issuerIds = new Set((f.credentials?.issuers ?? []).map((i) => i.id));
+  for (const d of f.doors ?? []) {
+    const at = `doors[${d.estate}]`;
+    if (d.credentialProofs) {
+      const ids = d.credentialProofs.issuers;
+      if (!Array.isArray(ids) || ids.length === 0) errs.push(`${at}.credentialProofs.issuers: a door that asks a credential names the issuers it accepts (ids from credentials.issuers)`);
+      else for (const id of ids) if (!issuerIds.has(id)) errs.push(`${at}.credentialProofs.issuers: "${id}" is not in credentials.issuers`);
+    }
+    if (d.receipts !== undefined) {
+      const n = d.receipts.fullRecordDays;
+      if (!Number.isInteger(n) || (n as number) < 1) errs.push(`${at}.receipts.fullRecordDays: a positive integer of days`);
+    }
+  }
 
   const estateIds = new Set<string>();
   for (const e of f.estates ?? []) {

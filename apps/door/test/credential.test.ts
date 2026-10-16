@@ -5,7 +5,7 @@
 import { describe, expect, it } from 'vitest';
 import { compileOpenAcPredicates } from '@agenticprimitives/privacy-credentials';
 import { intentDigest } from '@agenticprimitives/delegation';
-import { credentialVerify, parsePresentation, parsePresentationRef, predicateDigestOf, presentationRef, proofRequestFor, verifierClient, type DoorCredentialPolicy } from '../src/credential';
+import { credentialVerify, parsePresentation, parsePresentationRef, predicateDigestOf, presentationRef, proofRequestFor, verifierClient, type DoorCredentialPolicy, acceptedIssuers, issuerOfKey, type RegisterIssuer } from '../src/credential';
 
 const policy: DoorCredentialPolicy = { predicates: [{ claim: 'age', op: 'gte', value: 18 }], claimSchema: ['age', 'roc_birthday'], vcSize: '1k', acceptedVersions: ['0.1.0'], nullifier: { require: true, grade: 'asserted' }, status: 'required' };
 const ORIGIN = 'https://door.example';
@@ -68,5 +68,23 @@ describe('the nullifier is the door\'s to consume', () => {
     const verify = credentialVerify({ client: client({ valid: false, reason: 'status_not_live', nullifier: { audience: ORIGIN, value: '0xBB', grade: 'asserted' } }), issuers: [], chains, policy, consume: async () => { calls++; return 'CONSUMED' as const; } });
     expect(await verify({}, req)).toMatchObject({ valid: false, reason: 'status_not_live' });
     expect(calls).toBe(0);
+  });
+});
+
+describe('the trust set — a door accepts credentials under the issuers it names, and no other', () => {
+  const issuers = [
+    { id: 'org-issuer', estate: 'a', sa: '0x1', chainId: 1, facets: [{ keyId: 'issuer-key:sd-jwt:org-issuer-1' }] },
+    { id: 'other-issuer', estate: 'b', sa: '0x2', chainId: 1, facets: [{ keyId: 'issuer-key:sd-jwt:other-issuer-1' }] },
+  ] as unknown as RegisterIssuer[];
+  it('filters the register to the policy\'s ids; a policy naming none accepts none', () => {
+    const policy = { predicates: [], claimSchema: [], vcSize: '1k', acceptedVersions: [], issuers: ['org-issuer'] } as DoorCredentialPolicy;
+    expect(acceptedIssuers(policy, issuers).map((i) => i.id)).toEqual(['org-issuer']);
+    expect(acceptedIssuers({ ...policy, issuers: undefined }, issuers)).toEqual([]);
+    expect(acceptedIssuers(null, issuers)).toEqual([]);
+  });
+  it('resolves a presentation\'s facet only within the set', () => {
+    const accepted = acceptedIssuers({ predicates: [], claimSchema: [], vcSize: '1k', acceptedVersions: [], issuers: ['org-issuer'] } as DoorCredentialPolicy, issuers);
+    expect(issuerOfKey(accepted, 'issuer-key:sd-jwt:org-issuer-1')?.id).toBe('org-issuer');
+    expect(issuerOfKey(accepted, 'issuer-key:sd-jwt:other-issuer-1')).toBeNull();
   });
 });

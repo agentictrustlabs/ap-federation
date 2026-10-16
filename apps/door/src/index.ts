@@ -26,17 +26,20 @@
 //        trusts (from the register), the verifier's health. POST /federation/present { presentation } → a reference the
 //        door holds for ten minutes; the knock then carries `x-ap-credential-presentation: <reference>`.
 import { createAdmissionEngine, credentialPresentationEvaluator, foreignEstateEvaluator, verifyRequestProof, sha256Of, type AdmissionRequest, type AdmissionDecision, type AgenticRequestProofClaims, type AtomicReplayStore } from '@agenticprimitives/admission';
-import { credentialVerify, parsePresentation, parsePresentationRef, predicateDigestOf, presentationRef, proofRequestFor, verifierChains, verifierClient, type DoorCredentialPolicy, type RegisterIssuer } from './credential';
+import { credentialVerify, parsePresentation, parsePresentationRef, predicateDigestOf, presentationRef, proofRequestFor, verifierChains, verifierClient, type DoorCredentialPolicy, type RegisterIssuer, acceptedIssuers, issuerOfKey } from './credential';
 import type { PrivatePresentationV1 } from '@agenticprimitives/privacy-credentials';
 import { verifyAuthorityPresentation, type AuthorityPresentationV1 } from '@agenticprimitives/estate-projection';
 import { createPublicClient, hashMessage, http, keccak256, toHex, type Address, type Hex } from 'viem';
 import { issueChallenge, verifyChallengeHeader } from './challenge';
 import { parse as parseYaml } from 'yaml';
+import { fullRecordUntil, retentionDays } from './receipt-retention.js';
 import federationYaml from '../../../federation.yaml';
 export { DoorLedgerDO } from './ledger-do';
 export { VerifierContainer } from './verifier-container';
 
 interface Env {
+  /** Days a receipt keeps its parties before the ledger collapses it (receipt-retention.ts); default 30. */
+  RECEIPT_FULL_RECORD_DAYS?: string;
   PUBLIC_ORIGIN: string; BOUNDARY_ID: string; RECEIVING_ESTATE: string; ORIGIN_A2A: string; TARGET_AGENT_ID: string; TARGET_RUNTIME_ID: string;
   CHAIN_ID: string; REGISTRY_ADDRESS: string; UNIVERSAL_SIGNATURE_VALIDATOR: string; MAX_AGE_SECONDS: string; PROFILE_RESOLVER: string;
   FEDERATION_RPC_URL?: string; DOOR_SECRET?: string;
@@ -203,6 +206,12 @@ async function admit(req: Request, env: Env, rawBody: Uint8Array): Promise<Knock
   const credRef = credHeader?.ref ?? null;
   // The bytes the door HOLDS under that reference (POSTed ahead of the knock, minutes of life) — or nothing, which the
   // evaluator refuses as CREDENTIAL_PRESENTATION_MISSING. Never fetched from the presenter.
+  // THE TRUST SET, before any byte of proof is read: a presentation under a facet this door does not accept is refused in
+  // words, with the issuers it does accept — never verified and never admitted as 'nobody'.
+  if (credHeader && credPolicy && !issuerOfKey(acceptedIssuers(credPolicy, register().issuers), credHeader.issuerKeyId)) {
+    await L.audit.append({ kind: 'door.credential', effect: 'DENY', code: 'CREDENTIAL_ISSUER_NOT_ACCEPTED', issuerKeyId: credHeader.issuerKeyId, actingAgentId: proof.claims.actingAgentId, at: new Date().toISOString() }).catch(() => undefined);
+    return json({ error: 'credential_issuer_not_accepted', issuerKeyId: credHeader.issuerKeyId, accepts: credPolicy.issuers ?? [], says: 'this door accepts credentials under the listed issuers only; the presentation names another facet' }, 403);
+  }
   const held = credRef ? await L.presentation(credRef) : null;
   const cred = credHeader && held ? { issuerKeyId: credHeader.issuerKeyId, presentation: held } : null;
 
@@ -372,7 +381,9 @@ export default {
         boundaryId: env.BOUNDARY_ID, receivingEstate: env.RECEIVING_ESTATE, audience: env.PUBLIC_ORIGIN,
         accepts: !!policy, policy,
         predicateDigest: policy ? predicateDigestOf(proofRequestFor(policy, env.PUBLIC_ORIGIN, { nonce: '0x00', audience: env.PUBLIC_ORIGIN })) : null,
-        issuers: register().issuers.map((i) => ({ id: i.id, estate: i.estate, sa: i.sa, chainId: i.chainId, facets: (i.facets ?? []).map((f) => ({ keyId: f.keyId, attestation: f.attestation ?? null, thumbprint: f.document?.facet ? (f.document.facet as { publicKeyJwk?: { kid?: string } }).publicKeyJwk?.kid ?? null : null })) })),
+        acceptedIssuers: policy?.issuers ?? [],
+        receipts: { fullRecordDays: retentionDays(env.RECEIPT_FULL_RECORD_DAYS), says: 'a receipt keeps its parties for this many days, then collapses to kind · effect · codes · decision; its hash in the chain never changes' },
+        issuers: acceptedIssuers(policy, register().issuers).map((i) => ({ id: i.id, estate: i.estate, sa: i.sa, chainId: i.chainId, facets: (i.facets ?? []).map((f) => ({ keyId: f.keyId, attestation: f.attestation ?? null, thumbprint: f.document?.facet ? (f.document.facet as { publicKeyJwk?: { kid?: string } }).publicKeyJwk?.kid ?? null : null })) })),
         verifier: v ? ('error' in v ? { configured: false, error: v.error } : { configured: true, placement: `node:${v.placement}`, ...health }) : { configured: false, error: 'this door has no credential policy' },
         challenge: `POST /federation/challenge { subject: <the pairwise account> }; POST /federation/present { presentation } → ref; then knock with x-ap-request-proof (signed by it), x-ap-challenge and x-ap-credential-presentation: <ref>`,
         says: 'A predicate held is evidence about a credential, never a claim about a person and never authority: the estate\'s own mandate still governs every act.',
@@ -386,6 +397,9 @@ export default {
       let o: unknown; try { o = JSON.parse(raw); } catch { return json({ error: 'not_json' }, 400); }
       const parsed = parsePresentation(o);
       if (!parsed.ok) return json({ error: 'credential_presentation_malformed', hint: parsed.code === 'suite' ? 'this door verifies openac-sd-jwt-p256 only' : '{ presentation: PrivatePresentationV1 } with an openac payload naming issuerKeyId' }, 400);
+      const policyNow = credentialPolicyOf(env);
+      if (!policyNow) return json({ error: 'no_credential_policy', says: 'this door asks no credential' }, 404);
+      if (!issuerOfKey(acceptedIssuers(policyNow, register().issuers), parsed.issuerKeyId)) return json({ error: 'credential_issuer_not_accepted', issuerKeyId: parsed.issuerKeyId, accepts: policyNow.issuers ?? [], says: 'this door accepts credentials under the listed issuers only; nothing is held for another facet' }, 403);
       const ref = await presentationRef(parsed.issuerKeyId, parsed.presentation);
       const expiresAt = new Date(Date.now() + 600_000).toISOString();
       const r = await ledger(env).present(ref, parsed.presentation, expiresAt);

@@ -144,9 +144,23 @@ doors:
       # One visit per audience PER WINDOW: the asserted nullifier is deterministic per (device key, audience), so the store
       # forgets it after the window and the same holder may return — ZK-POP's epoch-scoped persistence. One hour here, so the
       # nightly gate (and an operator re-running it) is admitted once an hour; a door that means "once, ever" omits the window (a year).
-      nullifier: { require: true, grade: asserted, windowSeconds: 3600 }
+      # TESTING VALUE (2026-10-16): 300 s — long enough to cover one gate run (its reuse twin knocks minutes after the
+      # first), short enough to re-run without waiting an hour; no operational users yet.
+      # Restore before real users — docs/runbooks/before-real-users.md, item 1. (Changing the window starts a fresh
+      # count: the door keys its one-visit store by the window.)
+      nullifier: { require: true, grade: asserted, windowSeconds: 300 }
       status: required
       maxAgeSeconds: 86400
+      # THE TRUST SET (2026-10-16): the issuers whose facets this door accepts a credential under — by id, from
+      # `credentials.issuers`. A presentation under any other facet is refused before a byte of proof is read
+      # (`CREDENTIAL_ISSUER_NOT_ACCEPTED`). The organization vouches for its members through ITS issuer; no other
+      # issuer's "member" means anything here.
+      issuers: [imbnet-membership-issuer]
+    # RECEIPT RETENTION (2026-10-16): a receipt keeps its parties (the pairwise account, the detail, the references) for
+    # this many days — the window in which a dispute could need them — then collapses to kind · effect · codes · decision;
+    # its hash in the chain never changes. The door's Worker reads the same number from RECEIPT_FULL_RECORD_DAYS.
+    receipts:
+      fullRecordDays: 30
     # A MEMBER-GATED PAYMENT (2026-10-16): a visitor who held this door's predicates (over 18 AND a member) may ask for a payment
     # TICKET naming the organization's treasury; she pays from HER treasury under HER mandate (the door spends nothing); `settled`
     # reads the transfer on the chain and records the acceptance beside the predicate admission. The organization's membership

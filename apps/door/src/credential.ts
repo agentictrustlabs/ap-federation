@@ -20,6 +20,19 @@ export interface DoorCredentialPolicy {
   nullifier?: { require: boolean; grade: 'asserted' | 'in-circuit'; windowSeconds?: number };
   status?: 'required' | 'none';
   maxAgeSeconds?: number;
+  /** THE TRUST SET: the register issuers (by id) whose facets this door accepts a credential under. Absent ⇒ none — a door
+   *  that names no issuer accepts no credential (fail closed; the register validator requires the list). */
+  issuers?: string[];
+}
+
+/** The issuers this door's policy accepts, by id — the only facets the verifier is ever handed. */
+export function acceptedIssuers(policy: DoorCredentialPolicy | null, issuers: RegisterIssuer[]): RegisterIssuer[] {
+  const ids = new Set(policy?.issuers ?? []);
+  return issuers.filter((i) => ids.has(i.id));
+}
+/** The issuer whose facet a presentation names, among those the door accepts — or null, which refuses before any proof is read. */
+export function issuerOfKey(accepted: RegisterIssuer[], issuerKeyId: string): RegisterIssuer | null {
+  return accepted.find((i) => (i.facets ?? []).some((f) => f.keyId === issuerKeyId)) ?? null;
 }
 
 export interface RegisterIssuer {
@@ -118,7 +131,8 @@ export function credentialVerify(deps: { client: VerifierClient; issuers: Regist
   return async (presentation, request) => {
     const v = await deps.client.verify({
       presentation, request,
-      issuers: deps.issuers.flatMap((i) => (i.facets ?? []).filter((f) => f.document).map((f) => ({ id: i.id, chainId: i.chainId, attestation: f.attestation, document: f.document }))),
+      // Only the trust set's facets reach the verifier: a facet the door does not accept cannot verify anything here.
+      issuers: acceptedIssuers(deps.policy, deps.issuers).flatMap((i) => (i.facets ?? []).filter((f) => f.document).map((f) => ({ id: i.id, chainId: i.chainId, attestation: f.attestation, document: f.document }))),
       chains: deps.chains.chains, registry: deps.chains.registry,
       policy: { nullifier: deps.policy.nullifier, status: deps.policy.status ?? 'none', maxAgeSeconds: deps.policy.maxAgeSeconds ?? 86400 },
     });

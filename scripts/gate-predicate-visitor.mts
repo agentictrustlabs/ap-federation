@@ -73,6 +73,11 @@ check('the door lists the issuer facet the credential was issued under, attested
 // organization issued her a membership — and nothing about which member.
 const memberPredicate = policy.predicates.find((pr) => pr.claim === 'member');
 const orgIssuer = declared.issuers.find((i) => (i.facets ?? []).some((f) => f.keyId === credential.issuerKeyId));
+// THE TRUST SET (2026-10-16): the door names the issuers it accepts, lists only their facets, and refuses to even HOLD a
+// presentation under another facet — before a byte of proof is read.
+const dAny = declared as unknown as { acceptedIssuers?: string[]; receipts?: { fullRecordDays?: number } };
+check('the door names its trust set — the organization\'s issuer — and lists no other issuer\'s facets', Array.isArray(dAny.acceptedIssuers) && dAny.acceptedIssuers.length > 0 && !!orgIssuer && dAny.acceptedIssuers.includes(orgIssuer.id) && declared.issuers.every((i) => dAny.acceptedIssuers!.includes(i.id)), `accepts ${JSON.stringify(dAny.acceptedIssuers)} · lists ${declared.issuers.map((i) => i.id).join(', ')}`);
+check('the door says how long a receipt keeps its parties before it collapses', typeof dAny.receipts?.fullRecordDays === 'number' && dAny.receipts.fullRecordDays >= 1, `${dAny.receipts?.fullRecordDays} days`);
 check('Z5: the door asks "over 18 AND a member of your organization" — two predicates over one credential layout', !!memberPredicate && policy.predicates.some((pr) => pr.claim === 'age') && policy.claimSchema.includes('member'), JSON.stringify(policy.predicates));
 // The member claim is read from the SD-JWT's own disclosures ([salt, key, value]) — the credential as issued, not a note about it.
 const disclosed = ((credential as { disclosures?: string[] }).disclosures ?? []).map((d) => { try { return JSON.parse(Buffer.from(d, 'base64url').toString('utf8')) as unknown[]; } catch { return []; } });
@@ -135,6 +140,14 @@ check('ADMIT on a predicate proved in zero knowledge, verified beside the door a
 const cred = ok.json?.credential as { issuerKeyId?: string; predicateDigest?: string; nullifierGrade?: string | null; statusSequence?: number | null; verifierPlacement?: string | null } | null;
 check('the decision names the facet, the predicate digest, the nullifier grade, the status sequence and where it was verified', !!cred && cred.issuerKeyId === credential.issuerKeyId && cred.predicateDigest?.toLowerCase() === p1.predicateDigest.toLowerCase() && cred.nullifierGrade === 'asserted' && typeof cred.statusSequence === 'number' && /^node:/.test(cred.verifierPlacement ?? ''), JSON.stringify(cred));
 const rc = ok.receipt ? await (await fetch(`${DOOR}/federation/receipts/${ok.receipt}`)).json() as any : null;
+check('the receipt names the day its parties leave it (retention is a promise on the record, not a hope)', typeof rc?.fullRecordUntil === 'string' && new Date(rc.fullRecordUntil).getTime() > Date.now() && rc.collapsed === false, `full record until ${String(rc?.fullRecordUntil ?? '?').slice(0, 10)}`);
+{
+  // TWIN: the same proof bundle re-labelled under a facet outside the trust set is refused at /present — nothing held, nothing verified.
+  const relabelled = { ...p1.presentation, payload: JSON.stringify({ ...(JSON.parse((p1.presentation as unknown as { payload: string }).payload) as Record<string, unknown>), issuerKeyId: 'issuer-key:sd-jwt:faithnet-gate-issuer-1' }) };
+  const r = await fetch(`${DOOR}/federation/present`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ presentation: relabelled }) });
+  const b = await r.json().catch(() => ({})) as { error?: string; accepts?: string[] };
+  check('TWIN: a presentation under an issuer facet the door does not accept is refused before any proof is read — the door names what it accepts', r.status === 403 && b.error === 'credential_issuer_not_accepted' && Array.isArray(b.accepts) && b.accepts.length > 0, `${r.status} ${b.error} accepts ${JSON.stringify(b.accepts)}`);
+}
 const rcText = JSON.stringify(rc ?? {});
 check('the receipt is readable by reference and hash-chained', !!rc && rc.receiptId === ok.receipt && /^sha256:/.test(rc.recordHash) && /^sha256:/.test(rc.prevHash) && rc.record?.effect === 'ADMIT', ok.receipt ?? '');
 check('the receipt carries no claim value and no address of the person — only the pairwise account', !!rc && !/0000021|0900101/.test(rcText) && !rcText.toLowerCase().includes(String(standing.wire.delegator).toLowerCase().slice(2)) && rcText.includes(me.address.toLowerCase()), '');

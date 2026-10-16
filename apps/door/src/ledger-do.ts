@@ -13,6 +13,8 @@
 // the receiving estate's registry agent's, and the presenter's own. This door has no vault; the ledger is the
 // serving copy until F2.5 hands the receipt to the estate's registry agent. Wiping it loses the door's copy only:
 // every decision also went back to the presenter in the response.
+import { collapseRecord, fullRecordUntil, retentionDays } from './receipt-retention.js';
+
 export interface ReplayRow { namespace: string; replayId: string; digest: string; expiresAt: string }
 
 const enc = new TextEncoder();
@@ -23,8 +25,10 @@ async function sha256Hex(s: string): Promise<string> {
 
 export class DoorLedgerDO {
   private sql: SqlStorage;
-  constructor(state: DurableObjectState) {
+  private days: number;
+  constructor(state: DurableObjectState, env: { RECEIPT_FULL_RECORD_DAYS?: string }) {
     this.sql = state.storage.sql;
+    this.days = retentionDays(env?.RECEIPT_FULL_RECORD_DAYS);
     this.sql.exec(`CREATE TABLE IF NOT EXISTS replay (namespace TEXT NOT NULL, replay_id TEXT NOT NULL, digest TEXT NOT NULL, expires_at TEXT NOT NULL, PRIMARY KEY (namespace, replay_id));
       CREATE TABLE IF NOT EXISTS receipts (seq INTEGER PRIMARY KEY AUTOINCREMENT, receipt_id TEXT NOT NULL UNIQUE, record TEXT NOT NULL, prev_hash TEXT NOT NULL, record_hash TEXT NOT NULL, at TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS presentations (ref TEXT PRIMARY KEY, body TEXT NOT NULL, expires_at TEXT NOT NULL);`);
@@ -56,6 +60,11 @@ export class DoorLedgerDO {
     }
     if (req.method === 'POST' && url.pathname === '/append') {
       const record = (await req.json()) as Record<string, unknown>;
+      // RETENTION, on every write: receipts past the full-record window lose their parties. The hash in the chain stays.
+      const cutoff = new Date(Date.now() - this.days * 86_400_000).toISOString();
+      for (const old of this.sql.exec<{ receipt_id: string; record: string }>(`SELECT receipt_id, record FROM receipts WHERE at < ? AND json_extract(record, '$.collapsed') IS NULL LIMIT 200`, cutoff).toArray()) {
+        this.sql.exec(`UPDATE receipts SET record = ? WHERE receipt_id = ?`, JSON.stringify(collapseRecord(JSON.parse(old.record) as Record<string, unknown>, new Date().toISOString())), old.receipt_id);
+      }
       const last = this.sql.exec<{ record_hash: string }>(`SELECT record_hash FROM receipts ORDER BY seq DESC LIMIT 1`).toArray()[0];
       const prevHash = last?.record_hash ?? 'sha256:genesis';
       const at = new Date().toISOString();
@@ -79,7 +88,7 @@ export class DoorLedgerDO {
       const companions = record.decisionId
         ? this.sql.exec<{ record: string; record_hash: string; at: string }>(`SELECT record, record_hash, at FROM receipts WHERE receipt_id != ? AND json_extract(record, '$.decisionId') = ? ORDER BY seq ASC`, id, record.decisionId).toArray().map((c) => ({ record: JSON.parse(c.record), recordHash: c.record_hash, at: c.at }))
         : [];
-      return json({ receiptId: row.receipt_id, record, prevHash: row.prev_hash, recordHash: row.record_hash, at: row.at, companions });
+      return json({ receiptId: row.receipt_id, record, prevHash: row.prev_hash, recordHash: row.record_hash, at: row.at, companions, fullRecordUntil: fullRecordUntil(row.at, this.days), collapsed: (record as { collapsed?: boolean }).collapsed === true });
     }
     if (req.method === 'GET' && url.pathname === '/receipts') {
       const rows = this.sql.exec<{ receipt_id: string; record: string; record_hash: string; at: string }>(`SELECT receipt_id, record, record_hash, at FROM receipts ORDER BY seq DESC LIMIT 50`).toArray();

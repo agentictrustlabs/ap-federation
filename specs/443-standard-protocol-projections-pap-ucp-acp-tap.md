@@ -176,6 +176,13 @@ Nightly rows on the site, like the existing twin.
 
 - A prover anywhere in this repository: no proving keys, no `precompute`/`present`, no device key. Proving is the
   holder's Home; a door verifies.
+
+**The presentation reference is the design, not a workaround (2026-10-16).** A zero-knowledge proof bundle is tens of
+kilobytes and the public internet's edge caps a request header at sixteen; so a knock has two steps by design: `POST
+/federation/present { presentation }` — refused at once under a facet outside the door's trust set, otherwise HELD under the
+reference the door derives (`credential:<issuerKeyId>:presentation:<digest>`) for ten minutes, unverified — then the knock
+cites the reference in `x-ap-credential-presentation`. Nothing is verified until the knock, the receipt keeps the digest and
+never the bundle, and a presentation nobody knocks with expires unread. A door that asks a credential serves both steps.
 - Trusting `issuerKey` as returned by `openac-sdk`, or fetching an issuer's key or status list from the issuer.
 - Payment rails: card tokens, PSP exchange, PAR — Ring 1, another repository. (The member-dues payment is the SUBSTRATE's rail — treasury to treasury under her own mandate — not a PSP; the invoice the doctrine describes is still the ticket's successor, spec 337.)
 - Mediated Sign-In as a default anywhere.

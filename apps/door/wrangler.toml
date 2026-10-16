@@ -31,6 +31,8 @@ CHAIN_ID = "34348"
 REGISTRY_ADDRESS = "0xb4E116F5C6915a4f1e649E0877e4a0A7a1c1147b"
 UNIVERSAL_SIGNATURE_VALIDATOR = "0xeDd56f500325D4701B9985A34e5Fa6EED6716137"
 MAX_AGE_SECONDS = "86400"
+# receipt retention (federation.yaml doors[].receipts.fullRecordDays): parties leave the record after this many days
+RECEIPT_FULL_RECORD_DAYS = "30"
 PROFILE_RESOLVER = "0xB03F7C06ad3274F584AB72794406D639c02A45e1"
 
 [[rules]]
@@ -77,6 +79,8 @@ CHAIN_ID = "34348"
 REGISTRY_ADDRESS = "0xb4E116F5C6915a4f1e649E0877e4a0A7a1c1147b"
 UNIVERSAL_SIGNATURE_VALIDATOR = "0xeDd56f500325D4701B9985A34e5Fa6EED6716137"
 MAX_AGE_SECONDS = "86400"
+# receipt retention (federation.yaml doors[].receipts.fullRecordDays): parties leave the record after this many days
+RECEIPT_FULL_RECORD_DAYS = "30"
 PROFILE_RESOLVER = "0xB03F7C06ad3274F584AB72794406D639c02A45e1"
 
 # ── The door in front of FAITHNET (2026-10-14): the twin's other direction. Receiving agent alice.me through the
@@ -101,4 +105,6 @@ CHAIN_ID = "34348"
 REGISTRY_ADDRESS = "0xb4E116F5C6915a4f1e649E0877e4a0A7a1c1147b"
 UNIVERSAL_SIGNATURE_VALIDATOR = "0xeDd56f500325D4701B9985A34e5Fa6EED6716137"
 MAX_AGE_SECONDS = "86400"
+# receipt retention (federation.yaml doors[].receipts.fullRecordDays): parties leave the record after this many days
+RECEIPT_FULL_RECORD_DAYS = "30"
 PROFILE_RESOLVER = "0xB03F7C06ad3274F584AB72794406D639c02A45e1"
