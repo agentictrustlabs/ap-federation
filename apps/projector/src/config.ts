@@ -71,6 +71,10 @@ export interface IssuerRow {
   anchorDelegateKeyEnv?: string;
   signerKeyEnv?: string;
   anchoringWire?: string;
+  /** Spec 444: the account REGISTERED to sign this issuer's row on neutral ground, when it is not the issuer itself — an
+   *  issuer on another chain (a hopechain organization) cannot sign on faithchain's registry, so the estate's neutral-ground
+   *  agent anchors for it under its anchoring wire. The row id stays the issuer's own (`estateIdOf(chainId, sa)`). */
+  rowSigner?: Address;
   facets?: Array<{ keyId: string; thumbprint?: string; attestation?: Hex; revocationRoot?: string; document?: unknown }>;
 }
 

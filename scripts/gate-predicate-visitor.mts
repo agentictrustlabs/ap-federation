@@ -52,7 +52,7 @@ const runtime = privateKeyToAccount(envGet('PREDICATE_RUNTIME_KEY') as Hex);
 const harness = privateKeyToAccount(envGet('PREDICATE_HARNESS_KEY') as Hex);
 // HER RECORDS, FROM HER VAULT: the credential, the revoked one with its kept status, the device key, the holder secret, the
 // standing mandate for this door — read as her agent under the grant her custodian minted for the runtime key.
-const vault = holderVaultCredentials({ credsFile: need(process.env.PREDICATE_HOLDER_VAULT_CREDS ?? '.secrets/vault-creds-alice.json'), vaultUrl: process.env.PREDICATE_HOLDER_VAULT_URL ?? 'https://mcp.faithnet.io', agentName: process.env.PREDICATE_HOLDER ?? 'alice.me' });
+const vault = holderVaultCredentials({ credsFile: need(process.env.PREDICATE_HOLDER_VAULT_CREDS ?? '.secrets/vault-creds-alice.json'), vaultUrl: process.env.PREDICATE_HOLDER_VAULT_URL ?? 'https://mcp.faithnet.io', agentName: process.env.PREDICATE_HOLDER ?? 'alice.me', ...(process.env.PREDICATE_HOLDER_CHAIN_ID ? { chainId: Number(process.env.PREDICATE_HOLDER_CHAIN_ID) } : {}) });
 const holder = await readHolderFromVault(vault, DOOR);
 const { live: credential, revoked, holderSecret, standing } = holder;
 check('the holder\'s credential, device key, secret and mandate were read from HER vault as her agent (never a file)', !!credential.jwt && !!holderSecret && standing.door === DOOR, `${vault.agentName} · ${vault.vaultUrl}`);

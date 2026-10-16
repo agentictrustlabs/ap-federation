@@ -37,12 +37,12 @@ export interface HolderSecretRecordV1 { type: 'ap.holder-secret.v1'; secret: Hex
 
 /** The vault credential the gate presents AS HER AGENT: the grant + leaf her custodian minted for the runtime key
  *  (ap-home issue-self-host-vault-credentials.mts) and the runtime key itself from the gate's own env. */
-export function holderVaultCredentials(i: { credsFile: string; vaultUrl: string; agentName: string; envFile?: string }): VaultCredentials {
+export function holderVaultCredentials(i: { credsFile: string; vaultUrl: string; agentName: string; envFile?: string; /** The holder's HOME chain (her grant is verified there): faithchain by default, hopechain for an imbnet resident. */ chainId?: number }): VaultCredentials {
   const raw = JSON.parse(readFileSync(i.credsFile, 'utf8')) as { agent: Address; delegate: Address; interactionsService: Address; grant: VaultCredentials['grant']; sessionLeaf: VaultCredentials['leaf'] };
   const env = readFileSync(i.envFile ?? '.secrets/predicate-visitor.env', 'utf8');
   const key = /^PREDICATE_RUNTIME_KEY=(0x[0-9a-fA-F]{64})/m.exec(env)?.[1] as Hex | undefined;
   if (!key) throw new Error('PREDICATE_RUNTIME_KEY missing from .secrets/predicate-visitor.env');
-  return { agent: raw.agent, agentName: i.agentName, vaultUrl: i.vaultUrl, interactionsService: raw.interactionsService, chainId: 34348, grant: raw.grant, leaf: raw.sessionLeaf, signerKey: key };
+  return { agent: raw.agent, agentName: i.agentName, vaultUrl: i.vaultUrl, interactionsService: raw.interactionsService, chainId: i.chainId ?? 34348, grant: raw.grant, leaf: raw.sessionLeaf, signerKey: key };
 }
 
 export interface HolderFromVault {

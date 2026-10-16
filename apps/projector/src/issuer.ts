@@ -56,7 +56,8 @@ export async function projectIssuer(issuer: ProjectableIssuer, deps: { registry:
   const now = deps.now ?? (() => new Date());
   const signer = await deps.registry.signerOf(issuer.issuerId);
   if (!signer) throw new Error(`issuer ${issuer.id} is not registered on neutral ground yet — run \`projector register --issuer ${issuer.id}\` first`);
-  if (signer.toLowerCase() !== issuer.sa.toLowerCase()) throw new Error(`issuer ${issuer.id}: neutral ground has ${signer} as the signer of ${issuer.issuerId}; the register says the issuer SA ${issuer.sa} is. \`register\` is first-come-wins — resolve this before anchoring.`);
+  const expectedSigner = (issuer.rowSigner ?? issuer.sa).toLowerCase();
+  if (signer.toLowerCase() !== expectedSigner) throw new Error(`issuer ${issuer.id}: neutral ground has ${signer} as the signer of ${issuer.issuerId}; the register says ${issuer.rowSigner ? `its row signer ${issuer.rowSigner}` : `the issuer SA ${issuer.sa}`} is — resolve this first`);
   const anchoredBefore = await deps.registry.roots(issuer.issuerId);
   if (!anchoredBefore.never && anchoredBefore.charterHash.toLowerCase() !== ISSUER_ROW_TAG.toLowerCase()) throw new Error(`the row under ${issuer.issuerId} is not tagged as an issuer row (charterHash ${anchoredBefore.charterHash}) — something else anchored here`);
   const built = buildIssuerForSequence(issuer, { ledger: deps.ledger, sequence: anchoredBefore.sequence + 1, now });

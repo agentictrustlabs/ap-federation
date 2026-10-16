@@ -70,9 +70,10 @@ if (has('issuer')) {
     console.log(`  vouches   ${live.kept.length} live credential(s) in the ledger (${live.dropped.length} retired/expired)\n  facets    ${(issuer.facets ?? []).map((x) => `${x.keyId}${x.attestation ? ' (attested)' : ' (NOT attested)'}`).join(', ') || 'none declared'}`);
   } else if (cmd === 'register') {
     const already = await registry.signerOf(issuer.issuerId);
-    if (already) die(already.toLowerCase() === issuer.sa.toLowerCase() ? `issuer ${issuer.id} is already registered to its SA ${already}` : `issuer ${issuer.id}'s row is registered to ${already}, NOT to its SA — first-come-wins; resolve this first`);
-    const tx = await registry.register(issuer.issuerId, issuer.sa, signerKey(issuer));
-    console.log(`registered issuer ${issuer.id}: row ${issuer.issuerId} → signer ${issuer.sa} (the issuer SA itself; the delegate key anchors under its wire)\n  tx ${tx}`);
+    const rowSigner = (issuer.rowSigner ?? issuer.sa) as Address;
+    if (already) die(already.toLowerCase() === rowSigner.toLowerCase() ? `issuer ${issuer.id} is already registered to ${already}` : `issuer ${issuer.id}'s row is registered to ${already}, NOT to ${rowSigner} — first-come-wins; resolve this first`);
+    const tx = await registry.register(issuer.issuerId, rowSigner, signerKey(issuer));
+    console.log(`registered issuer ${issuer.id}: row ${issuer.issuerId} → signer ${rowSigner} (${issuer.rowSigner ? 'the estate\'s neutral-ground agent, anchoring for an issuer on another chain' : 'the issuer SA itself'}; the delegate key anchors under its wire)\n  tx ${tx}`);
   } else if (cmd === 'submit') {
     const digest = (flag('digest') ?? die('--digest 0x… (credentialDigestOf the issued JWT) is required')).toLowerCase() as Hex;
     if (!/^0x[0-9a-f]{64}$/.test(digest)) die('--digest must be 32 bytes');

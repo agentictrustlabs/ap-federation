@@ -24,7 +24,7 @@ import { join } from 'node:path';
 import { createPublicClient, http as rpc, keccak256, toBytes } from 'viem';
 import { verifyPresentation, createIssuerKeyResolver } from '@agenticprimitives/privacy-credentials';
 import { createOpenAcBackend, OPENAC_SDK_VERSION, OPENAC_SDK_BUNDLE_VERSION } from '@agenticprimitives/privacy-credentials-openac';
-import { issuerRootsOf, verifyCredentialStatusPresentation } from '@agenticprimitives/estate-projection';
+import { estateIdOf, issuerRootsOf, verifyCredentialStatusPresentation } from '@agenticprimitives/estate-projection';
 
 const PORT = Number(process.env.PORT ?? 8080);
 const KEYS = process.env.OPENAC_KEYS_DIR ?? '/keys';
@@ -113,6 +113,15 @@ async function verify(body) {
       const pub = clientFor({ chainId: registry.chainId, rpcEnv: registry.rpcEnv });
       const issuerId = status?.issuerId;
       if (typeof issuerId !== 'string') return { ok: false, code: 'malformed', reason: 'the status names no issuer row' };
+      // THE ROW MUST BE THE FACET'S ISSUER'S (spec 444): its id is derived from the issuer's chain and account
+      // (`estateIdOf(chainId, facet subject)`), so a status from another issuer's row proves nothing about this credential —
+      // whoever is registered to SIGN that row (the issuer itself, or the estate's neutral-ground agent anchoring for it).
+      let presentedKeyId = null;
+      try { presentedKeyId = JSON.parse(presentation.payload).issuerKeyId; } catch { /* the suite already refused a malformed payload */ }
+      const facetIssuer = issuers.find((i) => i?.document?.facet?.keyId === presentedKeyId);
+      if (!facetIssuer) return { ok: false, code: 'issuer_row_unbound', reason: 'no trusted facet names the presentation\'s key, so no row can be its issuer\'s' };
+      const expected = estateIdOf(Number(facetIssuer.chainId), facetIssuer.document.facet.subjectAgent);
+      if (expected.toLowerCase() !== issuerId.toLowerCase()) return { ok: false, code: 'issuer_row_mismatch', reason: `the status names row ${issuerId.slice(0, 12)}…, but the facet's issuer row is ${expected.slice(0, 12)}…` };
       const r = await pub.readContract({ address: registry.address, abi: REGISTRY_ABI, functionName: 'roots', args: [issuerId] });
       const anchored = issuerRootsOf({ estateId: issuerId, liveGrantRoot: r[0], membershipRoot: r[1], charterHash: r[2], sequence: Number(r[3]), anchoredAt: Number(r[4]) });
       if (!anchored) return { ok: false, code: 'not_an_issuer_row', reason: 'neutral ground holds no issuer row under that id' };

@@ -155,7 +155,7 @@ doors:
       # `credentials.issuers`. A presentation under any other facet is refused before a byte of proof is read
       # (`CREDENTIAL_ISSUER_NOT_ACCEPTED`). The organization vouches for its members through ITS issuer; no other
       # issuer's "member" means anything here.
-      issuers: [imbnet-membership-issuer]
+      issuers: [imbnet-membership-issuer, imbnet-org]   # spec 444 W4 — the organization issues its own members' credentials, through its agent
     # RECEIPT RETENTION (2026-10-16): a receipt keeps its parties (the pairwise account, the detail, the references) for
     # this many days — the window in which a dispute could need them — then collapses to kind · effect · codes · decision;
     # its hash in the chain never changes. The door's Worker reads the same number from RECEIPT_FULL_RECORD_DAYS.
@@ -208,6 +208,33 @@ credentials:
     # imbnet's REGISTRY AGENT (the estate's org-side issuer; the same shape faithnet's proves), custodied by maya through
     # www.impact-agent.me. It lives on faithchain (the registry agent is faithchain-era), so its facet is attested there and
     # the holder's wire shares the chain. Its credential carries [age, member, roc_birthday]: the org vouches for both.
+    # SPEC 444 — the ORGANIZATION issues its members' credentials: imbnet's own organization agent (created 2026-10-16 by
+    # maya's Ask at www.impact-agent.me, on hopechain, name deferred), its issuing key in the estate's key service (tenant imb,
+    # `issuer-key:imbnet-org-1`, P-256, ES256_ISSUE_SHA256 only). Its revocation row's id is its own (estateIdOf(34349, sa));
+    # neutral ground is faithchain, where a hopechain account cannot sign, so the estate's neutral-ground agent anchors the row
+    # for it (`rowSigner`) under its anchoring wire — the facet stays the organization's, on its own chain.
+    - id: imbnet-org
+      estate: impact-agent
+      sa: "0x2Ce397435e126e513856D27286248F5497108713"
+      chainId: 34349
+      kind: organization
+      custodian: "maya (steward; via www.impact-agent.me)"
+      attestationRegistry: "0x2D5EFeeB87f60244530e0a1ed420755090295cC4"
+      universalSignatureValidator: "0xa5855906C0De3813E74BEe201973071e0c844115"
+      rpcEnv: HOPECHAIN_RPC_URL
+      rowSigner: "0x432FE71eAB5442220Cb0CBb6974f741093De8Bd7"
+      anchorDelegateKeyEnv: IMPACT_AGENT_PROJECTION_SIGNER
+      anchoringWire: .secrets/anchoring-wire-impact-agent.json
+      since: 2026-10-16
+      facets:
+        - keyId: issuer-key:sd-jwt:imbnet-org-1
+          thumbprint: vCB6bQfAt-TFWa4VtDQGSV4wYhgJtNlTO1ldbJ1MdhI
+          attestation: "0x1481a28ed868085a683d09dcc7b2e4cce0e8408c92a3ea9ef1266c265b8bb1b2"
+          revocationRoot: projection
+          document:
+            facet: {"type":"IssuerKeyFacetV1","subjectAgent":"0x2ce397435e126e513856d27286248f5497108713","keyId":"issuer-key:sd-jwt:imbnet-org-1","suite":"es256-sd-jwt","publicKeyJwk":{"kty":"EC","crv":"P-256","x":"gUqinqZbBXl9V7FSRy2Wi4lLKBrR3nPQ09QqOUHrvYw","y":"w4pimsOhDf9dBhc-zcfrqdGNsn3kGnLBvWUDe-jOCPY","kid":"vCB6bQfAt-TFWa4VtDQGSV4wYhgJtNlTO1ldbJ1MdhI"},"validFrom":"2026-10-16T16:48:00.293Z"}
+            facetHash: sha256:953755a564dfab3878fe1dec1c1313c1e6d5c1707b19231d72053f67b6f6f6b3
+            signature: "0xdc126b6df299d1e38ba002d651eb176d9e5e28c169b38457c1366d1c138b44206b2988f5b37e0e192f17b198cef823ef3f3e68486ec99005362ecb002c07e4c71b"
     - id: imbnet-membership-issuer
       estate: impact-agent
       sa: "0x432FE71eAB5442220Cb0CBb6974f741093De8Bd7"
