@@ -1,0 +1,22 @@
+{
+  "name": "@ap-federation/personal-agent-client",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Our person's agent at THEIR door (spec 443 §1.1, Ring 0 spec 442): PAP sessions (RFC 7523 assertions signed by the estate's pap.svc binding, DPoP on every call), sign-in as Home ceremonies (mediated refused), operations as parked acts whose approval is the mandate signature. Pure client logic over injected ports; holds no identity.",
+  "main": "src/index.ts",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@agenticprimitives/agent-profile": "0.0.0-alpha.35",
+    "@agenticprimitives/intent-engagement": "0.0.0-alpha.8",
+    "@agenticprimitives/key-custody": "1.0.0-alpha.37"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.3",
+    "vitest": "^4.1.8"
+  }
+}
