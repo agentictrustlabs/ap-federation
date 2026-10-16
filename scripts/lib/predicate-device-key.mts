@@ -20,6 +20,7 @@ async function akcsEs256SignerFactory(): Promise<AkcsEs256SignerFactory> {
 }
 import { parseAudienceBoundChallenge } from '@agenticprimitives/delegation';
 import type { Hex } from 'viem';
+import { createECDH, createHash, createPrivateKey, randomUUID, sign } from 'node:crypto';
 
 export type DeviceKeyRef =
   | { kind: 'local'; privateKeyHex: string }
@@ -30,15 +31,21 @@ export function akcsHolderToken(env: (k: string) => string): string { return env
 
 export interface BoundEvidenceInput { digest: Uint8Array; venue: string; predicateDigest: Hex; subject: string }
 
-/** Mint the BOUND evidence token (ES256 JWS): `digest` · `venue` · `predicate_digest` beside iss/aud/sub/exp/jti. */
+/** Mint the BOUND evidence token (ES256 JWS): `digest` · `venue` · `predicate_digest` beside iss/aud/sub/exp/jti. The issuer key is
+ *  the ceremony's own (a script secret, not a device key), so it is signed with Node's crypto here — `kid` is checked against it. */
 export async function mintBoundEvidence(i: BoundEvidenceInput & { signerKeyHex: string; kid: string; issuer: string; audience: string; ttlSeconds?: number }): Promise<string> {
-  const signer = new LocalEs256Signer({ privateKeyHex: i.signerKeyHex });
-  if (signer.kid !== i.kid) throw new Error(`the evidence key's thumbprint is ${signer.kid}, not the configured ${i.kid}`);
+  const d = Buffer.from(i.signerKeyHex.replace(/^0x/, ''), 'hex');
+  const ecdh = createECDH('prime256v1'); ecdh.setPrivateKey(d);
+  const pub = ecdh.getPublicKey(undefined, 'uncompressed');
+  const x = Buffer.from(pub.subarray(1, 33)).toString('base64url'), y = Buffer.from(pub.subarray(33, 65)).toString('base64url');
+  const kid = createHash('sha256').update(`{"crv":"P-256","kty":"EC","x":"${x}","y":"${y}"}`).digest().toString('base64url');
+  if (kid !== i.kid) throw new Error(`the evidence key's thumbprint is ${kid}, not the configured ${i.kid}`);
+  const key = createPrivateKey({ key: { kty: 'EC', crv: 'P-256', d: d.toString('base64url'), x, y }, format: 'jwk' });
   const b64 = (s: string | Uint8Array) => Buffer.from(s).toString('base64url');
   const now = Math.floor(Date.now() / 1000);
   const header = b64(JSON.stringify({ alg: 'ES256', typ: 'JWT', kid: i.kid }));
-  const claims = b64(JSON.stringify({ iss: i.issuer, aud: i.audience, sub: i.subject, iat: now, nbf: now - 5, exp: now + (i.ttlSeconds ?? 120), jti: crypto.randomUUID(), digest: `0x${Buffer.from(i.digest).toString('hex')}`, venue: i.venue, predicate_digest: i.predicateDigest.toLowerCase() }));
-  const sig = await signer.sign(new TextEncoder().encode(`${header}.${claims}`));
+  const claims = b64(JSON.stringify({ iss: i.issuer, aud: i.audience, sub: i.subject, iat: now - 120, nbf: now - 120, exp: now + (i.ttlSeconds ?? 120), jti: randomUUID(), digest: `0x${Buffer.from(i.digest).toString('hex')}`, venue: i.venue, predicate_digest: i.predicateDigest.toLowerCase() }));
+  const sig = sign('sha256', Buffer.from(`${header}.${claims}`), { key, dsaEncoding: 'ieee-p1363' });
   return `${header}.${claims}.${b64(sig)}`;
 }
 
