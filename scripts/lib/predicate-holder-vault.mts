@@ -54,10 +54,12 @@ export async function readHolderFromVault(c: VaultCredentials, door: string): Pr
   const mandatesAll: Array<StandingWireV1 & { holder: string; door: string; issuerKeyId: string; issuedAt?: string }> = [];
   for (const t of types.filter((x) => x.startsWith('credential.presentation-mandate:'))) { const r = await getVaultRecord<StandingWireV1 & { holder: string; door: string; issuerKeyId: string; issuedAt?: string }>(c, t); if (r) mandatesAll.push(r); }
   const forDoor = mandatesAll.filter((m) => m.door === door).sort((a, b) => String(b.issuedAt ?? '').localeCompare(String(a.issuedAt ?? '')));
+  // Among an issuer's live credentials, the NEWEST (a re-issue over a changed layout supersedes the earlier one; both stay hers).
+  const newest = <T extends { issuedAt?: string }>(xs: T[]): T | undefined => [...xs].sort((a, b) => String(b.issuedAt ?? '').localeCompare(String(a.issuedAt ?? '')))[0];
   const liveCands = creds.filter((x) => !x.revoked);
-  const liveRec = forDoor.map((m) => liveCands.find((x) => x.issuerKeyId === m.issuerKeyId)).find(Boolean) ?? liveCands[0];
+  const liveRec = forDoor.map((m) => newest(liveCands.filter((x) => x.issuerKeyId === m.issuerKeyId))).find(Boolean) ?? newest(liveCands);
   if (!liveRec) throw new Error(`her vault holds no live credential.anonymous:* record under this grant (listed ${types.length} credential.* record(s))`);
-  const revokedRec = creds.find((x) => !!x.revoked && x.issuerKeyId === liveRec.issuerKeyId) ?? creds.find((x) => !!x.revoked);
+  const revokedRec = newest(creds.filter((x) => !!x.revoked && x.issuerKeyId === liveRec.issuerKeyId)) ?? newest(creds.filter((x) => !!x.revoked));
   if (!revokedRec) throw new Error('her vault holds no revoked credential (the gate\'s twin needs one)');
   const deviceKey = await getVaultRecord<HolderDeviceKeyRecordV1>(c, HOLDER_RECORDS.deviceKey(liveRec.deviceKeyThumbprint));
   if (!deviceKey?.privateKeyHex) throw new Error(`her vault holds no ${HOLDER_RECORDS.deviceKey(liveRec.deviceKeyThumbprint)}`);

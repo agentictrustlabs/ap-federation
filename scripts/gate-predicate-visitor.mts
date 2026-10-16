@@ -4,9 +4,10 @@
 // her holder secret and the door's origin), the proof hides the issuer key and the device key, and the receipt names a
 // facet, a predicate program, a nullifier grade and a status sequence — never a claim, never her person agent.
 //
-// NEXT (zkID Z5, not in this gate yet): the same knock also proves "and I am a member of your organization" — a `member`
-// claim in a credential the ORGANIZATION's own issuer facet issued, a second predicate in the same policy; the door learns
-// it issued her a membership and nothing about which member. Until then this gate proves age only.
+// zkID Z5 (2026-10-16): the same knock proves "and I am a member of your organization" — a `member` claim in a credential
+// the ORGANIZATION's own issuer facet issued (imbnet's, at imbnet's door), a second predicate in the same policy; the door
+// learns it issued her a membership and nothing about which member. The Z4 credential (another issuer, no member) is the twin.
+// One visit per hour: the door's nullifier window — a second run inside the hour is refused as reused, by design.
 //
 // The holder half (scripts/lib/predicate-holder.mts): the door's published policy → the proof request; her standing
 // `credential.present` wire → the child mandate for THIS statement → the presentation release that judges it inside
