@@ -11,9 +11,9 @@
     "deploy:ligonier": "wrangler deploy --env ligonier"
   },
   "dependencies": {
-    "@agenticprimitives/a2a": "0.0.0-alpha.40",
-    "@agenticprimitives/admission": "0.0.0-alpha.16",
-    "@agenticprimitives/registry-kit": "0.0.0-alpha.23",
+    "@agenticprimitives/a2a": "0.0.0-alpha.41",
+    "@agenticprimitives/admission": "0.0.0-alpha.17",
+    "@agenticprimitives/registry-kit": "0.0.0-alpha.24",
     "viem": "2.52.2"
   },
   "devDependencies": {

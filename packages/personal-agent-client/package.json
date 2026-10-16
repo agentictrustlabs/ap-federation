@@ -10,9 +10,9 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@agenticprimitives/agent-profile": "1.0.0-alpha.39",
-    "@agenticprimitives/intent-engagement": "0.0.0-alpha.18",
-    "@agenticprimitives/key-custody": "1.0.0-alpha.39"
+    "@agenticprimitives/agent-profile": "1.0.0-alpha.40",
+    "@agenticprimitives/intent-engagement": "0.0.0-alpha.19",
+    "@agenticprimitives/key-custody": "1.0.0-alpha.40"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

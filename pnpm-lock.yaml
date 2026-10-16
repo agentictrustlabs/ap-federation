@@ -14,41 +14,41 @@ importers:
   .:
     devDependencies:
       '@agenticprimitives/a2a':
-        specifier: 0.0.0-alpha.40
-        version: 0.0.0-alpha.40(@agenticprimitives/agent-account@1.0.0-alpha.34(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/key-custody@1.0.0-alpha.39(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/ontology@1.0.0-alpha.34)(viem@2.52.2(typescript@5.9.3))
+        specifier: 0.0.0-alpha.41
+        version: 0.0.0-alpha.41(@agenticprimitives/agent-account@1.0.0-alpha.34(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/key-custody@1.0.0-alpha.40(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/ontology@1.0.0-alpha.34)(viem@2.52.2(typescript@5.9.3))
       '@agenticprimitives/admission':
-        specifier: 0.0.0-alpha.16
-        version: 0.0.0-alpha.16(@agenticprimitives/types@1.0.0-alpha.39)
+        specifier: 0.0.0-alpha.17
+        version: 0.0.0-alpha.17(@agenticprimitives/types@1.0.0-alpha.40)
       '@agenticprimitives/attestations':
-        specifier: 0.0.0-alpha.35
-        version: 0.0.0-alpha.35(@agenticprimitives/agent-account@1.0.0-alpha.34(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/key-custody@1.0.0-alpha.39(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/ontology@1.0.0-alpha.34)(viem@2.52.2(typescript@5.9.3))
+        specifier: 0.0.0-alpha.36
+        version: 0.0.0-alpha.36(@agenticprimitives/agent-account@1.0.0-alpha.34(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/key-custody@1.0.0-alpha.40(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/ontology@1.0.0-alpha.34)(viem@2.52.2(typescript@5.9.3))
       '@agenticprimitives/delegation':
-        specifier: 1.0.0-alpha.39
-        version: 1.0.0-alpha.39(@agenticprimitives/agent-account@1.0.0-alpha.34(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/key-custody@1.0.0-alpha.39(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3))
+        specifier: 1.0.0-alpha.40
+        version: 1.0.0-alpha.40(@agenticprimitives/agent-account@1.0.0-alpha.34(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/key-custody@1.0.0-alpha.40(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3))
       '@agenticprimitives/devkit':
-        specifier: 0.0.0-alpha.27
-        version: 0.0.0-alpha.27(@agenticprimitives/a2a@0.0.0-alpha.40(@agenticprimitives/agent-account@1.0.0-alpha.34(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/key-custody@1.0.0-alpha.39(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/ontology@1.0.0-alpha.34)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/evaluation@0.0.0-alpha.11)(@agenticprimitives/ontology@1.0.0-alpha.34)(viem@2.52.2(typescript@5.9.3))
+        specifier: 0.0.0-alpha.28
+        version: 0.0.0-alpha.28(@agenticprimitives/a2a@0.0.0-alpha.41(@agenticprimitives/agent-account@1.0.0-alpha.34(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/key-custody@1.0.0-alpha.40(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/ontology@1.0.0-alpha.34)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/evaluation@0.0.0-alpha.11)(@agenticprimitives/ontology@1.0.0-alpha.34)(viem@2.52.2(typescript@5.9.3))
       '@agenticprimitives/estate-projection':
-        specifier: 0.0.0-alpha.14
-        version: 0.0.0-alpha.14(@agenticprimitives/verifiable-credentials@0.0.0-alpha.36(@agenticprimitives/ontology@1.0.0-alpha.34)(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(typescript@5.9.3)
+        specifier: 0.0.0-alpha.15
+        version: 0.0.0-alpha.15(@agenticprimitives/verifiable-credentials@0.0.0-alpha.37(@agenticprimitives/ontology@1.0.0-alpha.34)(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(typescript@5.9.3)
       '@agenticprimitives/evaluation':
         specifier: 0.0.0-alpha.11
         version: 0.0.0-alpha.11
       '@agenticprimitives/key-custody':
-        specifier: 1.0.0-alpha.39
-        version: 1.0.0-alpha.39(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3))
+        specifier: 1.0.0-alpha.40
+        version: 1.0.0-alpha.40(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3))
       '@agenticprimitives/mcp-protocol':
         specifier: 0.0.0-alpha.4
         version: 0.0.0-alpha.4
       '@agenticprimitives/privacy-credentials':
-        specifier: 0.0.0-alpha.16
-        version: 0.0.0-alpha.16(@agenticprimitives/types@1.0.0-alpha.39)
+        specifier: 0.0.0-alpha.17
+        version: 0.0.0-alpha.17(@agenticprimitives/types@1.0.0-alpha.40)
       '@agenticprimitives/privacy-credentials-openac':
-        specifier: 0.0.0-alpha.2
-        version: 0.0.0-alpha.2(@agenticprimitives/privacy-credentials@0.0.0-alpha.16(@agenticprimitives/types@1.0.0-alpha.39))
+        specifier: 0.0.0-alpha.5
+        version: 0.0.0-alpha.5(@agenticprimitives/privacy-credentials@0.0.0-alpha.17(@agenticprimitives/types@1.0.0-alpha.40))
       '@agenticprimitives/verification-receipts':
-        specifier: 0.0.0-alpha.16
-        version: 0.0.0-alpha.16(@agenticprimitives/types@1.0.0-alpha.39)
+        specifier: 0.0.0-alpha.17
+        version: 0.0.0-alpha.17(@agenticprimitives/types@1.0.0-alpha.40)
       openac-sdk:
         specifier: 5.0.0
         version: 5.0.0(patch_hash=2c1d0004e66c4cf51d9a13dceea2664a5bd9c49ec22920e8ce0c5c14e69982e9)
@@ -71,17 +71,17 @@ importers:
   apps/door:
     dependencies:
       '@agenticprimitives/admission':
-        specifier: 0.0.0-alpha.16
-        version: 0.0.0-alpha.16(@agenticprimitives/types@1.0.0-alpha.39)
+        specifier: 0.0.0-alpha.17
+        version: 0.0.0-alpha.17(@agenticprimitives/types@1.0.0-alpha.40)
       '@agenticprimitives/delegation':
-        specifier: 1.0.0-alpha.39
-        version: 1.0.0-alpha.39(@agenticprimitives/agent-account@1.0.0-alpha.34(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/key-custody@1.0.0-alpha.39(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3))
+        specifier: 1.0.0-alpha.40
+        version: 1.0.0-alpha.40(@agenticprimitives/agent-account@1.0.0-alpha.34(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/key-custody@1.0.0-alpha.40(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3))
       '@agenticprimitives/estate-projection':
-        specifier: 0.0.0-alpha.14
-        version: 0.0.0-alpha.14(@agenticprimitives/verifiable-credentials@0.0.0-alpha.36(@agenticprimitives/ontology@1.0.0-alpha.34)(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(typescript@5.9.3)
+        specifier: 0.0.0-alpha.15
+        version: 0.0.0-alpha.15(@agenticprimitives/verifiable-credentials@0.0.0-alpha.37(@agenticprimitives/ontology@1.0.0-alpha.34)(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(typescript@5.9.3)
       '@agenticprimitives/privacy-credentials':
-        specifier: 0.0.0-alpha.16
-        version: 0.0.0-alpha.16(@agenticprimitives/types@1.0.0-alpha.39)
+        specifier: 0.0.0-alpha.17
+        version: 0.0.0-alpha.17(@agenticprimitives/types@1.0.0-alpha.40)
       '@cloudflare/containers':
         specifier: 0.3.7
         version: 0.3.7
@@ -126,8 +126,8 @@ importers:
   apps/pap:
     dependencies:
       '@agenticprimitives/registry-kit':
-        specifier: 0.0.0-alpha.23
-        version: 0.0.0-alpha.23(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3))
+        specifier: 0.0.0-alpha.24
+        version: 0.0.0-alpha.24(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3))
     devDependencies:
       '@cloudflare/workers-types':
         specifier: 4.20260605.1
@@ -148,14 +148,14 @@ importers:
   apps/pap-door:
     dependencies:
       '@agenticprimitives/a2a':
-        specifier: 0.0.0-alpha.40
-        version: 0.0.0-alpha.40(@agenticprimitives/agent-account@1.0.0-alpha.34(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/key-custody@1.0.0-alpha.39(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/ontology@1.0.0-alpha.34)(viem@2.52.2(typescript@5.9.3))
+        specifier: 0.0.0-alpha.41
+        version: 0.0.0-alpha.41(@agenticprimitives/agent-account@1.0.0-alpha.34(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/key-custody@1.0.0-alpha.40(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/ontology@1.0.0-alpha.34)(viem@2.52.2(typescript@5.9.3))
       '@agenticprimitives/admission':
-        specifier: 0.0.0-alpha.16
-        version: 0.0.0-alpha.16(@agenticprimitives/types@1.0.0-alpha.39)
+        specifier: 0.0.0-alpha.17
+        version: 0.0.0-alpha.17(@agenticprimitives/types@1.0.0-alpha.40)
       '@agenticprimitives/registry-kit':
-        specifier: 0.0.0-alpha.23
-        version: 0.0.0-alpha.23(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3))
+        specifier: 0.0.0-alpha.24
+        version: 0.0.0-alpha.24(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3))
       viem:
         specifier: 2.52.2
         version: 2.52.2(typescript@5.9.3)
@@ -179,11 +179,11 @@ importers:
   apps/projector:
     dependencies:
       '@agenticprimitives/delegation':
-        specifier: 1.0.0-alpha.39
-        version: 1.0.0-alpha.39(@agenticprimitives/agent-account@1.0.0-alpha.34(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/key-custody@1.0.0-alpha.39(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3))
+        specifier: 1.0.0-alpha.40
+        version: 1.0.0-alpha.40(@agenticprimitives/agent-account@1.0.0-alpha.34(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/key-custody@1.0.0-alpha.40(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3))
       '@agenticprimitives/estate-projection':
-        specifier: 0.0.0-alpha.14
-        version: 0.0.0-alpha.14(@agenticprimitives/verifiable-credentials@0.0.0-alpha.36(@agenticprimitives/ontology@1.0.0-alpha.34)(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(typescript@5.9.3)
+        specifier: 0.0.0-alpha.15
+        version: 0.0.0-alpha.15(@agenticprimitives/verifiable-credentials@0.0.0-alpha.37(@agenticprimitives/ontology@1.0.0-alpha.34)(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(typescript@5.9.3)
       viem:
         specifier: 2.52.2
         version: 2.52.2(typescript@5.9.3)
@@ -235,14 +235,14 @@ importers:
   packages/personal-agent-client:
     dependencies:
       '@agenticprimitives/agent-profile':
-        specifier: 1.0.0-alpha.39
-        version: 1.0.0-alpha.39(@agenticprimitives/agent-account@1.0.0-alpha.34(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3))
+        specifier: 1.0.0-alpha.40
+        version: 1.0.0-alpha.40(@agenticprimitives/agent-account@1.0.0-alpha.34(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3))
       '@agenticprimitives/intent-engagement':
-        specifier: 0.0.0-alpha.18
-        version: 0.0.0-alpha.18(typescript@5.9.3)
+        specifier: 0.0.0-alpha.19
+        version: 0.0.0-alpha.19(typescript@5.9.3)
       '@agenticprimitives/key-custody':
-        specifier: 1.0.0-alpha.39
-        version: 1.0.0-alpha.39(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3))
+        specifier: 1.0.0-alpha.40
+        version: 1.0.0-alpha.40(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3))
     devDependencies:
       '@types/node':
         specifier: ^22.10.0
@@ -259,16 +259,16 @@ packages:
   '@adraffy/ens-normalize@1.11.1':
     resolution: {integrity: sha512-nhCBV3quEgesuf7c7KYfperqSS14T8bYuvJ8PcLJp6znkZpFc0AuW4qBtr8eKVyPPe/8RSr7sglCWPU5eaxwKQ==}
 
-  '@agenticprimitives/a2a@0.0.0-alpha.40':
-    resolution: {integrity: sha512-bigW0/owbSS80MffboJJKu4Hk34ZpmNf54AgxFXnsNJkLFiSmBJPURdESFpkUs4l202fwi3SL0CXjCfk4PkxHw==}
+  '@agenticprimitives/a2a@0.0.0-alpha.41':
+    resolution: {integrity: sha512-Ril2cK4TYH3Q5rpj8wESrcOv7XbRXRbMtV6QkPJ1O+dfWXD31BT4AifwHEsLwkIgaNcTcP2rCH3CgeX6YKLkZg==}
     hasBin: true
     peerDependencies:
       viem: ^2.52.2
 
-  '@agenticprimitives/admission@0.0.0-alpha.16':
-    resolution: {integrity: sha512-IXYrC+bymx9To0ABdTw/NQ9alJbYKmALVeYPvxchxYBhU0wQpbumzKlMvTCsQnhkzQTMbWIad5Gx+qoV7+Hb0Q==}
+  '@agenticprimitives/admission@0.0.0-alpha.17':
+    resolution: {integrity: sha512-Fmdc88qQgyOIflE43c0ZXdn/OJRyOFDbBom4j9EYy6WOsg0/I3SkBw0SRomRTndPrMmVhMwGvJ8GxIaJRzeVRw==}
     peerDependencies:
-      '@agenticprimitives/types': ^1.0.0-alpha.39
+      '@agenticprimitives/types': ^1.0.0-alpha.40
 
   '@agenticprimitives/agent-account@1.0.0-alpha.34':
     resolution: {integrity: sha512-AcjfNH2mOxDQ46MIPoNb6uK5l6DiJ/aZtPqqBvSxkM5CWtBONnpHq3eeBUh/NLfMbq9xPPQIA6a/UMvNqKD5Hw==}
@@ -277,21 +277,21 @@ packages:
       '@agenticprimitives/types': ^1.0.0-alpha.34
       viem: ^2.52.2
 
-  '@agenticprimitives/agent-profile@1.0.0-alpha.39':
-    resolution: {integrity: sha512-do72+NG/nXjqdZ5IKc/8cIuzKrnFC6qkruwLblXghIAjAmpfFDtW6TSbrrIiz/tzo+xLOCe8rvh9FQAqJa7LAg==}
+  '@agenticprimitives/agent-profile@1.0.0-alpha.40':
+    resolution: {integrity: sha512-zbtrFn0m9G6dl7ScyyaKL78eZlnFtO7NwMQvqb+XTUIW0q3K4oafXkQXbn6vB4VInMTRJDtqDp6i+2aVnmsSPA==}
     peerDependencies:
-      '@agenticprimitives/agent-account': ^1.0.0-alpha.39
-      '@agenticprimitives/connect-auth': ^1.0.0-alpha.39
-      '@agenticprimitives/types': ^1.0.0-alpha.39
+      '@agenticprimitives/agent-account': ^1.0.0-alpha.40
+      '@agenticprimitives/connect-auth': ^1.0.0-alpha.40
+      '@agenticprimitives/types': ^1.0.0-alpha.40
       viem: ^2.52.2
 
-  '@agenticprimitives/agreements@0.0.0-alpha.36':
-    resolution: {integrity: sha512-NBPqGG3ccqoVCOEShMq/0/oA7Wwv5igpz7x/smHgab1VdmEr3O9E9tEL4BgmXhBKF9K7iq/wBXG8Yg+UAuy78g==}
+  '@agenticprimitives/agreements@0.0.0-alpha.37':
+    resolution: {integrity: sha512-9f/4dg+SW6ZQrXId0gvKhuWs2QJLgJjFKJEyF2Lmwjrr4ZGoo4DaanEzzWv7r7WHwZutOEU3gjMahTfqY9sR9A==}
     peerDependencies:
       viem: ^2.52.2
 
-  '@agenticprimitives/attestations@0.0.0-alpha.35':
-    resolution: {integrity: sha512-0eARX3bXZnPkT0MNvFbQmZv1aAw/pRTLYDe303zUVIXEM1XZHOv+3stJxNMrgS3ju9XbnnrIU+2OGNM3XIJ3nA==}
+  '@agenticprimitives/attestations@0.0.0-alpha.36':
+    resolution: {integrity: sha512-w8s/mnt/SP6YIHjwHly73dh6SIWZMccNAa4yvgvhk6cc63sbp4dqNl463IY1Bfn7Sb1wdIdCl3T/ThtztD9bAQ==}
     peerDependencies:
       viem: ^2.52.2
 
@@ -300,8 +300,8 @@ packages:
     peerDependencies:
       '@agenticprimitives/types': ^1.0.0-alpha.34
 
-  '@agenticprimitives/capability-claims@0.0.0-alpha.39':
-    resolution: {integrity: sha512-JBApfz0L0F0BaQO9b/B+SYfSem9NQe/OGiqUg2lZQySmsAQGoIqMHvBWOmkaEoDrRwDpQSqulnBL6G3OSIYWdg==}
+  '@agenticprimitives/capability-claims@0.0.0-alpha.40':
+    resolution: {integrity: sha512-gv5NiK3NsA2/E8n4ekCdJJbtB+yjuKDveAkZ3T+A/AyimBoeq4jx4Jh9Ej11OzbLaEmd/Aj1cnafNHxKO8lbNg==}
 
   '@agenticprimitives/connect-auth@1.0.0-alpha.34':
     resolution: {integrity: sha512-Oc4q0domMetrP1HTIOc0OoNNVnAD9sq5Dc4x7ugibqar9573QscKv+VJlxZd1753xOFo3wnKHevCdIq9i/tGJw==}
@@ -309,32 +309,32 @@ packages:
       '@agenticprimitives/types': ^1.0.0-alpha.34
       viem: ^2.52.2
 
-  '@agenticprimitives/content-primitives@1.0.0-alpha.36':
-    resolution: {integrity: sha512-g7TZh2ptBRHfDLNjz3q+qAo2H+mMzBDGXYGjrDWbOb7IEQIFyPyIAwoyNM0sMq64BpdZ7spyH+YN4VKepRpJiQ==}
+  '@agenticprimitives/content-primitives@1.0.0-alpha.37':
+    resolution: {integrity: sha512-UiYQFmZN9HePW7lrF5rXwu1DMDjTJVqHoUOhMZi5pNIE9AOpXUhmBL4SopYozZIOkJpINIWLO56nNZm36mcSCg==}
     peerDependencies:
-      '@agenticprimitives/types': ^1.0.0-alpha.39
-      '@agenticprimitives/verifiable-credentials': ^0.0.0-alpha.36
+      '@agenticprimitives/types': ^1.0.0-alpha.40
+      '@agenticprimitives/verifiable-credentials': ^0.0.0-alpha.37
       viem: ^2.52.2
 
-  '@agenticprimitives/delegation@1.0.0-alpha.39':
-    resolution: {integrity: sha512-dXWZqE6FN+wciKPjv+1LqGsURsCmdeMx01wSwQ2J2g8yKoUrTG/i42EPXyT9hkY1gPJwinbEWNaUVXrRAlfCEA==}
+  '@agenticprimitives/delegation@1.0.0-alpha.40':
+    resolution: {integrity: sha512-thaRrAedtXBAoQDJLwxaPF5MdOCoBiyO7TVcJ+DeD0JUtRCtGcZLzeWVkM03qloudUWKDrPoO0vwzK27/imCZQ==}
     peerDependencies:
-      '@agenticprimitives/agent-account': ^1.0.0-alpha.39
-      '@agenticprimitives/audit': ^1.0.0-alpha.39
-      '@agenticprimitives/connect-auth': ^1.0.0-alpha.39
-      '@agenticprimitives/key-custody': ^1.0.0-alpha.39
-      '@agenticprimitives/types': ^1.0.0-alpha.39
+      '@agenticprimitives/agent-account': ^1.0.0-alpha.40
+      '@agenticprimitives/audit': ^1.0.0-alpha.40
+      '@agenticprimitives/connect-auth': ^1.0.0-alpha.40
+      '@agenticprimitives/key-custody': ^1.0.0-alpha.40
+      '@agenticprimitives/types': ^1.0.0-alpha.40
       viem: ^2.52.2
 
-  '@agenticprimitives/devkit@0.0.0-alpha.27':
-    resolution: {integrity: sha512-9fiJFZn+TBPD7Q1FJPxKUigR1uWHabQlvQkq9d5emqqF8EqmO4Vg7m5XOpSBtf/FqdhXn8avxKB4d7lRKk3vmQ==}
+  '@agenticprimitives/devkit@0.0.0-alpha.28':
+    resolution: {integrity: sha512-MZZH6k3Jksxef34Zvj9RuvMgamv1VOh0iA11O8+Msk+DKIdgeh4129NzaMQLhx1Ieukv5TUxXKRI3Oqspd6Gpg==}
     hasBin: true
     peerDependencies:
-      '@agenticprimitives/a2a': ^0.0.0-alpha.40
+      '@agenticprimitives/a2a': ^0.0.0-alpha.41
       '@agenticprimitives/evaluation': ^0.0.0-alpha.11
-      '@agenticprimitives/harness': ^0.0.0-alpha.23
-      '@agenticprimitives/orchestration': ^0.0.0-alpha.20
-      '@agenticprimitives/provenance-node': ^0.0.0-alpha.18
+      '@agenticprimitives/harness': ^0.0.0-alpha.24
+      '@agenticprimitives/orchestration': ^0.0.0-alpha.21
+      '@agenticprimitives/provenance-node': ^0.0.0-alpha.19
     peerDependenciesMeta:
       '@agenticprimitives/a2a':
         optional: true
@@ -347,28 +347,28 @@ packages:
       '@agenticprimitives/provenance-node':
         optional: true
 
-  '@agenticprimitives/estate-projection@0.0.0-alpha.14':
-    resolution: {integrity: sha512-kR2w9hJJcEgFHUcx5D2JQpZEGjogiOiKDB+SCWQbRPcj0KOiHK+qmGZwqAUZ1XN6ltlCR4/wbkdSFlrZax5AfA==}
+  '@agenticprimitives/estate-projection@0.0.0-alpha.15':
+    resolution: {integrity: sha512-9VLMHLbfPbviaY6f8R6wk1NDOOOIjvPd1ZcKaqSWbUPyQVyh+mW8/+btYAa0KLU2QOZVQ4NwA1a0W/6EHC1++Q==}
 
   '@agenticprimitives/evaluation@0.0.0-alpha.11':
     resolution: {integrity: sha512-smy0v9OfWwW0hqYyJSPCdOLsN5ve1gKw4NEZYvjXr4eck1pcLDa2DczA6DKH703x2Fx+tcxBR39wgUprb3+X4A==}
     hasBin: true
 
-  '@agenticprimitives/fulfillment@0.0.0-alpha.36':
-    resolution: {integrity: sha512-U1ZK8IrohzLAsn0fMztkEEPzpfbNkCuBKqSp7YWpYugkCpc4figbOXmdz4y+x8nzwgM8l8VmRXP3D5VGzT0B5g==}
+  '@agenticprimitives/fulfillment@0.0.0-alpha.37':
+    resolution: {integrity: sha512-LLV0tnw0QTYGAtE9cO9dwYn0lmilk/6HK/KUX96cKPlWqFkcLRaEZ+SpMMwrTAw1blU68NOXvP+UqyEYKHm38Q==}
     peerDependencies:
       viem: ^2.52.2
 
-  '@agenticprimitives/intent-engagement@0.0.0-alpha.18':
-    resolution: {integrity: sha512-POzZqYruMdMyqgMSNXzbSV2IzHbOGXRiodaXHVNwRucFtb3yUDU3w/KDE1LrWX5oxikA/dX04XWrcrXn9crqKw==}
+  '@agenticprimitives/intent-engagement@0.0.0-alpha.19':
+    resolution: {integrity: sha512-bL90kvCvIuSruOgLHjRrNJVvI22lvp9XLvX/BUiL1Ha/YkEoEqdhiYBr1kpBH7LPaP9LVtfSQgXpLMIwy8iMGg==}
 
-  '@agenticprimitives/key-custody@1.0.0-alpha.39':
-    resolution: {integrity: sha512-SkDVYHspDM5ynv0pxGzBk/gp10B+EJA3ldSyl3zSoQ6lJ/X6LH+hoLlk3o71QWAw88PS+wGUfPLskZmREJCUhQ==}
+  '@agenticprimitives/key-custody@1.0.0-alpha.40':
+    resolution: {integrity: sha512-uzqs/TY26VYmmYVIQzUkMiUdQEshU1fJsuTaAPOFOr/dtjidP0gwbTV2kfe71PHdOyvYd7CHOE6l6RQZrLt1Cg==}
     hasBin: true
     peerDependencies:
-      '@agenticprimitives/audit': ^1.0.0-alpha.39
-      '@agenticprimitives/connect-auth': ^1.0.0-alpha.39
-      '@agenticprimitives/types': ^1.0.0-alpha.39
+      '@agenticprimitives/audit': ^1.0.0-alpha.40
+      '@agenticprimitives/connect-auth': ^1.0.0-alpha.40
+      '@agenticprimitives/types': ^1.0.0-alpha.40
       viem: ^2.52.2
     peerDependenciesMeta:
       '@agenticprimitives/audit':
@@ -385,40 +385,40 @@ packages:
   '@agenticprimitives/ontology@1.0.0-alpha.34':
     resolution: {integrity: sha512-AJtTPwV6xNh51bUisk66ZYkSsqh2qftiCjK44IUm/pMbur62uV4Kdo9+EIUgCi8U5ox8ucbsNMo/FTYuJ8Md5w==}
 
-  '@agenticprimitives/privacy-credentials-openac@0.0.0-alpha.2':
-    resolution: {integrity: sha512-+tESyF5kDNyiPc7TsWXYP3KaDhBu/GmR2XKy+rdmN3C424gl8adhOxKf7sMlTWZs5PIlZ0ixOAHwLbLvulqNZQ==}
+  '@agenticprimitives/privacy-credentials-openac@0.0.0-alpha.5':
+    resolution: {integrity: sha512-8ZI4FPekfSjuY2nWrdvt2d8l5x8p+o6wvepyuNeHI+7QjZM+wbA/DXY8iPivz2uAsPH0odsSV08d0EhIr7v5ig==}
     peerDependencies:
-      '@agenticprimitives/privacy-credentials': ^0.0.0-alpha.14
+      '@agenticprimitives/privacy-credentials': ^0.0.0-alpha.17
 
-  '@agenticprimitives/privacy-credentials@0.0.0-alpha.16':
-    resolution: {integrity: sha512-ntT6boVwFvFCQScEbQIWqvZmlYO++TIfdTjHeXlYPyOJbqizo9I1oLAdjkyYKVFSIGjHdJK9iqoHE4RGo2Ydnw==}
+  '@agenticprimitives/privacy-credentials@0.0.0-alpha.17':
+    resolution: {integrity: sha512-j46wnEcpxb1GM8WiU5EIgIRuF/Wq3aFUVgvxGXRBrJIJigFBV+LKgxmGekHO+vwx9f9uc493ZII00QILuqGYdA==}
     peerDependencies:
-      '@agenticprimitives/types': ^1.0.0-alpha.39
+      '@agenticprimitives/types': ^1.0.0-alpha.40
 
-  '@agenticprimitives/registry-kit@0.0.0-alpha.23':
-    resolution: {integrity: sha512-i/il/CbZSJAb2uaST1MVHaJ/ranDhWD58tTVJtCSpB4Pml81QenJucO6dDqOdCDxYU4FbZ8ePsMUhLDUuG4zNQ==}
+  '@agenticprimitives/registry-kit@0.0.0-alpha.24':
+    resolution: {integrity: sha512-9oFOt20zwOPtLuFYkDxGUdBntPBrCEIydtpFX8y9IqGt7siNMC3Wiggz5UjVNxMKAQdBwBK9z3LkwaUe3w4gpA==}
     peerDependencies:
-      '@agenticprimitives/types': ^1.0.0-alpha.39
+      '@agenticprimitives/types': ^1.0.0-alpha.40
       viem: ^2.52.2
 
-  '@agenticprimitives/situations@0.0.0-alpha.23':
-    resolution: {integrity: sha512-4uqXoM9UWuFh2ib4oWmJGDoq6lr97bP05Iuc7g16ArKd/XhZCmRGQ1HClLsS5Ec3dsExc/3mW64jcFfWn4VHcA==}
+  '@agenticprimitives/situations@0.0.0-alpha.24':
+    resolution: {integrity: sha512-8OJQUq2h1MwzM+aJZKepjP/okBImRhOCSoWJp9Ry4MaFEmLCPNdwQLOUdkRVZKOTjkeRIqVQaBhCFRoZyabu9Q==}
 
-  '@agenticprimitives/types@1.0.0-alpha.39':
-    resolution: {integrity: sha512-ragH5DStEOylZ1ElYgiqLzQddZkxukXiSwr+rb29CA//52zAuoLKBSyncWMb9Fdg+krs+WdUh7gEpR1RE58SyA==}
+  '@agenticprimitives/types@1.0.0-alpha.40':
+    resolution: {integrity: sha512-DAgZ+1sdRPX6V3EINJ7Q6j6WJqb6XjDiuK49iwVero+6WWHvv7FenMsjPLmBajymnNDNr8CuGQznha4WCVqznA==}
 
-  '@agenticprimitives/verifiable-credentials@0.0.0-alpha.36':
-    resolution: {integrity: sha512-Gwao5ZfgZ8g+p5Dxm4hnOZXhX3uqibVK8Va+Rf1yrIhKg3xjD4xl+z+SLRpxRC5VKRuivlQ+s99EW2PiiLOnIg==}
+  '@agenticprimitives/verifiable-credentials@0.0.0-alpha.37':
+    resolution: {integrity: sha512-jEOgslWVoOg44RJUtONgpvJ0x3KSMjBpKevGPqyVHWpLAY6sCPjbAkWbIPSTtYf8F92qVqKEL/+fj7FqYXA72A==}
     peerDependencies:
-      '@agenticprimitives/ontology': ^1.0.0-alpha.39
-      '@agenticprimitives/types': ^1.0.0-alpha.39
+      '@agenticprimitives/ontology': ^1.0.0-alpha.40
+      '@agenticprimitives/types': ^1.0.0-alpha.40
       viem: ^2.52.2
 
-  '@agenticprimitives/verification-receipts@0.0.0-alpha.16':
-    resolution: {integrity: sha512-VOOjGou3+dnfIoXWe/Vxk2HAIOLrg/ofP2acTdgfZ0YuT237q8CHVYPejM9r9pLY66lm8hiTvbrgQdQn2xjg2A==}
+  '@agenticprimitives/verification-receipts@0.0.0-alpha.17':
+    resolution: {integrity: sha512-RwOembDPfuMUd8zZyeJR6hGpsxy18srMYbFnMe1Uj7PTnwdwE5D+Op39UpvLYLkv7zpYh4VPE1u67w2IrfWufA==}
     hasBin: true
     peerDependencies:
-      '@agenticprimitives/types': ^1.0.0-alpha.39
+      '@agenticprimitives/types': ^1.0.0-alpha.40
 
   '@cloudflare/containers@0.3.7':
     resolution: {integrity: sha512-DM9dm3FnIBSyiSJ1FLavKwl/lk3oAmTaynCzZQ9pZR0ncRPquSxkxd8Nu2MFILxmDDsPkxKsSNEh9mHHMty4Fw==}
@@ -1564,12 +1564,12 @@ snapshots:
 
   '@adraffy/ens-normalize@1.11.1': {}
 
-  '@agenticprimitives/a2a@0.0.0-alpha.40(@agenticprimitives/agent-account@1.0.0-alpha.34(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/key-custody@1.0.0-alpha.39(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/ontology@1.0.0-alpha.34)(viem@2.52.2(typescript@5.9.3))':
+  '@agenticprimitives/a2a@0.0.0-alpha.41(@agenticprimitives/agent-account@1.0.0-alpha.34(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/key-custody@1.0.0-alpha.40(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/ontology@1.0.0-alpha.34)(viem@2.52.2(typescript@5.9.3))':
     dependencies:
-      '@agenticprimitives/delegation': 1.0.0-alpha.39(@agenticprimitives/agent-account@1.0.0-alpha.34(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/key-custody@1.0.0-alpha.39(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3))
-      '@agenticprimitives/fulfillment': 0.0.0-alpha.36(@agenticprimitives/agent-account@1.0.0-alpha.34(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/key-custody@1.0.0-alpha.39(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/ontology@1.0.0-alpha.34)(viem@2.52.2(typescript@5.9.3))
-      '@agenticprimitives/types': 1.0.0-alpha.39
-      '@agenticprimitives/verification-receipts': 0.0.0-alpha.16(@agenticprimitives/types@1.0.0-alpha.39)
+      '@agenticprimitives/delegation': 1.0.0-alpha.40(@agenticprimitives/agent-account@1.0.0-alpha.34(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/key-custody@1.0.0-alpha.40(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3))
+      '@agenticprimitives/fulfillment': 0.0.0-alpha.37(@agenticprimitives/agent-account@1.0.0-alpha.34(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/key-custody@1.0.0-alpha.40(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/ontology@1.0.0-alpha.34)(viem@2.52.2(typescript@5.9.3))
+      '@agenticprimitives/types': 1.0.0-alpha.40
+      '@agenticprimitives/verification-receipts': 0.0.0-alpha.17(@agenticprimitives/types@1.0.0-alpha.40)
       viem: 2.52.2(typescript@5.9.3)
     transitivePeerDependencies:
       - '@agenticprimitives/agent-account'
@@ -1578,37 +1578,37 @@ snapshots:
       - '@agenticprimitives/key-custody'
       - '@agenticprimitives/ontology'
 
-  '@agenticprimitives/admission@0.0.0-alpha.16(@agenticprimitives/types@1.0.0-alpha.39)':
+  '@agenticprimitives/admission@0.0.0-alpha.17(@agenticprimitives/types@1.0.0-alpha.40)':
     dependencies:
-      '@agenticprimitives/types': 1.0.0-alpha.39
+      '@agenticprimitives/types': 1.0.0-alpha.40
 
-  '@agenticprimitives/agent-account@1.0.0-alpha.34(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3))':
+  '@agenticprimitives/agent-account@1.0.0-alpha.34(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3))':
     dependencies:
-      '@agenticprimitives/connect-auth': 1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3))
-      '@agenticprimitives/types': 1.0.0-alpha.39
+      '@agenticprimitives/connect-auth': 1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3))
+      '@agenticprimitives/types': 1.0.0-alpha.40
       viem: 2.52.2(typescript@5.9.3)
 
-  '@agenticprimitives/agent-profile@1.0.0-alpha.39(@agenticprimitives/agent-account@1.0.0-alpha.34(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3))':
+  '@agenticprimitives/agent-profile@1.0.0-alpha.40(@agenticprimitives/agent-account@1.0.0-alpha.34(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3))':
     dependencies:
-      '@agenticprimitives/agent-account': 1.0.0-alpha.34(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3))
-      '@agenticprimitives/connect-auth': 1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3))
-      '@agenticprimitives/types': 1.0.0-alpha.39
+      '@agenticprimitives/agent-account': 1.0.0-alpha.34(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3))
+      '@agenticprimitives/connect-auth': 1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3))
+      '@agenticprimitives/types': 1.0.0-alpha.40
       viem: 2.52.2(typescript@5.9.3)
 
-  '@agenticprimitives/agreements@0.0.0-alpha.36(@agenticprimitives/ontology@1.0.0-alpha.34)(viem@2.52.2(typescript@5.9.3))':
+  '@agenticprimitives/agreements@0.0.0-alpha.37(@agenticprimitives/ontology@1.0.0-alpha.34)(viem@2.52.2(typescript@5.9.3))':
     dependencies:
-      '@agenticprimitives/types': 1.0.0-alpha.39
-      '@agenticprimitives/verifiable-credentials': 0.0.0-alpha.36(@agenticprimitives/ontology@1.0.0-alpha.34)(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3))
+      '@agenticprimitives/types': 1.0.0-alpha.40
+      '@agenticprimitives/verifiable-credentials': 0.0.0-alpha.37(@agenticprimitives/ontology@1.0.0-alpha.34)(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3))
       '@noble/hashes': 2.4.0
       viem: 2.52.2(typescript@5.9.3)
     transitivePeerDependencies:
       - '@agenticprimitives/ontology'
 
-  '@agenticprimitives/attestations@0.0.0-alpha.35(@agenticprimitives/agent-account@1.0.0-alpha.34(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/key-custody@1.0.0-alpha.39(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/ontology@1.0.0-alpha.34)(viem@2.52.2(typescript@5.9.3))':
+  '@agenticprimitives/attestations@0.0.0-alpha.36(@agenticprimitives/agent-account@1.0.0-alpha.34(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/key-custody@1.0.0-alpha.40(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/ontology@1.0.0-alpha.34)(viem@2.52.2(typescript@5.9.3))':
     dependencies:
-      '@agenticprimitives/delegation': 1.0.0-alpha.39(@agenticprimitives/agent-account@1.0.0-alpha.34(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/key-custody@1.0.0-alpha.39(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3))
-      '@agenticprimitives/types': 1.0.0-alpha.39
-      '@agenticprimitives/verifiable-credentials': 0.0.0-alpha.36(@agenticprimitives/ontology@1.0.0-alpha.34)(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3))
+      '@agenticprimitives/delegation': 1.0.0-alpha.40(@agenticprimitives/agent-account@1.0.0-alpha.34(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/key-custody@1.0.0-alpha.40(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3))
+      '@agenticprimitives/types': 1.0.0-alpha.40
+      '@agenticprimitives/verifiable-credentials': 0.0.0-alpha.37(@agenticprimitives/ontology@1.0.0-alpha.34)(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3))
       '@noble/hashes': 2.4.0
       viem: 2.52.2(typescript@5.9.3)
     transitivePeerDependencies:
@@ -1618,58 +1618,58 @@ snapshots:
       - '@agenticprimitives/key-custody'
       - '@agenticprimitives/ontology'
 
-  '@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39)':
+  '@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40)':
     dependencies:
-      '@agenticprimitives/types': 1.0.0-alpha.39
+      '@agenticprimitives/types': 1.0.0-alpha.40
 
-  '@agenticprimitives/capability-claims@0.0.0-alpha.39(@agenticprimitives/ontology@1.0.0-alpha.34)(viem@2.52.2(typescript@5.9.3))':
+  '@agenticprimitives/capability-claims@0.0.0-alpha.40(@agenticprimitives/ontology@1.0.0-alpha.34)(viem@2.52.2(typescript@5.9.3))':
     dependencies:
-      '@agenticprimitives/types': 1.0.0-alpha.39
-      '@agenticprimitives/verifiable-credentials': 0.0.0-alpha.36(@agenticprimitives/ontology@1.0.0-alpha.34)(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3))
+      '@agenticprimitives/types': 1.0.0-alpha.40
+      '@agenticprimitives/verifiable-credentials': 0.0.0-alpha.37(@agenticprimitives/ontology@1.0.0-alpha.34)(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3))
       '@noble/hashes': 2.4.0
     transitivePeerDependencies:
       - '@agenticprimitives/ontology'
       - viem
 
-  '@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3))':
+  '@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3))':
     dependencies:
-      '@agenticprimitives/types': 1.0.0-alpha.39
+      '@agenticprimitives/types': 1.0.0-alpha.40
       '@noble/curves': 2.4.0
       '@noble/hashes': 2.4.0
       viem: 2.52.2(typescript@5.9.3)
 
-  '@agenticprimitives/content-primitives@1.0.0-alpha.36(@agenticprimitives/types@1.0.0-alpha.39)(@agenticprimitives/verifiable-credentials@0.0.0-alpha.36(@agenticprimitives/ontology@1.0.0-alpha.34)(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(viem@2.52.2(typescript@5.9.3))':
+  '@agenticprimitives/content-primitives@1.0.0-alpha.37(@agenticprimitives/types@1.0.0-alpha.40)(@agenticprimitives/verifiable-credentials@0.0.0-alpha.37(@agenticprimitives/ontology@1.0.0-alpha.34)(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(viem@2.52.2(typescript@5.9.3))':
     dependencies:
-      '@agenticprimitives/types': 1.0.0-alpha.39
-      '@agenticprimitives/verifiable-credentials': 0.0.0-alpha.36(@agenticprimitives/ontology@1.0.0-alpha.34)(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3))
+      '@agenticprimitives/types': 1.0.0-alpha.40
+      '@agenticprimitives/verifiable-credentials': 0.0.0-alpha.37(@agenticprimitives/ontology@1.0.0-alpha.34)(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3))
       viem: 2.52.2(typescript@5.9.3)
 
-  '@agenticprimitives/delegation@1.0.0-alpha.39(@agenticprimitives/agent-account@1.0.0-alpha.34(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/key-custody@1.0.0-alpha.39(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3))':
+  '@agenticprimitives/delegation@1.0.0-alpha.40(@agenticprimitives/agent-account@1.0.0-alpha.34(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/key-custody@1.0.0-alpha.40(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3))':
     dependencies:
-      '@agenticprimitives/agent-account': 1.0.0-alpha.34(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3))
-      '@agenticprimitives/audit': 1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39)
-      '@agenticprimitives/connect-auth': 1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3))
-      '@agenticprimitives/key-custody': 1.0.0-alpha.39(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3))
-      '@agenticprimitives/types': 1.0.0-alpha.39
+      '@agenticprimitives/agent-account': 1.0.0-alpha.34(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3))
+      '@agenticprimitives/audit': 1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40)
+      '@agenticprimitives/connect-auth': 1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3))
+      '@agenticprimitives/key-custody': 1.0.0-alpha.40(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3))
+      '@agenticprimitives/types': 1.0.0-alpha.40
       '@noble/curves': 2.4.0
       '@noble/hashes': 2.4.0
       viem: 2.52.2(typescript@5.9.3)
 
-  ? '@agenticprimitives/devkit@0.0.0-alpha.27(@agenticprimitives/a2a@0.0.0-alpha.40(@agenticprimitives/agent-account@1.0.0-alpha.34(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/key-custody@1.0.0-alpha.39(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/ontology@1.0.0-alpha.34)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/evaluation@0.0.0-alpha.11)(@agenticprimitives/ontology@1.0.0-alpha.34)(viem@2.52.2(typescript@5.9.3))'
+  ? '@agenticprimitives/devkit@0.0.0-alpha.28(@agenticprimitives/a2a@0.0.0-alpha.41(@agenticprimitives/agent-account@1.0.0-alpha.34(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/key-custody@1.0.0-alpha.40(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/ontology@1.0.0-alpha.34)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/evaluation@0.0.0-alpha.11)(@agenticprimitives/ontology@1.0.0-alpha.34)(viem@2.52.2(typescript@5.9.3))'
   : dependencies:
-      '@agenticprimitives/capability-claims': 0.0.0-alpha.39(@agenticprimitives/ontology@1.0.0-alpha.34)(viem@2.52.2(typescript@5.9.3))
+      '@agenticprimitives/capability-claims': 0.0.0-alpha.40(@agenticprimitives/ontology@1.0.0-alpha.34)(viem@2.52.2(typescript@5.9.3))
       '@agenticprimitives/mcp-protocol': 0.0.0-alpha.4
     optionalDependencies:
-      '@agenticprimitives/a2a': 0.0.0-alpha.40(@agenticprimitives/agent-account@1.0.0-alpha.34(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/key-custody@1.0.0-alpha.39(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/ontology@1.0.0-alpha.34)(viem@2.52.2(typescript@5.9.3))
+      '@agenticprimitives/a2a': 0.0.0-alpha.41(@agenticprimitives/agent-account@1.0.0-alpha.34(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/key-custody@1.0.0-alpha.40(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/ontology@1.0.0-alpha.34)(viem@2.52.2(typescript@5.9.3))
       '@agenticprimitives/evaluation': 0.0.0-alpha.11
     transitivePeerDependencies:
       - '@agenticprimitives/ontology'
       - viem
 
-  '@agenticprimitives/estate-projection@0.0.0-alpha.14(@agenticprimitives/verifiable-credentials@0.0.0-alpha.36(@agenticprimitives/ontology@1.0.0-alpha.34)(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(typescript@5.9.3)':
+  '@agenticprimitives/estate-projection@0.0.0-alpha.15(@agenticprimitives/verifiable-credentials@0.0.0-alpha.37(@agenticprimitives/ontology@1.0.0-alpha.34)(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(typescript@5.9.3)':
     dependencies:
-      '@agenticprimitives/content-primitives': 1.0.0-alpha.36(@agenticprimitives/types@1.0.0-alpha.39)(@agenticprimitives/verifiable-credentials@0.0.0-alpha.36(@agenticprimitives/ontology@1.0.0-alpha.34)(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(viem@2.52.2(typescript@5.9.3))
-      '@agenticprimitives/types': 1.0.0-alpha.39
+      '@agenticprimitives/content-primitives': 1.0.0-alpha.37(@agenticprimitives/types@1.0.0-alpha.40)(@agenticprimitives/verifiable-credentials@0.0.0-alpha.37(@agenticprimitives/ontology@1.0.0-alpha.34)(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(viem@2.52.2(typescript@5.9.3))
+      '@agenticprimitives/types': 1.0.0-alpha.40
       viem: 2.52.2(typescript@5.9.3)
     transitivePeerDependencies:
       - '@agenticprimitives/verifiable-credentials'
@@ -1680,13 +1680,13 @@ snapshots:
 
   '@agenticprimitives/evaluation@0.0.0-alpha.11': {}
 
-  '@agenticprimitives/fulfillment@0.0.0-alpha.36(@agenticprimitives/agent-account@1.0.0-alpha.34(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/key-custody@1.0.0-alpha.39(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/ontology@1.0.0-alpha.34)(viem@2.52.2(typescript@5.9.3))':
+  '@agenticprimitives/fulfillment@0.0.0-alpha.37(@agenticprimitives/agent-account@1.0.0-alpha.34(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/key-custody@1.0.0-alpha.40(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/ontology@1.0.0-alpha.34)(viem@2.52.2(typescript@5.9.3))':
     dependencies:
-      '@agenticprimitives/agreements': 0.0.0-alpha.36(@agenticprimitives/ontology@1.0.0-alpha.34)(viem@2.52.2(typescript@5.9.3))
-      '@agenticprimitives/attestations': 0.0.0-alpha.35(@agenticprimitives/agent-account@1.0.0-alpha.34(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/key-custody@1.0.0-alpha.39(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/ontology@1.0.0-alpha.34)(viem@2.52.2(typescript@5.9.3))
-      '@agenticprimitives/delegation': 1.0.0-alpha.39(@agenticprimitives/agent-account@1.0.0-alpha.34(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/key-custody@1.0.0-alpha.39(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3))
-      '@agenticprimitives/types': 1.0.0-alpha.39
-      '@agenticprimitives/verifiable-credentials': 0.0.0-alpha.36(@agenticprimitives/ontology@1.0.0-alpha.34)(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3))
+      '@agenticprimitives/agreements': 0.0.0-alpha.37(@agenticprimitives/ontology@1.0.0-alpha.34)(viem@2.52.2(typescript@5.9.3))
+      '@agenticprimitives/attestations': 0.0.0-alpha.36(@agenticprimitives/agent-account@1.0.0-alpha.34(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/key-custody@1.0.0-alpha.40(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/ontology@1.0.0-alpha.34)(viem@2.52.2(typescript@5.9.3))
+      '@agenticprimitives/delegation': 1.0.0-alpha.40(@agenticprimitives/agent-account@1.0.0-alpha.34(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/key-custody@1.0.0-alpha.40(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3))
+      '@agenticprimitives/types': 1.0.0-alpha.40
+      '@agenticprimitives/verifiable-credentials': 0.0.0-alpha.37(@agenticprimitives/ontology@1.0.0-alpha.34)(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3))
       '@noble/hashes': 2.4.0
       viem: 2.52.2(typescript@5.9.3)
     transitivePeerDependencies:
@@ -1696,9 +1696,9 @@ snapshots:
       - '@agenticprimitives/key-custody'
       - '@agenticprimitives/ontology'
 
-  '@agenticprimitives/intent-engagement@0.0.0-alpha.18(typescript@5.9.3)':
+  '@agenticprimitives/intent-engagement@0.0.0-alpha.19(typescript@5.9.3)':
     dependencies:
-      '@agenticprimitives/types': 1.0.0-alpha.39
+      '@agenticprimitives/types': 1.0.0-alpha.40
       viem: 2.52.2(typescript@5.9.3)
     transitivePeerDependencies:
       - bufferutil
@@ -1706,52 +1706,52 @@ snapshots:
       - utf-8-validate
       - zod
 
-  '@agenticprimitives/key-custody@1.0.0-alpha.39(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3))':
+  '@agenticprimitives/key-custody@1.0.0-alpha.40(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3))':
     dependencies:
-      '@agenticprimitives/types': 1.0.0-alpha.39
+      '@agenticprimitives/types': 1.0.0-alpha.40
       '@noble/curves': 2.4.0
       '@noble/hashes': 2.4.0
     optionalDependencies:
-      '@agenticprimitives/audit': 1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39)
-      '@agenticprimitives/connect-auth': 1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3))
+      '@agenticprimitives/audit': 1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40)
+      '@agenticprimitives/connect-auth': 1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3))
       viem: 2.52.2(typescript@5.9.3)
 
   '@agenticprimitives/mcp-protocol@0.0.0-alpha.4': {}
 
   '@agenticprimitives/ontology@1.0.0-alpha.34': {}
 
-  '@agenticprimitives/privacy-credentials-openac@0.0.0-alpha.2(@agenticprimitives/privacy-credentials@0.0.0-alpha.16(@agenticprimitives/types@1.0.0-alpha.39))':
+  '@agenticprimitives/privacy-credentials-openac@0.0.0-alpha.5(@agenticprimitives/privacy-credentials@0.0.0-alpha.17(@agenticprimitives/types@1.0.0-alpha.40))':
     dependencies:
-      '@agenticprimitives/privacy-credentials': 0.0.0-alpha.16(@agenticprimitives/types@1.0.0-alpha.39)
+      '@agenticprimitives/privacy-credentials': 0.0.0-alpha.17(@agenticprimitives/types@1.0.0-alpha.40)
       openac-sdk: 5.0.0(patch_hash=2c1d0004e66c4cf51d9a13dceea2664a5bd9c49ec22920e8ce0c5c14e69982e9)
 
-  '@agenticprimitives/privacy-credentials@0.0.0-alpha.16(@agenticprimitives/types@1.0.0-alpha.39)':
+  '@agenticprimitives/privacy-credentials@0.0.0-alpha.17(@agenticprimitives/types@1.0.0-alpha.40)':
     dependencies:
-      '@agenticprimitives/types': 1.0.0-alpha.39
+      '@agenticprimitives/types': 1.0.0-alpha.40
 
-  '@agenticprimitives/registry-kit@0.0.0-alpha.23(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3))':
+  '@agenticprimitives/registry-kit@0.0.0-alpha.24(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3))':
     dependencies:
-      '@agenticprimitives/types': 1.0.0-alpha.39
+      '@agenticprimitives/types': 1.0.0-alpha.40
       viem: 2.52.2(typescript@5.9.3)
 
-  '@agenticprimitives/situations@0.0.0-alpha.23':
+  '@agenticprimitives/situations@0.0.0-alpha.24':
     dependencies:
-      '@agenticprimitives/types': 1.0.0-alpha.39
+      '@agenticprimitives/types': 1.0.0-alpha.40
       '@noble/hashes': 2.4.0
 
-  '@agenticprimitives/types@1.0.0-alpha.39': {}
+  '@agenticprimitives/types@1.0.0-alpha.40': {}
 
-  '@agenticprimitives/verifiable-credentials@0.0.0-alpha.36(@agenticprimitives/ontology@1.0.0-alpha.34)(@agenticprimitives/types@1.0.0-alpha.39)(viem@2.52.2(typescript@5.9.3))':
+  '@agenticprimitives/verifiable-credentials@0.0.0-alpha.37(@agenticprimitives/ontology@1.0.0-alpha.34)(@agenticprimitives/types@1.0.0-alpha.40)(viem@2.52.2(typescript@5.9.3))':
     dependencies:
       '@agenticprimitives/ontology': 1.0.0-alpha.34
-      '@agenticprimitives/situations': 0.0.0-alpha.23
-      '@agenticprimitives/types': 1.0.0-alpha.39
+      '@agenticprimitives/situations': 0.0.0-alpha.24
+      '@agenticprimitives/types': 1.0.0-alpha.40
       '@noble/hashes': 2.4.0
       viem: 2.52.2(typescript@5.9.3)
 
-  '@agenticprimitives/verification-receipts@0.0.0-alpha.16(@agenticprimitives/types@1.0.0-alpha.39)':
+  '@agenticprimitives/verification-receipts@0.0.0-alpha.17(@agenticprimitives/types@1.0.0-alpha.40)':
     dependencies:
-      '@agenticprimitives/types': 1.0.0-alpha.39
+      '@agenticprimitives/types': 1.0.0-alpha.40
 
   '@cloudflare/containers@0.3.7': {}
 
