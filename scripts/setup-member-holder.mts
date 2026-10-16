@@ -85,7 +85,7 @@ const existingSecret = (await listVaultRecords(c, 'credential.holder-secret:')).
 const writes: Array<[string, unknown]> = [
   [HOLDER_RECORDS.credential(live.digest), credentialRecord(live)],
   [HOLDER_RECORDS.credential(revoked.digest), credentialRecord(revoked, { revoked: { staleStatus, revokedAtSequence: staleStatus.sequence + 1 } })],
-  [HOLDER_RECORDS.deviceKey(device.jwk.kid), { type: 'ap.device-key.v1', thumbprint: device.jwk.kid, privateKeyHex: device.privateKeyHex, createdAt: now } satisfies HolderDeviceKeyRecordV1],
+  [HOLDER_RECORDS.deviceKey(device.jwk.kid), { type: 'ap.device-key.v1', thumbprint: device.jwk.kid, privateKeyHex: device.privateKeyHex, publicJwk: { kty: 'EC', crv: 'P-256', x: (device.jwk as { x: string }).x, y: (device.jwk as { y: string }).y }, createdAt: now } as HolderDeviceKeyRecordV1],
   ...(existingSecret ? [[HOLDER_RECORDS.holderSecret('member-holder'), { type: 'ap.holder-secret.v1', secret: existingSecret as Hex, createdAt: now } satisfies HolderSecretRecordV1] as [string, unknown]] : []),
   [HOLDER_RECORDS.mandate(standing.ref), wire],
 ];
