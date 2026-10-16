@@ -1,8 +1,8 @@
 # Cross-chain authority — how a grant in one estate is proved in another
 
-**Status:** 2026-10-14. This is the walk. It decides nothing: a conflict is settled by Ring 0 spec 410 §4 and spec 439,
-and by [`federation-principles.md`](federation-principles.md) P2–P6. What is built is F1 (the projector) and F2 (the
-receiving door).
+**Status:** 2026-10-16. This is the walk. It decides nothing: a conflict is settled by Ring 0 spec 410 §4 and spec 439,
+and by [`federation-principles.md`](federation-principles.md) P2–P6. What is built: the projector (scheduled, from each
+estate's and issuer's vault), the receiving doors with the predicate grade, the two-chain twin, member payment.
 
 **The one sentence.** A delegation on chain A is not verifiable on chain B. The estate commits to its live set on
 neutral ground; the other side proves one leaf against the root it reads itself; then it decides, under a mandate its
@@ -87,29 +87,28 @@ says `declaredOnChain: false`.
 | Piece | Where | What a reader can check |
 | --- | --- | --- |
 | Neutral ground | faithchain (34348) `0xb4E116F5C6915a4f1e649E0877e4a0A7a1c1147b` | no admin, no pause, no upgrade |
-| impact-agent's roots | estate id derived from `imbnet.estate` (`0x4457aadf…`) | `scripts/gate-f1-projection.mts` — a presentation verifies; one sequence later it is refused |
-| The receiving door | https://door.ap-federation.faithnet.io in front of impact-agent's A2A door | `scripts/gate-f2-door.mts` — a real `harness.read` grant maya signed, anchored, admitted; stale, wrong audience, wrong subject, replay, and no proof are refused |
+| impact-agent's roots | estate id derived from `imbnet.estate`; its people and grants on hopechain (34349), its projection on faithchain | `pnpm gate:freshness`, `pnpm gate:vault-record` |
+| faithnet's roots | estate id derived from `faithnet.estate`; faithchain | the same gates |
+| The scheduled projector | https://projector.ap-federation.faithnet.io — every six hours, from each estate's registry-agent vault and each vault-ledger issuer's own vault | `GET /status`; `pnpm gate:freshness` |
+| The receiving doors | https://door.ap-federation.faithnet.io (impact-agent), https://door-faithnet.ap-federation.faithnet.io (faithnet) | `pnpm gate:door`; `pnpm gate:twin` — each estate's visitor admitted at the other's door, both directions, across the two chains |
+| Issuer rows | an issuer's live-credential root on the same registry (`imbnet-org`, the organization on hopechain, anchored by the estate's registry agent as `rowSigner`) | `pnpm projector status --issuer imbnet-org` |
+| The predicate grade | the impact-agent door: a zero-knowledge proof of "over 18 and a member", verified beside the door against the issuer's root read from the registry | `pnpm gate:predicate`, `pnpm gate:member-payment` |
 | The public view of the register | https://ap-federation.faithnet.io | the registry address, each projecting estate, `declaredOnChain` |
 
-faithnet is not on neutral ground. It has no estate agent, and an estate id is permanent, so the projector refuses
-to mint one. The reason is the faithnet row in `federation.yaml`.
+A wire is verified on the chain its delegator lives on; the door reads the root from the registry's chain. The
+estate id is `keccak256("eip155:<chainId>:<governance>")`, so an estate whose people live on another chain registers
+with one config line and the verifier's code does not move — and the twin proves it across faithchain and hopechain.
 
 ---
 
 ## The honest limit
 
-Both estates sit on faithchain. What F1 and F2 prove is **cross-estate on one chain**. The estate id is
-`keccak256("eip155:<chainId>:<governance>")`, so an estate on a second chain registers with one config line and the
-verifier's code does not move. Until that chain exists, that is a design property. It is not a demonstration.
-
-Three further limits, each already named in `DEPLOYER.md`:
-
-- The projector is a CLI on an operator's machine, holding the anchoring key. Spec 439 §4 says it is the estate's
-  `.registry` service agent. Until that move, a stopped operator means every presentation ages out and is refused.
-- The door is a reference standing in front of one estate. A production door is that estate's own edge. The estate's
-  runtime may read the standing headers and today ignores them.
-- Receipts live in the door's Durable Object. That is a serving copy. The record belongs in the receiving estate's
-  registry-agent vault and in the presenter's own vault.
+- The door is a reference standing in front of an estate. A production door is that estate's own edge. The estate's
+  runtime reads the standing headers and decides under its own mandate.
+- Receipts live in the door's Durable Object, hash-chained, with their parties collapsed after a retention window.
+  That is a serving copy; the presenter's own receipt is in her vault.
+- The projector's anchoring keys are Worker secrets acting as delegates under each registry agent's wire, not keys
+  held in a vault.
 
 ---
 

@@ -45,75 +45,66 @@ available scope.
 
 ## What this repository owns
 
-1. **The projector** — per estate, maintain the live-grant and membership roots and anchor them with a
-   monotonic sequence; runs as the estate's `.registry` service agent (spec 346), never a Home.
-2. **The receiving edge** — the runtime path consuming a foreign presentation through
-   `foreignEstateEvaluator`, and the receipt that records it.
-3. **The cross-town runner** — the two-chain live twin, *with its negative twin beside it*.
-4. **Protocol adapters**, one per target family, each depending inward: NANDA first, then ERC-8004 and
-   ARD/ACP reuse of what Ring 0 already pins.
+1. **The projector** — per estate, the live-grant and membership roots; per ISSUER, the live-credential root. It
+   reads each estate's and issuer's submissions from THEIR OWN vault, prunes against the chain, anchors with a
+   monotonic sequence, and runs as a Worker on a six-hour cron with one delegate key per estate and per issuer.
+2. **The receiving doors** — a challenge, a principal-signed request proof, admission with `foreignEstateEvaluator`
+   against roots read from neutral ground, a hash-chained receipt by reference, the admitted bytes forwarded. The
+   **predicate grade**: a zero-knowledge presentation (OpenAC) verified in a Node container beside the Worker, a
+   **trust set** of accepted issuers, a nullifier window, receipts whose parties collapse after a retention window.
+3. **Member payment** — a pay ticket issued only on a predicate admission, bound to the admission receipt and to the
+   issuer's own terms (payee, asset, chain); the member pays treasury to treasury under her standing dues wire; the
+   door reads the transfer on the organization's chain and settles the ticket once.
+4. **The register** — `federation.yaml`: neutral ground, estates (two chains each: projection and home), towns, the
+   shared KMS operator, the universal namespace, the doors and their policies, and `credentials.issuers[]` — an
+   organization's own agent among them, with `ledger: vault` and a `rowSigner` for an issuer on another chain.
+5. **Personal agents at a company's door** — `packages/personal-agent-client` (PAP discovery, RFC 7523 + DPoP
+   sessions, Direct and Device sign-in as Home ceremonies; mediated sign-in refused by default), `apps/pap`
+   (the estate's personal-agent SERVICE, the client at every company), `apps/pap-door` (a company door in front of a
+   service, where `approved_by` comes only from a mandate signature).
+6. **The holder tooling and the live gates** — ceremonies that put an issuer on neutral ground and a member's
+   credentials in her own vault (`scripts/setup-*.mts`), and ten gates (`live-gates.json`) the nightly runs.
+7. **Protocol adapters**, one per target family, each depending inward: NANDA (projection only).
 
 It does **not** own a new authority model, a bridge in the authority path, a trust score, private data on
 neutral ground, or any conformance claim it has not earned. See spec 439 §8.
 
-## Status
+## Status (2026-10-16)
 
-**F1 — the projector, live (2026-10-13).** `EstateProjectionRegistry` is deployed on faithchain
-(`0xb4E116F5C6915a4f1e649E0877e4a0A7a1c1147b` — no admin, no pause, no upgrade), the **impact-agent** estate is
-registered under `estateId 0xe96d2c36…` derived from its own agent `imbnet.estate`, and its live-grant root
-is anchored over real grants read under their holder's own session and pruned against the chain. A
-presentation verifies against the root read from the chain; one sequence later the same presentation is
-refused as stale. `scripts/gate-f1-projection.mts` is the gate and it is green.
+| What | Where | Proof |
+| --- | --- | --- |
+| Neutral ground | `EstateProjectionRegistry` on faithchain `0xb4E116F5…` — no admin, no pause, no upgrade | `gate:freshness` |
+| Two estates on two chains | impact-agent (Home on hopechain 34349, projection on faithchain) and faithnet (faithchain), both anchored, both signers declared on chain | `gate:vault-record`, `gate:freshness` |
+| The two-chain twin | a visitor from each estate admitted at the other's door on a leaf proved against the root read from the chain; an act refused at the authority stage; a payment under a steward's standing wire; the duplicate refused on chain — both directions, across faithchain and hopechain | `gate:twin`, `gate:door`, `gate:pay-outward` |
+| The predicate grade | a nameless visitor proves "over 18 and a member of your organization" in zero knowledge at impact-agent's door, under the key service's device key, with no local-key allowance; 25 checks, 5 refusals | `gate:predicate` |
+| The organization issues (spec 444) | imbnet's own organization agent issues membership credentials to its members under its steward's mandate, vouches on its own live-credential row from its own vault, delivers into the member's vault; the member asks through her own agent | `gate:predicate` on an org-issued credential |
+| Member payment | a pay ticket on the predicate admission; dues paid treasury to treasury on the organization's chain; the organization learns a member paid, not which | `gate:member-payment` (15 checks, 4 refusals) |
+| The company's door | faithnet-pap.svc at pap.faithnet.io; a PAP company door in front of ligonier.svc | `gate:pap-twin` |
+| The site | ap-federation.faithnet.io: towns, KMS, names, doors, neutral ground | `gate:site` |
+| The key service | kms.faithnet.io, one tenant per estate, P-256 keys for devices and issuers; its platform root is released only to the attested SEV-SNP CVM (Secure Key Release) | `federation.yaml#kms` |
 
-Three things F1 found, and none of them are footnotes:
-
-- **The projector is a collector, not a scraper** — the estate holds no key that can read its people's
-  records (ap-home deleted its HMAC bridge for that reason), so *inclusion is a submission and exclusion is
-  the chain*. `apps/projector/README.md` §1.
-- **`register` is first-come-wins**, so a verifier that trusts `signerOf` alone trusts whoever registered
-  first. F2.5 added the estate-side declaration a verifier cross-checks (`atl:projectionSigner`); impact-agent has
-  declared, and a run prints the gap for any estate that has not.
-- **faithnet could not be federated until it had an estate agent** (an estate id is permanent, so it needed an
-  address that will still mean "faithnet" in a year). It has one since 2026-10-14; its people still declare no
-  `atl:estate`, which is a Home backfill, not a federation blocker.
-
-**Spec 440 wave 1 (2026-10-14):** the federation's site is live at **ap-federation.faithnet.io** (`apps/site`): every
-town with live probes, the shared KMS operator record with its tenants and the four conditions, the universal name
-resolver over every live town's naming service (every row qualified, never bare), and neutral ground.
-`federation.yaml` gained `towns`, `kms` and `naming`; `check:federation` refuses a shared tenant, a billable key
-without a payer, or a root chain that is not a live town. The naming decision changed by the owner's choice: **one
-universal namespace rooted on faithchain, the way ENS v2 is rooted on L1**, other chains joining without a second
-registry (spec 440 §C; the naming document's N7 is amended).
-
-**F2 — the receiving door, live (2026-10-14).** `apps/door` at **door.ap-federation.faithnet.io** in front of impact-agent's
-A2A door: a challenge, a principal-signed request proof verified through `UniversalSignatureValidator` with the
-replay spent before the signature is checked, the admission engine with `foreignEstateEvaluator` against roots read
-from neutral ground at request time, a hash-chained receipt by reference, and the admitted bytes forwarded with
-`x-ap-foreign-standing`. The gate's presenter holds a REAL grant — a narrow `harness.read` wire maya signed to the
-gate's account at her Home, its leaf submitted and anchored at sequence 3 — and `scripts/gate-f2-door.mts` is green:
-11 checks including five refusals (stale, wrong audience, wrong subject, replayed proof, no proof).
-
-**And what F1 and F2 did NOT prove:** this is cross-*estate*, on one chain. The estate id is chain-scoped by
-construction, so a second chain changes one line of config and no verifier code — but a design property is
-not a demonstration. Next is that second chain, faithnet's estate agent, and the naming waves in spec 440 §C9
-(`docs/architecture/cross-town-capabilities.md`).
+Settings relaxed for testing are listed, with their production values, in
+[`docs/runbooks/before-real-users.md`](docs/runbooks/before-real-users.md). Every finding since F1 is in
+[`docs/architecture/decisions-and-findings.md`](docs/architecture/decisions-and-findings.md).
 
 ## Layout
 
 | Path | What lives there |
 | --- | --- |
-| `apps/*` | the product's deployables — each with its own `wrangler.toml` (see `wrangler.example.toml` for the env layout) |
-| `examples/*` | relying-app demonstrations of the product's ceremonies; each builds against published packages or is retired |
-| `federation.yaml` | the register: neutral ground and the estates that project onto it; **the towns** and where their public surfaces are; **the shared KMS operator** (tenants, callers, the four conditions); **the universal namespace** (root chain, roots, resolver) |
-| `apps/projector` | the projection job: a CLI for submitting and presenting, and **projector.ap-federation.faithnet.io**, a Worker that prunes, rebuilds and anchors every six hours so no estate's roots age out |
-| `apps/nanda-adapter` | **F4** — a pure projection from a released card into a NANDA index entry, with a loss report; it prints, it never publishes, and it never carries authority |
-| `apps/door` | **door.ap-federation.faithnet.io** — the receiving door (spec 439 F2): proof → admission with the foreign-estate evaluator → receipt → forward |
-| `apps/site` | **ap-federation.faithnet.io** — the federation drawn (`/api/scene.svg`: neutral ground, the naming root and resolver, the KMS operator, the doors, each town beside it) · towns · KMS · names · neutral ground; public, read-only, keyless (spec 440 §B) |
-| `specs/` | this repository's own specs (`440` — the shared KMS operator, the site, the universal naming service) |
-| `scripts/` | ops scripts and the live gates (`gate-f1-projection.mts`) |
-| `docs/architecture/` | three walks — cross-chain authority, the naming service, the cross-town capabilities — then the principles, the naming decision, and the dated crosswalk. Start at its `README.md` |
-| `docs/runbooks/` | `project-an-estate.md` — putting an estate on neutral ground, end to end |
-| `live-gates.json` | the live-gates ledger (spec 392 shape) the nightly runs through `ap test --live-gates` |
+| `federation.yaml` | the register: neutral ground; the estates (projection chain and home chain); the towns; the shared KMS operator (tenants, callers, the four conditions); the universal namespace; the doors and their policies (`credentialProofs`, `membershipPayments`, `receipts`); `credentials.issuers[]` |
+| `apps/projector` | the projection job: a CLI (`--estate` and `--issuer` modes) and **projector.ap-federation.faithnet.io**, a Worker that rebuilds and anchors every estate's and every vault-ledger issuer's roots every six hours |
+| `apps/door` | **door.ap-federation.faithnet.io** (impact-agent) and **door-faithnet.ap-federation.faithnet.io**: proof → admission → receipt → forward; the predicate grade (`/federation/present`, `/federation/credentials`), pay tickets (`/federation/pay-ticket`, `/settled`) |
+| `apps/door/verifier` | the OpenAC verifier, a Node container beside the impact-agent door (the 274 MB verifying key does not fit a Worker) |
+| `apps/pap` | **pap.faithnet.io** — faithnet's personal-agent service: client metadata, JWKS, the RFC 9421 key directory, the sign-in return |
+| `apps/pap-door` | **ligonier-door.ap-federation.faithnet.io** — a PAP company door in front of ligonier.svc |
+| `apps/site` | **ap-federation.faithnet.io** — the federation drawn; towns · KMS · names · neutral ground; public, read-only, keyless |
+| `apps/nanda-adapter` | a pure projection from a released card into a NANDA index entry, with a loss report |
+| `packages/personal-agent-client` | our person's agent at THEIR door: PAP discovery, sessions, sign-in ceremonies, operations as parked acts |
+| `specs/` | this repository's own specs: `440` (the shared KMS operator, the site, universal naming), `443` (PAP / ACP / UCP / TAP projections) |
+| `scripts/` | the live gates (`gate-*.mts`), the ceremonies (`setup-predicate-issuer.mts`, `setup-predicate-holder-vault.mts`, `setup-member-holder.mts`, `publish-issuer-facet.mts`, `bind-client-key.mts`), `check-federation.mts`, `fetch-openac-keys.sh` |
+| `docs/architecture/` | start at its `README.md`: the primer, one crossing step by step, multi-estate and multi-town, operating, the ledger of decisions and findings, the naming documents |
+| `docs/runbooks/` | `project-an-estate.md`, `kms-tenant-for-an-estate.md`, `before-real-users.md` |
+| `live-gates.json` | the ten live gates the nightly runs through `ap test --live-gates` |
 | `agentic.lock.json` | the coherent `@agenticprimitives/*` set, the rules-source digests, the doctor config |
 | `AGENTS.md`, `CLAUDE.md`, `.cursor/rules/` | projected from the pinned rules source — regenerate with `ap doctor --rules --write`, never edit the managed block |
 | `DEPLOYER.md` | which repository deploys which Worker, and in which environment — one line per app |
@@ -124,18 +115,32 @@ not a demonstration. Next is that second chain, faithnet's estate agent, and the
 pnpm install
 pnpm doctor                     # ap doctor — the doctrine rules over this tree
 pnpm check:public-links         # no link into a private repository (this repo is public)
-pnpm check:federation           # the register is fit to publish (towns, one tenant per estate, the root chain)
+pnpm check:federation           # the register is fit to publish (towns, one tenant per estate, the root chain, trust sets)
+pnpm projector …                # the projection CLI: --estate <id> | --issuer <id> (apps/projector/README.md)
+
 pnpm site:deploy                # apps/site → ap-federation.faithnet.io
-pnpm door:deploy                # apps/door → door.ap-federation.faithnet.io (then set FEDERATION_RPC_URL + DOOR_SECRET)
+pnpm projector:deploy           # apps/projector → projector.ap-federation.faithnet.io
+pnpm door:deploy                # apps/door → both doors (the impact-agent door builds its verifier container; needs Docker)
+pnpm pap:deploy                 # apps/pap → pap.faithnet.io
+pnpm pap-door:deploy            # apps/pap-door → ligonier-door.ap-federation.faithnet.io
+pnpm nanda                      # the NANDA projection, printed
+
 pnpm gate:door                  # F2: the door admits on evidence and refuses what it must (FEDERATION_ESTATE, FEDERATION_DOOR_URL)
-pnpm gate:twin                  # F3 on one chain: both estates' standing at the other's door, both directions
-pnpm gate:site                  # the site answers from the towns' live surfaces (incl. the never-bare twin)
-pnpm doctor:rules               # drift between the projected rules and the pinned source
-pnpm upgrade:canary             # newest canary of every pin, one coherent set, then doctor
-pnpm upgrade:pin 1.0.0-alpha.24 # or one named version / dist-tag
-pnpm live-gates                 # the ledger against HOME_URL (nightly in CI)
-pnpm conform:a2a https://…      # A2A 1.0 conformance of a deployment
-pnpm conform:mcp https://…      # MCP conformance of a deployment
+pnpm gate:twin                  # the two-chain twin: both estates' standing at the other's door, both directions
+pnpm gate:freshness             # every projecting estate is still provable; the scheduled projector answers
+pnpm gate:vault-record          # each estate's submissions are read from its registry agent's vault
+pnpm gate:pay-outward           # paying outward across the boundary
+pnpm gate:predicate             # a nameless visitor proves over 18 AND a member, in zero knowledge
+pnpm gate:member-payment        # the member pays her dues on that proof, treasury to treasury
+pnpm gate:pap-twin              # the company's door: a personal agent signs in and parks an act
+pnpm gate:site                  # the site answers from the towns' live surfaces
+pnpm live-gates                 # the whole ledger (nightly in CI)
+
+pnpm setup:predicate            # the issuer ceremony (facet, attestation, row) for a registry-agent issuer
+pnpm setup:predicate-vault      # the holder's records into her vault
+pnpm keys:openac                # fetch the OpenAC keys (verifying ≈280 MB; --proving for a prover)
+pnpm bind:client-key            # the estate's personal-agent service key binding
+pnpm doctor:rules · pnpm upgrade:canary · pnpm upgrade:pin <v> · pnpm conform:a2a <url> · pnpm conform:mcp <url>
 ```
 
 ## Rules that bind every change

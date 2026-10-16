@@ -55,15 +55,21 @@ Everything in this repository is a consequence of that sentence.
 | Word | Means |
 | --- | --- |
 | **estate** | one deployment an operator runs for its residents: a Home, a runtime, a vault, an edge. impact-agent and faithnet are estates |
-| **town** | the estates on one chain and what they share: naming, registry, KMS tenants, gateways. Two today: faithchain (faithnet) and, since 2026-10-14, hopenet on hopechain (impact-agent) |
+| **town** | the estates on one chain and what they share: naming, registry, KMS tenants, gateways. Two: faithnet.town on faithchain (faithnet) and hopenet.town on hopechain (impact-agent) |
 | **federation** | towns on different chains, joined on public ground. Names are rooted on faithchain for both towns ([`naming-primer.md`](naming-primer.md)) |
 | **estate agent** | the one account that *is* the estate on neutral ground: `imbnet.estate`, `faithnet.estate`. Its address is permanent, so it must be an account, never a key |
 | **neutral ground** | `EstateProjectionRegistry`: a contract with no admin, no pause, no upgrade. Neutral is a property of the contract, not of the chain it sits on |
-| **projection** | an estate's commitment to its live-grant set (and membership set): two Merkle roots and a sequence number |
+| **projection** | an estate's commitment to its live-grant set (and membership set): two Merkle roots and a sequence number. An issuer's projection is one root, its live-credential set |
 | **leaf** | one grant in that set: the grant's hash, a random blind, and whom it is about |
 | **presentation** | one leaf plus its Merkle path, bound to a challenge (nonce + audience) and a subject |
 | **sequence** | the version of the projection. A verifier accepts only the anchored sequence; anything else is a refusal |
-| **projector** | the job that collects leaves, prunes revoked ones against the chain, and anchors the roots |
+| **projector** | the job that collects leaves from each estate's and issuer's vault, prunes revoked ones against the chain, and anchors the roots |
+| **issuer** | an organization or a service that vouches for claims in credentials, with a key facet anchored on its chain and a row on neutral ground. A person is never an issuer |
+| **anonymous credential** | a credential bound to a device key the person's agent presents under her standing wire; at a door it proves a predicate in zero knowledge |
+| **predicate grade** | a door's admission on a zero-knowledge proof that a statement over a credential holds (`age ≥ 18 ∧ member ≥ 1`), revealing no value, no credential, no key |
+| **trust set** | the issuers a door accepts, by id from the register; any other facet is refused before a proof is read |
+| **pay ticket** | the door's bill on a predicate admission: the issuer's payee, asset, chain and amount, bound to that admission's receipt, settled once |
+| **Secure Key Release** | the key service's platform root is released by Azure Key Vault only to the attested, non-debuggable SEV-SNP confidential VM (faithkms ADR-0013) |
 | **door** | the receiving boundary: it verifies a presentation against the root it reads and writes a receipt. It admits; it never decides what the agent may do |
 | **receipt** | the door's hash-chained record of a decision, by reference |
 | **standing** | what the receipt says: "live grant in estate X at sequence N". Evidence |
@@ -80,26 +86,24 @@ Everything in this repository is a consequence of that sentence.
 4. **Registration on neutral ground is first-come-wins, so the estate declares its signer on its own chain**
    and a verifier cross-checks both. A mismatch is a refusal.
 
-## What is live today (2026-10-14)
+## What is live today (2026-10-16)
 
 | Thing | Where |
 | --- | --- |
 | neutral ground | `0xb4E116F5…` on faithchain |
-| impact-agent | `imbnet.estate`, anchored at sequence 3, signer declared |
-| faithnet | `faithnet.estate`, anchored at sequence 1, signer declared |
-| a door in front of each | `door.ap-federation.faithnet.io` (impact-agent), `door-faithnet.ap-federation.faithnet.io` (faithnet) |
+| impact-agent | `imbnet.estate`, anchored, signer declared; its people live on hopechain (34349), its projection on faithchain |
+| faithnet | `faithnet.estate`, anchored, signer declared; faithchain (34348) |
+| issuers | imbnet's organization (`imbnet-org`, hopechain, its ledger in its own vault) and two registry-agent issuers |
+| a door in front of each estate | `door.ap-federation.faithnet.io` (impact-agent, with the predicate grade and pay tickets), `door-faithnet.ap-federation.faithnet.io` (faithnet) |
+| a company door | `ligonier-door.ap-federation.faithnet.io` in front of ligonier.svc; faithnet's personal-agent service at `pap.faithnet.io` |
 | the site | `ap-federation.faithnet.io`: towns, KMS, names, doors, neutral ground |
-| kept fresh by | a projector on a six-hourly cron at `projector.ap-federation.faithnet.io` — a verifier accepts only a fresh anchored sequence, so an estate whose projector stops running stops being provable |
-| the proof | `pnpm gate:twin`: in both directions, the visitor's standing admitted at the other estate's door, a question answered, an act refused at the authority stage with the missing mandate named, a payment **run under a steward's standing wire** derived by the visitor with the money landing in the visitor's treasury, and the five door refusals |
+| kept fresh by | the projector on a six-hourly cron at `projector.ap-federation.faithnet.io`, for every estate and every vault-ledger issuer |
+| the key service | `kms.faithnet.io`: one tenant per estate, P-256 device and issuing keys, the platform root released only to the attested machine |
+| the proof | `pnpm gate:twin` across the two chains in both directions; `pnpm gate:predicate` (a member proves over 18 and a member, nameless) and `pnpm gate:member-payment` (she pays dues on that proof); `pnpm gate:pap-twin` |
 
-**Live since 2026-10-15: a second chain.** impact-agent's people, Home, custody and grants live on hopechain
-(34349) while its projection still anchors on faithchain (34348); the register says both (`chainId` and
-`homeChainId`). The door verifies a presenter's signature on the chain its account lives on, reads the roots on the
-registry's chain and the estate agent's declaration on the projection chain; the projector reads revocation on the
-home chain. `pnpm gate:twin` runs both directions across the two chains, the host-side payment lands on hopechain
-under a wire issued there, and the outward payment across chains is refused — the rule being that value does not
-cross chains (spec 243 reserves the bridge). "No verifier code" was true of the registry and false of the door, which
-had one chain's client where it needed one per chain; `decisions-and-findings` W1–W9 say what else the first run found.
+A presenter's signature is verified on the chain its account lives on, roots are read on the registry's chain, and the
+projector reads revocation on each estate's home chain. Value does not cross chains: a payment is treasury to treasury
+on one chain (spec 243 reserves the bridge). The findings are in `decisions-and-findings.md`.
 
 ## A worked use case: a visiting agent is paid at faithnet
 

@@ -7,9 +7,12 @@ repository. The estate's half (adopting the tokens in its Workers) is ap-home's 
 ## 0. Before a tenant for an estate outside the first town
 
 The four conditions in `federation.yaml#kms.conditions` must read `met` for #1 and #4, or the request is refused
-and the reason is this line. Today #1 (faithnet's shared pilot credential) and #4 (the attestation) are open:
-close them first (§2, §4). `pnpm check:federation` will not refuse the record for you here — it refuses a *new*
-estate row that declares `sharedCredential: true`.
+and the reason is this line. Both read `met`: faithnet's callers are bound by named profile per Worker, and the CVM is
+attested, with the platform root released by Azure Key Vault only to that attested, non-debuggable SEV-SNP machine
+(Secure Key Release, faithkms ADR-0013). A restart therefore needs a short egress window to the attestation service
+(`faithkms/infra/scripts/nat-for-attestation.sh on`, restart, `off`), and so does an operator command that unseals in
+its own process (`create-key`); `bind-caller`, `apply-caller-profile` and token minting do not. `pnpm check:federation`
+refuses a *new* estate row that declares `sharedCredential: true`.
 
 ## 1. Create the tenant
 

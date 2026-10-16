@@ -24,7 +24,7 @@ Status words are the ones in [`README.md`](README.md): **live** · **designed** 
 | --- | --- | --- |
 | List the towns | chain, estates, services, live probes, on https://ap-federation.faithnet.io | **live** — `gate-federation-site` |
 | See neutral ground | registry address, which estates project, whether each signer is declared on its own chain | **live** — same gate |
-| See the shared KMS operator | host, tenants, callers, the four conditions, the billable-key budget | **live** as a record; attestation **open** (spec 440 A5) |
+| See the shared KMS operator | host, tenants, callers, the four conditions, the billable-key budget | **live**; the CVM is attested and the platform root is released only to it (Secure Key Release, faithkms ADR-0013) |
 
 The site is public, read-only, and keyless. It fetches each town's own surfaces. It holds no copy of a town
 manifest and no record of a person.
@@ -34,8 +34,8 @@ manifest and no record of a person.
 | Outcome | What it is | Status |
 | --- | --- | --- |
 | Resolve a label across every live town | one API, each row `{ name, chain }` plus the CAIP-10 account, never shown bare | **live** (U1) — over https://names.faithnet.io |
-| Carry the pair in the naming package | `FederatedAgentNameV1` and `atl:accounts` (one account id per chain) | **live** (U2). `atl:accounts` and a matching reverse lookup are on both faithchain and hopechain for the impact-agent roster (2026-10-15); the resolver does not read them yet |
-| Issue a name from an estate on another chain | that estate's gate named on the root; the resident owns the name on the root chain | **designed** (U3). The second chain exists; impact-agent's gate is not named on the root |
+| Carry the pair in the naming package | `FederatedAgentNameV1` and `atl:accounts` (one account id per chain) | **live** (U2, U2b). `atl:accounts` and a matching reverse lookup are on both chains; a town that roots its names at another town answers existence from the root and shows its own table as local, and a resolver row's account is the account on that chain, never promoted to canonical |
+| Issue a name from an estate on another chain | that estate's gate named on the root; the resident owns the name on the root chain | **designed** (U3): impact-agent's gate is not named on the root |
 | Resolve that name where the root chain cannot be read | a naming root on neutral ground; proof or empty | **proposed** (U4) |
 | Admit a new estate's gate by quorum | town clerks, a receipt, not one persona's key | **open** (U5) |
 | Be found by an ANS, AID, or HCS-14 resolver | `_agent` TXT and the well-known paths, each a projection of the signed profile | **proposed** — naming doc §7 item c |
@@ -44,28 +44,31 @@ manifest and no record of a person.
 
 | Outcome | What it is | Status |
 | --- | --- | --- |
-| Anchor an estate's live-grant and membership roots | Merkle roots on `EstateProjectionRegistry`, monotonic sequence | **live** for impact-agent (F1) — `gate-f1-projection` |
+| Anchor an estate's live-grant and membership roots | Merkle roots on `EstateProjectionRegistry`, monotonic sequence | **live** for both estates — `gate:freshness`, `gate:vault-record` |
 | Prove one leaf to a counterparty | the counterparty reads the root itself; a stale sequence is a refusal | **live** (F1 verify, F2 admit) |
-| Cross-check who registered the estate | `signerOf` on neutral ground against `atl:projectionSigner` on the estate's chain | **live** as a check; impact-agent's declaration is still **open** (`declaredOnChain: false`) |
-| Project faithnet | the same anchor, once faithnet has an estate agent | **blocked** — `federation.yaml` faithnet row |
+| Cross-check who registered the estate | `signerOf` on neutral ground against `atl:projectionSigner` on the estate's chain | **live**; both estates declare their signer on chain |
+| Anchor an issuer's live-credential root | an organization's credentials still vouched for, read from its own vault, anchored by the scheduled projector | **live** — imbnet's organization on hopechain |
+| Prove a predicate over an anonymous credential | over 18 AND a member of your organization, in zero knowledge, under the person's standing wire and the key service's device key | **live** — `gate:predicate` |
+| Pay dues on that proof | a pay ticket for the issuer's own terms; treasury to treasury on the organization's chain | **live** — `gate:member-payment` |
 
 ### Be admitted, then act
 
 | Outcome | What it is | Status |
 | --- | --- | --- |
-| Knock | a challenge, a principal-signed request proof, a presentation | **live** (F2) — https://door.ap-federation.faithnet.io |
-| Receive an admission receipt | hash-chained, by reference, naming the account and the boundary | **live**; the durable copy in the two vaults is **designed** (ADR-0055) |
-| Have the admitted call forwarded | headers carry the standing; the estate's A2A door receives the bytes | **live** as a forward; the estate runtime **ignores the headers today** |
+| Knock | a challenge, a principal-signed request proof, a presentation | **live** — https://door.ap-federation.faithnet.io, https://door-faithnet.ap-federation.faithnet.io |
+| Receive an admission receipt | hash-chained, by reference, naming the account and the boundary | **live**; its parties collapse after the retention window, the hash chain never changes; the presenter keeps her own receipt in her vault |
+| Have the admitted call forwarded | headers carry the standing; the estate's A2A door receives the bytes | **live** as a forward; the estate's runtime decides under its own mandate |
 | Run the act | under a mandate the receiving estate's own principal signed, checked per step | the estate's runtime, unchanged by this repository |
 | Take the same stage on the estate's own edge | the reference door retires into ap-home's edge | **designed** — `DEPLOYER.md` |
-| Run the two-chain twin, with its negative twin | the same proofs on a second chain, and the same refusals | **designed** — spec 439; no second chain |
+| Run the two-chain twin, with its negative twin | the same proofs across faithchain and hopechain, and the same refusals, both directions | **live** — `gate:twin` |
 
 ### Speak a protocol the field already speaks
 
 | Outcome | What it is | Status |
 | --- | --- | --- |
 | A2A over HTTPS | the normative external profile; the door forwards A2A | **live** as the door's forward |
-| NANDA adapter | participation, earned by conformance, with a foreign grant that has no mapping refused in words | **proposed** (spec 439 F4) |
+| PAP (personal agents at a company's door) | the estate's personal-agent service is the client, the person a pairwise subject; a company door where `approved_by` comes only from a mandate signature | **live** — pap.faithnet.io, ligonier-door; `gate:pap-twin` |
+| NANDA adapter | a released card projected into a NANDA index entry with a loss report; it prints and never publishes | **live** as a projection; participation **proposed** (spec 439 F4) |
 | ERC-8004 and ARD/ACP projections | a chain-side registry target and a discovery record, each with a back-link to the account | **proposed** — reuse of what Ring 0 already pins |
 
 MCP stays inside an estate. It is not a cross-town surface.
@@ -75,8 +78,8 @@ MCP stays inside an estate. It is not a cross-town surface.
 The KMS operator (spec 440 §A) is how an estate's naming gate and its session keys are held when the estate opts
 in: one tenant per estate, CVM wrapping, a named operator. It is not neutral ground — someone can pause it — and a
 town may bring its own. Joining it does not join faithnet's trust domain. For residents who sign in with Google,
-email, or phone, the operator custodies the seed; the record says so. faithnet's shared caller credential is still
-**open** (spec 407 D10) and closes before a third estate binds.
+email, or phone, the operator custodies the seed; the record says so. Callers are bound by named profile per Worker,
+and the platform root is released only to the attested machine.
 
 ---
 
@@ -84,23 +87,17 @@ email, or phone, the operator custodies the seed; the record says so. faithnet's
 
 ```
   live today
-    see the towns · resolve a name · anchor impact-agent · knock and be admitted
+    see the towns · resolve a name across chains · anchor both estates and an issuer from their vaults
+    knock and be admitted across two chains · prove a predicate nameless · pay dues on it · a company's door
 
-  owner, not code
-    faithnet's estate agent          →  faithnet can project
-    declare atl:projectionSigner     →  the first-come-wins gap closes
-    per-Worker KMS callers           →  a third estate may bind
-    move the projector onto the      →  presentations stay fresh without a workstation
-      estate's .registry agent
-
-  when a second chain exists
+  next
     U3  claim a root-chain name through a satellite     (after custody propagation)
     U4  prove that name against a naming root
-    the two-chain twin, refusals included
     the estate's own edge takes the door's stage
+    membership of an organization by a person of another estate
 
   when the field's spec is pinnable
-    NANDA, then ERC-8004 / ARD — adapters that refuse a grant they cannot map
+    NANDA participation, then ERC-8004 / ARD — adapters that refuse a grant they cannot map
     U5  the root's governor becomes a council of town clerks
 ```
 

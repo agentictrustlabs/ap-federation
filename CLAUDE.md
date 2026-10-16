@@ -48,6 +48,10 @@ against the root it reads itself.
 | what ERC-8004, ENS v2, the ANS family, AID, HCS-14, NANDA, AGNTCY actually say, dated | `docs/architecture/naming-landscape-crosswalk.md` |
 | the shared KMS operator, the site, the universal naming service | `specs/440-shared-kms-federation-site-and-universal-naming.md` — A1–A4 (one operator, one tenant per estate, four conditions), B1–B2 (the site reads the towns' own surfaces), C1–C4 (**one namespace rooted on faithchain, ENS v2 style**; other chains join by gate + satellite + chain-keyed records + proof) |
 | the receiving door (F2) | `apps/door/src/index.ts` — the four steps in order: proof → resolution → admission (foreign-estate evaluator, roots read live) → forward with evidence. The challenge is a stateless HMAC ticket (`challenge.ts`); the ledger DO is serving plane (`ledger-do.ts`). The gate's presenter is a real delegate (`scripts/setup-f2-test-grant.mts`) |
+| the predicate grade, the trust set, pay tickets | `apps/door/src/credential.ts` (`acceptedIssuers`, the verifier client), `apps/door/verifier/server.mjs` (the OpenAC verifier container), `apps/door/src/index.ts` (`/federation/present`, `/federation/pay-ticket`, `paymentTermsFor` — terms per issuer) |
+| issuers on neutral ground | `credentials.issuers[]` in `federation.yaml` (`ledger: vault` · `rowSigner`); `apps/projector` `--issuer` mode; the Worker's issuer rows (`apps/projector/worker/index.ts`); Ring 0 spec 444 |
+| a company's door (PAP) | `packages/personal-agent-client` (our agent at their door), `apps/pap` (the estate's personal-agent service), `apps/pap-door` (a company door); spec 443 |
+| what is relaxed for testing | `docs/runbooks/before-real-users.md` |
 | standards versions | Ring 0 `docs/standards-lock.json`. **This repo proposes entries; it never pins its own target** — the point of the lock is that an upgrade is reviewable by someone other than the adapter's author. |
 
 ### Drift triggers — STOP
@@ -72,8 +76,11 @@ against the root it reads itself.
 - *"Re-anchor every run so the roots are always fresh."* **STOP.** A sequence spent on an unchanged
   projection invalidates every presentation in flight. Anchor on change, plus a heartbeat below the shortest
   verifier `maxAge` — and know that the two pull against each other (`apps/projector/README.md` §3).
-- *"Say the cross-chain story is demonstrated."* **STOP.** F1 is CROSS-ESTATE on one chain. The id is
-  chain-scoped by construction, which is a design property, not a demonstration.
+- *"Let a person issue a credential."* **STOP.** An issuer is an organization or a service: its own agent issues,
+  under a mandate its steward signs, with a key facet anchored on its chain. A person holds and presents; she never
+  vouches for herself or for anyone else.
+- *"Say the cross-chain story covers value."* **STOP.** Authority crosses over proof (the two-chain twin is green); value
+  does not cross chains — a payment is treasury to treasury on one chain (spec 243 reserves the bridge).
 - *"Let this town run its own `.me` / create a second root."* **STOP.** There is ONE universal namespace, rooted on the
   root chain (faithchain today; spec 440 C1, the owner's decision 2026-10-14). A town joins it — its estate's gate is
   named on the root's priced roots, its residents own names there by their own root-chain account — and never runs a

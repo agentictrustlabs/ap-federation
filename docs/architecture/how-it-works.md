@@ -35,7 +35,7 @@ Gate: `scripts/gate-f2-door.mts`. Proves ADMIT with `FOREIGN_ESTATE_LIVE_GRANT` 
 another door's challenge, another subject, a replayed proof, no proof; admits a request with no presentation as
 nobody-foreign with no standing.
 
-## Part 3 — the estate decides (F3, one chain)
+## Part 3 — the estate decides (F3, across two chains)
 
 | Step | What happens | Where |
 | --- | --- | --- |
@@ -103,7 +103,29 @@ Three rules the building enforced on the way, all correct and all recorded:
   second redemption with `NonceReused`. Each run now carries a distinct memo, and the identical ask is asserted as a
   duplicate on purpose.
 
-## What is not yet shown
+## Part 4 — a member proves, nameless, and pays (the predicate grade)
 
-The two-chain twin. Everything above runs on faithchain; the estate id is chain-scoped by construction, so a second
-chain is one row in the register and one door, and no verifier code. A design property, not a demonstration.
+The second scenario the gates run: **hannah**, a member of imbnet's organization, proves at impact-agent's door that she
+is over 18 and a member, without saying who she is, and pays her dues.
+
+| Step | What happens | Where |
+| --- | --- | --- |
+| 1 | She asks for a credential through her own agent. Her agent checks the organization's roster, reads the PUBLIC half of her device key from her vault, and leaves `credential.request:<her>` in the organization's vault. | ap-home `credential.request` |
+| 2 | The organization issues, as itself, under its steward's mandate: a credential in its facet's claim layout `[age, member]`, bound to her device key, signed by the key service's issuing key under issuance evidence. It records `credential.issued:<digest>` (no claim values), vouches by writing `federation.projection-submission:live-credential:<digest>` into its own vault, and delivers `credential.anonymous:<digest>` into hers. | ap-home `credential.issue` |
+| 3 | The scheduled projector reads the organization's vault and anchors its live-credential root on neutral ground, as the estate's registry agent (`rowSigner`) under its wire. | `apps/projector/worker` |
+| 4 | The door publishes what it asks: the predicate program `age ≥ 18 ∧ member ≥ 1`, the claim layout, the nullifier window, the trust set of issuers. Her agent asks for a challenge as a pairwise account derived from her holder secret and the door's origin. | `GET /federation/credentials`, `POST /federation/challenge` |
+| 5 | Her agent proves. The release judges her standing `credential.present` wire against this audience, predicate and issuer facet, mints the bound evidence, and the key service's device key signs the one challenge. The issuer's status proof comes from the root anchored in step 3. | `scripts/lib/predicate-holder.mts` |
+| 6 | The presentation is posted ahead (tens of kilobytes; a header holds sixteen) and held under a reference; the knock cites it. The door verifies in the container beside it, resolves the facet through the chain, checks the status against the root it reads from the registry, consumes the nullifier, admits with `CREDENTIAL_PREDICATE_HELD`. | `POST /federation/present`, `/federation/knock` |
+| 7 | On that admission the door issues a pay ticket for the issuer's own terms (`membershipPayments.byIssuer`: the organization's treasury, the asset, hopechain). Her agent pays from her treasury under her standing dues wire; each payment is a child mandate her own harness verifies. | `POST /federation/pay-ticket` |
+| 8 | The door reads the transfer on hopechain, settles the ticket once, and records the acceptance beside the admission. The organization learns a member over 18 paid, not which member. | `POST /federation/pay-ticket/settled` |
+
+`pnpm gate:predicate` (25 checks, 5 refusals: a reused nullifier, a foreign venue, a revoked credential, a replayed
+challenge, an issuer outside the trust set) and `pnpm gate:member-payment` (15 checks, 4 refusals: no ticket without an
+admission, one settlement per ticket, a forged reference, a repeated intent) prove it, on the key service's device key.
+
+## The two-chain twin
+
+The scenario above and the F2/F3 crossings run across two chains: impact-agent's people, grants, treasuries and
+organization live on hopechain (34349); faithnet's on faithchain (34348); neutral ground is on faithchain. A presenter
+is verified on the chain its account lives on; a root is read from the registry's chain. `pnpm gate:twin` is green in
+both directions.

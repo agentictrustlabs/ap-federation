@@ -1,8 +1,9 @@
 # apps/projector — an estate's authority, projected onto neutral ground
 
-**Spec 439 F1** (Ring 0). The projector maintains an estate's **live-grant** and **membership** sets and
-anchors their Merkle roots in `EstateProjectionRegistry` under a **monotonic sequence**. A counterparty in
-another estate then proves one leaf against the root **it reads itself**.
+**Spec 439 F1** (Ring 0). The projector maintains an estate's **live-grant** and **membership** sets — and an
+ISSUER's **live-credential** set (zkID Z3, spec 444) — and anchors their Merkle roots in
+`EstateProjectionRegistry` under a **monotonic sequence**. A counterparty in another estate then proves one leaf
+against the root **it reads itself**; a holder presents a credential's status against the issuer's root the same way.
 
 ```
                     submissions (consent)            prune (truth)
@@ -27,8 +28,7 @@ estate on another chain, so it cannot refuse a squatter: whoever registers an es
 that estate appears to publish. A verifier that trusts `signerOf` alone trusts whoever was first. The
 mitigation is a cross-check against the estate's **own** declaration — F2 registers an `atl:projectionSigner`
 predicate in Ring 0 and the estate agent writes it (reading another public chain needs an endpoint, not
-trust). Until then the declaration is `federation.yaml` plus the ap-town row, both public and reviewed, and
-every run prints the gap.
+trust). Both estates declare it; a verifier refuses a mismatch and names an undeclared signer.
 
 **3. Freshness costs sequences.** A verifier accepts a presentation only while its sequence **is** the
 anchored one and the anchor is younger than that verifier's `maxAge`, and `setRoots` demands a strictly
@@ -55,6 +55,30 @@ pnpm projector verify  --file .submissions/presentation-….json
 `verify` runs the same `verifyAuthorityPresentation` the receiving edge runs in F2, against the roots read
 from the chain. It is the only command that needs no key at all — **a verifier holds nothing.**
 
+## Issuer mode (`--issuer <id>`, Ring 0 zkID Z3 / spec 444)
+
+A credential issuer's row holds ONE set, `live-credential`: the credentials it still stands behind, as
+`credentialDigestOf(jwt)` leaves with per-leaf blinds. No chain is asked for liveness — revocation IS the issuer's
+act (`retire`), and the next `project` anchors a root without it. The row id is `estateIdOf(chainId, issuerSA)`,
+tagged as an issuer row; the signer is the issuer SA, or the register's `rowSigner` when the issuer lives on a chain
+the registry does not (imbnet-org on hopechain: the estate's faithchain registry agent anchors for it under its wire).
+
+```bash
+pnpm projector status         --issuer imbnet-org
+pnpm projector register       --issuer imbnet-org                       # once; the row → its signer
+pnpm projector submit         --issuer imbnet-org --digest 0x… [--by …] # the issuer vouches (file-ledger issuers)
+pnpm projector retire         --issuer imbnet-org --digest 0x… --reason "…"
+pnpm projector project        --issuer imbnet-org [--dry-run]
+pnpm projector present-status --issuer imbnet-org --digest 0x… --audience <door> --nonce <nonce> --out <file>
+pnpm projector backfill-vault --issuer <id>                             # once: a file ledger into the issuer's vault
+```
+
+**Where the ledger lives is declared** (`credentials.issuers[].ledger`, ADR-0013: one mechanism, never both):
+`vault` — the issuer's own vault, read by the CLI with `.secrets/vault-secret-issuer-<id>.json` and by the Worker with
+`VAULT_CREDENTIALS_ISSUER_<ID>`; an organization's `credential.issue` act (ap-home) writes the submission there, so a
+vouch needs no operator. `file` — the operator's `.submissions/issuer-<id>.json`, the ceremony shape the two
+registry-agent issuers use.
+
 ## What it will not do
 
 - Read a person's records to find something to vouch for.
@@ -65,12 +89,25 @@ from the chain. It is the only command that needs no key at all — **a verifier
 - Hand out authority. A presentation says *this subject holds a live grant in estate E as of sequence N*.
   Whether anything may happen is the receiving estate's own mandate, verified per step (ADR-0056/ADR-0057).
 
-## Live state (2026-10-13)
+## The Worker (projector.ap-federation.faithnet.io)
+
+Every six hours, per projectable estate: read the submissions from the estate's registry-agent vault
+(`VAULT_CREDENTIALS_<ESTATE>`), prune every leaf against `isRevoked` on the estate's HOME chain, rebuild, anchor when
+the roots changed or the anchor is older than the refresh window, with that estate's key and anchoring wire
+(`PROJECTION_SIGNER_KEYS`, `ANCHORING_WIRES`). Per vault-ledger issuer: read the issuer's vault
+(`VAULT_CREDENTIALS_ISSUER_<ID>`), rebuild the live-credential root, anchor with that ISSUER's key and wire
+(`ISSUER_SIGNER_KEYS`, `ISSUER_ANCHORING_WIRES`) — keyed by issuer, so an issuer's key can never re-anchor an estate.
+`GET /status` reads the serving projection; `POST /ops/project` (ops token) runs a tick now. The Durable Object is
+the mirror, never the record.
+
+## Live state (2026-10-16)
 
 | | |
 | --- | --- |
 | neutral ground | `0xb4E116F5C6915a4f1e649E0877e4a0A7a1c1147b` on faithchain (34348) |
-| impact-agent | estateId `0xe96d2c36…`, governance `imbnet.estate` `0x4457aadf…`, anchored, sequence monotonic |
-| faithnet | **not projectable** — it has no estate agent (`faithnet.estate` is unregistered and its people declare no `atl:estate`). See `federation.yaml`. |
+| impact-agent | estateId `0xe96d2c36…`, governance `imbnet.estate`; people and grants on hopechain (34349), projection on faithchain; anchored, signer declared |
+| faithnet | `faithnet.estate`; anchored, signer declared |
+| issuers | `imbnet-org` (the organization, hopechain; `ledger: vault`; anchored from its vault by the Worker), `imbnet-membership-issuer` and `faithnet-gate-issuer` (registry agents, file ledgers) |
 
-`npx tsx scripts/gate-f1-projection.mts` is F1's gate, and it is green.
+`pnpm gate:freshness` proves every row is fresh enough for the doors' window; `gate-f1-projection.mts` is F1's gate,
+`gate:vault-record` proves the vault is the record. All green.
