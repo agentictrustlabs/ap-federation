@@ -70,7 +70,10 @@ const SIGNER_OF_ABI = [{ type: 'function', name: 'signerOf', stateMutability: 'v
  *  registry's (W4: impact-agent's people live on 34349 while its projection anchors on 34348). */
 interface RegisterEstate { id: string; chainId: number; homeChainId?: number; governance: string | null; profileResolver?: string }
 interface RegisterTown { id: string; chainId: number; rpcEnv?: string; universalSignatureValidator?: string; attestationRegistry?: string }
-interface MembershipPayment { payee: string; asset: string; amount: string; decimals?: number; symbol?: string; purpose?: string; ticketTtlSeconds?: number; predicateWindowSeconds?: number }
+interface PaymentTerms { payee: string; asset: string; amount: string; decimals?: number; symbol?: string; purpose?: string; chainId?: number }
+/** `byIssuer` (spec 444): an issuer whose credential earned the admission may name ITS organization's terms — a treasury and an
+ *  asset on its own chain. A payment is treasury to treasury on one chain, so an organization on another chain is paid there. */
+interface MembershipPayment extends PaymentTerms { ticketTtlSeconds?: number; predicateWindowSeconds?: number; byIssuer?: Record<string, PaymentTerms> }
 interface RegisterDoor { estate: string; url: string; credentialProofs?: DoorCredentialPolicy; membershipPayments?: MembershipPayment }
 interface Register { estates: RegisterEstate[]; towns: RegisterTown[]; doors: RegisterDoor[]; issuers: RegisterIssuer[]; registry: { chainId: number; address: string; rpcEnv?: string } }
 let registerCache: Register | null = null;
@@ -82,6 +85,18 @@ function register(): Register {
   return registerCache;
 }
 function registerEstates(): RegisterEstate[] { return register().estates; }
+/** THE TERMS A TICKET IS FOR, read from the admission receipt this door wrote — never from the client: the issuer whose facet
+ *  the predicate was proved under picks its organization's terms when the register gives it some, else the door's own.
+ *  Recomputed identically at settlement, so a ticket cannot be redeemed against another issuer's treasury or chain. */
+function paymentTermsFor(env: Env, mp: MembershipPayment, receiptBody: unknown): PaymentTerms & { chainId: number; issuer: string | null } {
+  const companions = ((receiptBody as { companions?: Array<{ record?: { kind?: string; issuerKeyId?: string } }> } | null)?.companions ?? []);
+  const keyId = companions.map((c) => c.record).find((r) => r?.kind === 'door.credential')?.issuerKeyId ?? null;
+  const issuer = keyId ? register().issuers.find((i) => (i.facets ?? []).some((f) => f.keyId === keyId))?.id ?? null : null;
+  const own = issuer ? mp.byIssuer?.[issuer] : undefined;
+  const base: PaymentTerms = { payee: mp.payee, asset: mp.asset, amount: mp.amount, ...(mp.decimals !== undefined ? { decimals: mp.decimals } : {}), ...(mp.symbol ? { symbol: mp.symbol } : {}), ...(mp.purpose ? { purpose: mp.purpose } : {}) };
+  const t = { ...base, ...(own ?? {}) };
+  return { ...t, chainId: Number(t.chainId ?? env.CHAIN_ID), issuer: own ? issuer : null };
+}
 const chainOf = (caip10: string): number | null => { const m = caip10.match(/^eip155:(\d+):0x[0-9a-fA-F]{40}$/); return m ? Number(m[1]) : null; };
 /** A read client for one chain, with that chain's signature validator: the registry's own for its chain, else the town's
  *  declared endpoint and validator. `null` when this deployment cannot reach that chain — which is an answer (refuse),
@@ -428,34 +443,40 @@ export default {
       if (!admittedAt || Math.floor(Date.now() / 1000) - admittedAt > window) return json({ error: 'predicate_stale', says: `the admission is older than ${window}s — prove again` }, 403);
       const reference = `member-${receiptId.slice(-12)}-${crypto.randomUUID().slice(0, 8)}`;
       const expiresAt = Math.floor(Date.now() / 1000) + (mp.ticketTtlSeconds ?? 900);
-      const ticket = await hmacHex(env.DOOR_SECRET, `pay-ticket|${reference}|${mp.payee.toLowerCase()}|${mp.asset.toLowerCase()}|${mp.amount}|${receiptId}|${expiresAt}`);
-      await ledger(env).audit.append({ kind: 'door.pay-ticket', effect: 'ADMIT', reference, admissionReceipt: receiptId, actingAgentId: rec.actingAgentId, amount: mp.amount, at: new Date().toISOString() }).catch(() => undefined);
-      return json({ reference, payee: mp.payee, asset: mp.asset, amount: mp.amount, decimals: mp.decimals ?? 6, symbol: mp.symbol ?? '', chainId: Number(env.CHAIN_ID), purpose: mp.purpose ?? 'membership', expiresAt, ticket, admissionReceipt: receiptId, says: 'pay from YOUR treasury under YOUR mandate with this reference in the memo; then POST /federation/pay-ticket/settled { reference, ticket, txHash } and the organization records the acceptance beside your predicate admission' });
+      const terms = paymentTermsFor(env, mp, r.body);
+      const ticket = await hmacHex(env.DOOR_SECRET, `pay-ticket|${reference}|${terms.chainId}|${terms.payee.toLowerCase()}|${terms.asset.toLowerCase()}|${terms.amount}|${receiptId}|${expiresAt}`);
+      await ledger(env).audit.append({ kind: 'door.pay-ticket', effect: 'ADMIT', reference, admissionReceipt: receiptId, actingAgentId: rec.actingAgentId, amount: terms.amount, chainId: terms.chainId, ...(terms.issuer ? { issuer: terms.issuer } : {}), at: new Date().toISOString() }).catch(() => undefined);
+      return json({ reference, payee: terms.payee, asset: terms.asset, amount: terms.amount, decimals: terms.decimals ?? 6, symbol: terms.symbol ?? '', chainId: terms.chainId, purpose: terms.purpose ?? 'membership', expiresAt, ticket, admissionReceipt: receiptId, says: 'pay from YOUR treasury under YOUR mandate with this reference in the memo; then POST /federation/pay-ticket/settled { reference, ticket, txHash } and the organization records the acceptance beside your predicate admission' });
     }
     if (req.method === 'POST' && p === '/federation/pay-ticket/settled') {
       const mp = register().doors.find((d) => d.url === env.PUBLIC_ORIGIN)?.membershipPayments;
-      if (!mp || !env.DOOR_SECRET || !env.FEDERATION_RPC_URL) return json({ error: 'door_unconfigured' }, 503);
+      if (!mp || !env.DOOR_SECRET) return json({ error: 'door_unconfigured' }, 503);
       const b = (await req.json().catch(() => ({}))) as { reference?: string; ticket?: string; txHash?: string; admissionReceipt?: string; expiresAt?: number };
       if (!b.reference || !b.ticket || !/^0x[0-9a-fA-F]{64}$/.test(b.txHash ?? '') || !b.admissionReceipt || !b.expiresAt) return json({ error: 'invalid_request', hint: '{ reference, ticket, txHash, admissionReceipt, expiresAt }' }, 400);
-      const want = await hmacHex(env.DOOR_SECRET, `pay-ticket|${b.reference}|${mp.payee.toLowerCase()}|${mp.asset.toLowerCase()}|${mp.amount}|${b.admissionReceipt}|${b.expiresAt}`);
+      const adm = await ledger(env).receipt(b.admissionReceipt);
+      if (adm.status !== 200) return json({ error: 'admission_receipt_unknown' }, 403);
+      const terms = paymentTermsFor(env, mp, adm.body);
+      const want = await hmacHex(env.DOOR_SECRET, `pay-ticket|${b.reference}|${terms.chainId}|${terms.payee.toLowerCase()}|${terms.asset.toLowerCase()}|${terms.amount}|${b.admissionReceipt}|${b.expiresAt}`);
       if (want !== b.ticket) return json({ error: 'ticket_invalid' }, 403);
       if (b.expiresAt < Math.floor(Date.now() / 1000)) return json({ error: 'ticket_expired' }, 403);
       const spent = await ledger(env).replayStore.consume({ namespace: 'pay-ticket', replayId: b.reference, digest: b.txHash!.toLowerCase(), expiresAt: new Date((b.expiresAt + 86400) * 1000).toISOString() });
       if (spent !== 'CONSUMED') return json({ error: 'ticket_already_settled', says: 'one ticket settles once' }, 409);
       // THE TRANSFER, read from the chain: the receipt of THIS transaction (never a log scan — ADR-0012), one ERC-20 Transfer to the
       // organization's treasury in the ticket's asset, for at least the amount.
-      const pc = createPublicClient({ transport: http(env.FEDERATION_RPC_URL) });
+      // On the TERMS' chain — the organization's own — read through the register's endpoint for it; unreachable is a refusal.
+      const pc = clientFor(env, terms.chainId)?.pub;
+      if (!pc) return json({ error: 'chain_unreachable', says: `this door cannot read eip155:${terms.chainId}` }, 503);
       let txr: Awaited<ReturnType<typeof pc.getTransactionReceipt>> | null = null;
       try { txr = await pc.getTransactionReceipt({ hash: b.txHash as Hex }); } catch { txr = null; }
       if (!txr || txr.status !== 'success') return json({ error: 'transfer_not_found', says: 'no successful transaction with that hash on this chain' }, 404);
       const TRANSFER = keccak256(toHex('Transfer(address,address,uint256)'));
-      const unit = 10n ** BigInt(mp.decimals ?? 6);
-      const needed = BigInt(Math.round(Number(mp.amount) * 1e6)) * unit / 1000000n;
-      const hit = txr.logs.find((l) => l.address.toLowerCase() === mp.asset.toLowerCase() && l.topics[0] === TRANSFER && l.topics[2] && `0x${l.topics[2].slice(26)}`.toLowerCase() === mp.payee.toLowerCase() && BigInt(l.data) >= needed);
-      if (!hit) return json({ error: 'transfer_mismatch', says: `the transaction moved no ${mp.symbol ?? 'asset'} of at least ${mp.amount} to the organization's treasury` }, 403);
+      const unit = 10n ** BigInt(terms.decimals ?? 6);
+      const needed = BigInt(Math.round(Number(terms.amount) * 1e6)) * unit / 1000000n;
+      const hit = txr.logs.find((l) => l.address.toLowerCase() === terms.asset.toLowerCase() && l.topics[0] === TRANSFER && l.topics[2] && `0x${l.topics[2].slice(26)}`.toLowerCase() === terms.payee.toLowerCase() && BigInt(l.data) >= needed);
+      if (!hit) return json({ error: 'transfer_mismatch', says: `the transaction moved no ${terms.symbol ?? 'asset'} of at least ${terms.amount} to the organization's treasury` }, 403);
       const payer = `0x${hit.topics[1]!.slice(26)}`.toLowerCase();
-      const rcpt = await ledger(env).audit.append({ kind: 'door.payment', effect: 'ADMIT', reference: b.reference, admissionReceipt: b.admissionReceipt, txHash: b.txHash!.toLowerCase(), payerTreasury: payer, payee: mp.payee.toLowerCase(), asset: mp.asset.toLowerCase(), amount: BigInt(hit.data).toString(), purpose: mp.purpose ?? 'membership', at: new Date().toISOString() }).catch(() => null);
-      return json({ accepted: true, reference: b.reference, txHash: b.txHash!.toLowerCase(), payerTreasury: payer, payee: mp.payee, amount: BigInt(hit.data).toString(), receipt: rcpt, says: 'accepted into the organization\'s treasury — recorded beside the predicate admission that earned the ticket; the organization knows a member over 18 paid, and not which member' });
+      const rcpt = await ledger(env).audit.append({ kind: 'door.payment', effect: 'ADMIT', reference: b.reference, admissionReceipt: b.admissionReceipt, txHash: b.txHash!.toLowerCase(), payerTreasury: payer, payee: terms.payee.toLowerCase(), asset: terms.asset.toLowerCase(), chainId: terms.chainId, amount: BigInt(hit.data).toString(), purpose: terms.purpose ?? 'membership', at: new Date().toISOString() }).catch(() => null);
+      return json({ accepted: true, reference: b.reference, txHash: b.txHash!.toLowerCase(), payerTreasury: payer, payee: terms.payee, chainId: terms.chainId, amount: BigInt(hit.data).toString(), receipt: rcpt, says: 'accepted into the organization\'s treasury — recorded beside the predicate admission that earned the ticket; the organization knows a member over 18 paid, and not which member' });
     }
     if (req.method === 'GET' && p === '/federation/receipts') {
       // THE PUBLIC FACE OF THE LEDGER CARRIES NO SUBJECT (spec 442 §7.6, finding P4): counts, decision codes, and a

@@ -174,6 +174,17 @@ doors:
       purpose: membership dues
       ticketTtlSeconds: 900
       predicateWindowSeconds: 900
+      # Spec 444: an admission earned under THIS issuer's credential pays THIS organization's treasury, on its own chain
+      # (a payment is treasury to treasury on one chain). The door reads the issuer from its own admission receipt.
+      byIssuer:
+        imbnet-org:
+          payee: "0x57988d43497Aa8e707Aa650127a84373650399f5"
+          asset: "0xBd19d53981677357052EF9768B70929217a6F1F0"
+          chainId: 34349
+          symbol: USDC
+          decimals: 6
+          amount: "5"
+          purpose: membership dues
   - estate: faithnet
     url: https://door-faithnet.ap-federation.faithnet.io
     target: alice.me
