@@ -129,9 +129,16 @@ doors:
     # (one visit per audience) is required; the issuer's live-credential status is required and read from neutral ground.
     # The verifier is the Node Container beside the door Worker (apps/door/verifier) — the receipt names that placement.
     credentialProofs:
+      # zkID Z5 (2026-10-16): "over 18, AND a member of your organization" — the membership is a `member` claim in a
+      # credential the ORGANIZATION's own issuer facet issued (imbnet's, `imbnet-membership-issuer` below), proved in the
+      # same zero-knowledge presentation; the door learns that its organization issued her a membership and nothing about
+      # which member. A credential from another issuer, or one without the claim, proves nothing here.
       predicates:
         - { claim: age, op: gte, value: 18 }
-      claimSchema: [age, roc_birthday]     # the issuer-fixed disclosure order of the accepted credential type (slot = claim)
+        - { claim: member, op: gte, value: 1 }
+      # TWO claims, TWO predicates: the 1k circuit matches at most four patterns (claims + predicates), so the membership
+      # layout drops roc_birthday — a door that wants a third claim proves it with the 2k keys (openac-sdk PARAMS_EXCEEDED).
+      claimSchema: [age, member]     # the issuer-fixed disclosure order of the accepted credential type (slot = claim)
       vcSize: 1k
       acceptedVersions: ["0.1.0"]          # openac-sdk 5.0.0's bundle `version` (Ring 0 lock `openac-sdk`); bound to the 1k keys
       # One visit per audience PER WINDOW: the asserted nullifier is deterministic per (device key, audience), so the store
@@ -170,6 +177,33 @@ credentials:
     # Agent of the estate with a headless custodian (demo-admin, through www.faithnet.me) and an anchoring wire already
     # (.secrets/anchoring-wire-faithnet.json covers `setRoots` for ANY row the agent signs for, so its issuer row anchors
     # under the same wire). A production issuer is a dedicated `.svc` of the estate; this one proves the mechanism.
+    # zkID Z5 (2026-10-16): THE ORGANIZATION'S OWN ISSUER for "a member of your organization" at impact-agent's door —
+    # imbnet's REGISTRY AGENT (the estate's org-side issuer; the same shape faithnet's proves), custodied by maya through
+    # www.impact-agent.me. It lives on faithchain (the registry agent is faithchain-era), so its facet is attested there and
+    # the holder's wire shares the chain. Its credential carries [age, member, roc_birthday]: the org vouches for both.
+    - id: imbnet-membership-issuer
+      estate: impact-agent
+      sa: "0x432FE71eAB5442220Cb0CBb6974f741093De8Bd7"
+      chainId: 34348
+      kind: registry-agent
+      custodian: "maya (a person of this estate, via www.impact-agent.me)"
+      attestationRegistry: "0x4c94A0355380b8F5023eDd5f8A8131B020de19FA"
+      universalSignatureValidator: "0xeDd56f500325D4701B9985A34e5Fa6EED6716137"
+      rpcEnv: FEDERATION_RPC_URL
+      anchorDelegateKeyEnv: IMPACT_AGENT_PROJECTION_SIGNER
+      anchoringWire: .secrets/anchoring-wire-impact-agent.json
+      since: 2026-10-16
+      # Written by scripts/setup-predicate-issuer.mts (2026-10-16, custodian maya through www.impact-agent.me): the facet is PUBLIC; the
+      # attestation (tx 0xfc71fa1a…) on faithchain's AttestationRegistry is what a verifier checks; the issuer row anchored at sequence 2.
+      facets:
+        - keyId: issuer-key:sd-jwt:imbnet-membership-issuer-1
+          thumbprint: CNFguV_FDOnRyMJeVtr51AUYvNt0pjlSrEzDKNa6kfg
+          attestation: "0xebaf6600895e5e6e4d4507da4d340b45abec16252c570cbf1b176977e6748a08"
+          revocationRoot: projection
+          document:
+            facet: {"type":"IssuerKeyFacetV1","subjectAgent":"0x432fe71eab5442220cb0cbb6974f741093de8bd7","keyId":"issuer-key:sd-jwt:imbnet-membership-issuer-1","suite":"es256-sd-jwt","publicKeyJwk":{"kty":"EC","crv":"P-256","x":"bRJGs9GPJ6WzrS7bCTy12DI8QDIZzH1pFWwgrYwdH3o","y":"TDyTrcRtsbZ8HwgnkFze7aKhDOzLzkev1cTEGvuPuT8","kid":"CNFguV_FDOnRyMJeVtr51AUYvNt0pjlSrEzDKNa6kfg"},"validFrom":"2026-10-16T00:15:04.594Z"}
+            facetHash: sha256:91591d150dea1ea36ffb3166210d10ca43e103d5f65c42f881a63c8ac154d179
+            signature: "0x4d92b9d4ce9d90d7cbcc797cf2bb54873fcd8046aa7863ef6765a2381cc9d8173618d3fc0626ba2c2e3dd64cca2a9e10cbda913105f98f7f887593fdd21023bf1c"
     - id: faithnet-gate-issuer
       estate: faithnet
       sa: "0xdfdAE0a37D35b72D8E2a4E3464087d43d0eB0b5b"
@@ -486,7 +520,7 @@ naming:
 # documents serve — the site says "declared", never "live", until a gate has seen them.
 protocols:
   - estate: faithnet
-    status: declared
+    status: live            # 2026-10-16: pap.faithnet.io serves the documents; `gate:pap-twin` green against ligonier's door
     personalAgent:
       # `faithnet-pap.svc` (bought 2026-10-16, 10 SHQ from demo-admin's treasury): the gate's domain rule refused `pap` (pap.com exists).
       service: faithnet-pap.svc@faithnet
@@ -499,6 +533,7 @@ protocols:
       mediatedSignIn: refused
     companyDoors:
       - agent: ligonier.svc
-        poppy: https://ligonier.faithnet.ai/.well-known/poppy.json
+        poppy: https://ligonier-door.ap-federation.faithnet.io/.well-known/poppy.json   # apps/pap-door (443 W2, live 2026-10-16); ligonier.faithnet.ai is the runtime's wildcard zone
+        doorAgent: "0xa8faCe68E4177EF9E16CFf80E8356FaA88287407"   # the door's OWN service agent (chartered 2026-10-16): what knocks at ligonier.svc's A2A door with the parked act
         requiresInvitation: false
         proofGrades: [identity, standing, predicate]

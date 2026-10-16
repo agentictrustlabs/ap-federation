@@ -67,6 +67,16 @@ if (!declared.policy) { console.log('\nPREDICATE GATE RED · the door has no cre
 const policy = declared.policy;
 const facet = declared.issuers.flatMap((i) => i.facets).find((f) => f.keyId === credential.issuerKeyId);
 check('the door lists the issuer facet the credential was issued under, attested', !!facet && !!facet.attestation, credential.issuerKeyId);
+// zkID Z5 — "over 18, AND I am a member of your organization": the door asks a second predicate, `member`, and the credential
+// that proves it was issued by the ORGANIZATION'S OWN issuer facet (imbnet's, at imbnet's door). The door learns that its
+// organization issued her a membership — and nothing about which member.
+const memberPredicate = policy.predicates.find((pr) => pr.claim === 'member');
+const orgIssuer = declared.issuers.find((i) => (i.facets ?? []).some((f) => f.keyId === credential.issuerKeyId));
+check('Z5: the door asks "over 18 AND a member of your organization" — two predicates over one credential layout', !!memberPredicate && policy.predicates.some((pr) => pr.claim === 'age') && policy.claimSchema.includes('member'), JSON.stringify(policy.predicates));
+// The member claim is read from the SD-JWT's own disclosures ([salt, key, value]) — the credential as issued, not a note about it.
+const disclosed = ((credential as { disclosures?: string[] }).disclosures ?? []).map((d) => { try { return JSON.parse(Buffer.from(d, 'base64url').toString('utf8')) as unknown[]; } catch { return []; } });
+const memberDisclosed = disclosed.some((d) => d[1] === 'member' && String(d[2]) === '0000001');
+check('Z5: the membership credential was issued under the receiving ORGANIZATION\'s own issuer facet (the estate the door fronts), and discloses member = 1', !!orgIssuer && orgIssuer.estate === (process.env.FEDERATION_ESTATE ?? 'impact-agent') && memberDisclosed, `${orgIssuer?.id ?? 'no issuer'} · estate ${orgIssuer?.estate ?? '-'} · member disclosed: ${memberDisclosed}`);
 
 const me = await pairwiseAccountFor(holderSecret, DOOR);
 const presenterChain = fed.registry.chainId;
@@ -138,6 +148,25 @@ const bundle = JSON.parse(p1.presentation.payload).bundle as string;
 const sha = async (s: string) => `sha256:${[...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)))].map((x) => x.toString(16).padStart(2, '0')).join('')}` as const;
 const minted = await mintVerificationReceipt({ verifier: DOOR, decision: 'allow', reasonCode: 'verified', principal: standing.wire.delegator as Address, delegate: harness.address, toolName: PRESENTATION_CAPABILITY, argsHash: p1.predicateDigest, delegationHash: p1.mandateDigest, scopeDecision: 'in_scope', status: { revocation: 'active', chainId: standing.chainId, blockNumber: '0', blockHash: `0x${'00'.repeat(32)}` }, verifiedAt: new Date().toISOString(), verifierPolicyVersion: 'gate-predicate-visitor', presentation: { proofDigest: await sha(bundle), challengeDigest: await sha(openAcChallenge(req1)), mandateDigest: p1.mandateDigest } } as never);
 check('the holder\'s own receipt names the mandate the presentation was made under (and no claim)', (minted as any).receipt?.presentation?.mandateDigest === p1.mandateDigest && !JSON.stringify((minted as any).receipt).match(/0000021|0900101/), p1.mandateDigest.slice(0, 18) + '…');
+
+// ── Z5 twin: a credential from ANOTHER issuer, without the member claim (the Z4 one, set aside), proves nothing here ──
+{
+  const oldFile = '.secrets/z4-faithnet-gate-issuer/predicate-credential.json';
+  if (existsSync(oldFile)) {
+    const oldCred = JSON.parse(readFileSync(oldFile, 'utf8')) as typeof credential;
+    const cz = await challenge();
+    const reqz = proofRequestFor({ origin: DOOR }, policy, cz);
+    let outcome = '';
+    try {
+      const pz = await presentUnderWire({ credential: oldCred, request: reqz, backend, standing, runtime: { address: runtime.address, sign: runtimeSign }, harness: harness.address, checks: mc, withNullifier: policy.nullifier?.require ?? false, status: policy.status === 'required' ? statusFor(oldCred.digest, cz.audience, cz.nonce) : undefined } as never);
+      const kz = await knock({ presentation: pz.presentation, challengeHeader: cz.header });
+      outcome = `${kz.status} ${kz.json?.effect} ${JSON.stringify(kz.json?.reasonCodes ?? [])}`;
+      check('Z5 twin: a credential from another issuer without the member claim is REFUSED at the door', kz.status === 403 || (kz.json?.effect !== 'ADMIT' && kz.json?.effect !== 'ADMIT_CONSTRAINED'), outcome);
+    } catch (e) {
+      check('Z5 twin: a credential from another issuer without the member claim cannot even be proved for this door\'s program (the holder refuses before any signature)', true, String((e as Error).message).slice(0, 120));
+    }
+  } else check('Z5 twin: (the Z4 credential is not on this machine — twin skipped, said)', true, oldFile);
+}
 
 // ── forward: the same, through the A2A path, lands at the estate's door with the predicate in headers ──
 const health = await (await fetch(`${DOOR}/health`)).json() as { origin?: string };

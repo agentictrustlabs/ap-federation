@@ -1,0 +1,45 @@
+# A PAP Company's door in front of ONE service agent — spec 443 W2. One Worker per company agent that chooses to be a
+# PAP Company. Secrets (never here): DOOR_SECRET (tokens, subject digests), DOOR_AGENT_KEY (the custodian key of the door's
+# own service agent — the identity it knocks at the company agent's A2A door with), FEDERATION_RPC_URL (ERC-1271 reads).
+name = "ap-federation-pap-door"
+main = "src/index.ts"
+compatibility_date = "2025-09-01"
+compatibility_flags = ["nodejs_compat"]
+
+[[durable_objects.bindings]]
+name = "LEDGER"
+class_name = "PapDoorDO"
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["PapDoorDO"]
+
+[vars]
+PUBLIC_ORIGIN = "http://localhost:8789"
+COMPANY_NAME = "Acme Books"
+COMPANY_AGENT = "eip155:34348:0x0000000000000000000000000000000000000000"
+COMPANY_A2A = "http://localhost:8787/api/a2a"
+COMPANY_HOMEPAGE = "http://localhost:3000"
+DOOR_AGENT = "0x0000000000000000000000000000000000000000"
+LISTING = "public"
+CHAIN_ID = "34348"
+UNIVERSAL_SIGNATURE_VALIDATOR = "0xeDd56f500325D4701B9985A34e5Fa6EED6716137"
+
+[env.ligonier]
+name = "ap-federation-pap-door-ligonier"
+routes = [{ pattern = "ligonier-door.ap-federation.faithnet.io", custom_domain = true }]
+[[env.ligonier.durable_objects.bindings]]
+name = "LEDGER"
+class_name = "PapDoorDO"
+[[env.ligonier.migrations]]
+tag = "v1"
+new_sqlite_classes = ["PapDoorDO"]
+[env.ligonier.vars]
+PUBLIC_ORIGIN = "https://ligonier-door.ap-federation.faithnet.io"
+COMPANY_NAME = "Ligonier"
+COMPANY_AGENT = "eip155:34348:0x38b502cd2902f2d91ca24032e0f2076fc2749347"
+COMPANY_A2A = "https://edge.faithnet.io/api/a2a/ligonier.svc"
+COMPANY_HOMEPAGE = "https://ligonier-svc.faithnet.ai"
+DOOR_AGENT = "0xa8faCe68E4177EF9E16CFf80E8356FaA88287407"
+LISTING = "public"
+CHAIN_ID = "34348"
+UNIVERSAL_SIGNATURE_VALIDATOR = "0xeDd56f500325D4701B9985A34e5Fa6EED6716137"

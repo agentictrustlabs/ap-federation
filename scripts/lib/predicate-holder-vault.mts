@@ -48,17 +48,24 @@ export async function readHolderFromVault(c: VaultCredentials, door: string): Pr
   const types = await listVaultRecords(c, 'credential.');
   const creds: HolderCredentialRecordV1[] = [];
   for (const t of types.filter((x) => x.startsWith('credential.anonymous:'))) { const r = await getVaultRecord<HolderCredentialRecordV1>(c, t); if (r?.type === 'ap.anonymous-credential.v1') creds.push(r); }
-  const liveRec = creds.find((x) => !x.revoked); const revokedRec = creds.find((x) => !!x.revoked);
+  // WHICH CREDENTIAL: the live one that has a presentation mandate for THIS door — and, when several issuers' credentials
+  // sit in her vault (Z4's beside Z5's), the one whose mandate for this door is the NEWEST: a door's policy moves and she
+  // re-derives her mandate; the old credential stays hers and proves nothing here.
+  const mandatesAll: Array<StandingWireV1 & { holder: string; door: string; issuerKeyId: string; issuedAt?: string }> = [];
+  for (const t of types.filter((x) => x.startsWith('credential.presentation-mandate:'))) { const r = await getVaultRecord<StandingWireV1 & { holder: string; door: string; issuerKeyId: string; issuedAt?: string }>(c, t); if (r) mandatesAll.push(r); }
+  const forDoor = mandatesAll.filter((m) => m.door === door).sort((a, b) => String(b.issuedAt ?? '').localeCompare(String(a.issuedAt ?? '')));
+  const liveCands = creds.filter((x) => !x.revoked);
+  const liveRec = forDoor.map((m) => liveCands.find((x) => x.issuerKeyId === m.issuerKeyId)).find(Boolean) ?? liveCands[0];
   if (!liveRec) throw new Error(`her vault holds no live credential.anonymous:* record under this grant (listed ${types.length} credential.* record(s))`);
+  const revokedRec = creds.find((x) => !!x.revoked && x.issuerKeyId === liveRec.issuerKeyId) ?? creds.find((x) => !!x.revoked);
   if (!revokedRec) throw new Error('her vault holds no revoked credential (the gate\'s twin needs one)');
   const deviceKey = await getVaultRecord<HolderDeviceKeyRecordV1>(c, HOLDER_RECORDS.deviceKey(liveRec.deviceKeyThumbprint));
   if (!deviceKey?.privateKeyHex) throw new Error(`her vault holds no ${HOLDER_RECORDS.deviceKey(liveRec.deviceKeyThumbprint)}`);
   const secretTypes = types.filter((x) => x.startsWith('credential.holder-secret:'));
   const secret = secretTypes.length ? await getVaultRecord<HolderSecretRecordV1>(c, secretTypes[0]!) : null;
   if (!secret?.secret) throw new Error('her vault holds no credential.holder-secret:* record');
-  const mandates: Array<StandingWireV1 & { holder: string; door: string; issuerKeyId: string }> = [];
-  for (const t of types.filter((x) => x.startsWith('credential.presentation-mandate:'))) { const r = await getVaultRecord<StandingWireV1 & { holder: string; door: string; issuerKeyId: string }>(c, t); if (r) mandates.push(r); }
-  const standing = mandates.find((m) => m.door === door && m.issuerKeyId === liveRec.issuerKeyId);
+  const mandates = mandatesAll;
+  const standing = forDoor.find((m) => m.issuerKeyId === liveRec.issuerKeyId);
   if (!standing) throw new Error(`her vault holds no presentation mandate for ${door} under ${liveRec.issuerKeyId} (${mandates.length} mandate(s))`);
   const asIssued = (r: HolderCredentialRecordV1): IssuedCredential & { digest: Hex } => ({ issuerKeyId: r.issuerKeyId, jwt: r.jwt, disclosures: r.disclosures, issuerPublicKeyJwk: r.issuerPublicKeyJwk, devicePrivateKeyHex: deviceKey.privateKeyHex, digest: r.digest });
   return { live: asIssued(liveRec), revoked: { ...asIssued(revokedRec), staleStatus: revokedRec.revoked!.staleStatus as Record<string, unknown>, revokedAtSequence: revokedRec.revoked!.revokedAtSequence }, holderSecret: secret.secret, standing };

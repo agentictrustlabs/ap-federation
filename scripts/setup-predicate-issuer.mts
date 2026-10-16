@@ -84,15 +84,18 @@ mkdirSync('.secrets', { recursive: true });
 const envFile = '.secrets/predicate-visitor.env';
 const envText = existsSync(envFile) ? readFileSync(envFile, 'utf8') : '';
 const envGet = (k: string) => new RegExp(`^${k}=(\\S+)`, 'm').exec(envText)?.[1];
+// Z5: a SECOND issuer must not sign with the first one's key — the issuing key is scoped by issuer id (the first keeps its name).
+const ISSUER_KEY_NAME = ISSUER === 'faithnet-gate-issuer' ? 'PREDICATE_ISSUER_P256_KEY' : `PREDICATE_ISSUER_P256_KEY_${ISSUER.toUpperCase().replace(/[^A-Z0-9]/g, '_')}`;
 const fresh = {
-  PREDICATE_ISSUER_P256_KEY: envGet('PREDICATE_ISSUER_P256_KEY') ?? `0x${randomBytes(32).toString('hex')}`,
+  [ISSUER_KEY_NAME]: envGet(ISSUER_KEY_NAME) ?? `0x${randomBytes(32).toString('hex')}`,
+  ...(ISSUER_KEY_NAME !== 'PREDICATE_ISSUER_P256_KEY' && envGet('PREDICATE_ISSUER_P256_KEY') ? { PREDICATE_ISSUER_P256_KEY: envGet('PREDICATE_ISSUER_P256_KEY')! } : {}),
   PREDICATE_DEVICE_P256_KEY: envGet('PREDICATE_DEVICE_P256_KEY') ?? `0x${randomBytes(32).toString('hex')}`,
   PREDICATE_HOLDER_SECRET: envGet('PREDICATE_HOLDER_SECRET') ?? generateHolderSecret(),
   PREDICATE_RUNTIME_KEY: envGet('PREDICATE_RUNTIME_KEY') ?? `0x${randomBytes(32).toString('hex')}`,
   PREDICATE_HARNESS_KEY: envGet('PREDICATE_HARNESS_KEY') ?? `0x${randomBytes(32).toString('hex')}`,
 };
 writeFileSync(envFile, Object.entries(fresh).map(([k, v]) => `${k}=${v}`).join('\n') + '\n', { mode: 0o600 });
-const issuerKey = new LocalEs256Signer({ privateKeyHex: fresh.PREDICATE_ISSUER_P256_KEY });
+const issuerKey = new LocalEs256Signer({ privateKeyHex: fresh[ISSUER_KEY_NAME] as string });
 const device = new LocalEs256Signer({ privateKeyHex: fresh.PREDICATE_DEVICE_P256_KEY });
 const runtime = privateKeyToAccount(fresh.PREDICATE_RUNTIME_KEY as Hex);
 const harness = privateKeyToAccount(fresh.PREDICATE_HARNESS_KEY as Hex);
@@ -145,10 +148,15 @@ writeFileSync(recordFile, JSON.stringify({ keyId, document, attestation, salt, s
 const credFile = '.secrets/predicate-credential.json';
 const revokedFile = '.secrets/predicate-credential-revoked.json';
 const dev = device.publicJwk();
+// THE CLAIMS FOLLOW THE DOOR'S CLAIM SCHEMA (slot = claim), so a credential this issuer makes is the layout the door
+// accepts: `age` as given; `member` = 1 (Z5: the organization vouches for the membership); `roc_birthday` fixed; anything
+// else zero. Seven-digit values, as the suite requires.
+const claimValue = (name: string, age: string): string => name === 'age' ? age : name === 'member' ? '0000001' : name === 'roc_birthday' ? '0900101' : '0000000';
 const issue = (age: string) => {
-  const c = generateDummyCredential({ size: '1k', claims: [{ key: 'age', value: age }, { key: 'roc_birthday', value: '0900101' }], deviceKey: { kty: 'EC', crv: 'P-256', x: dev.x, y: dev.y }, issuerPrivateKey: fresh.PREDICATE_ISSUER_P256_KEY.slice(2) });
+  const claimList = policy.claimSchema.map((key) => ({ key, value: claimValue(key, age) }));
+  const c = generateDummyCredential({ size: '1k', claims: claimList, deviceKey: { kty: 'EC', crv: 'P-256', x: dev.x, y: dev.y }, issuerPrivateKey: (fresh[ISSUER_KEY_NAME] as string).slice(2) });
   if (c.issuerPublicKey.x !== jwk.x || c.issuerPublicKey.y !== jwk.y) throw new Error('the SDK issued under another key than the facet names');
-  return { issuerKeyId: keyId, jwt: c.jwt, disclosures: c.disclosures, issuerPublicKeyJwk: c.issuerPublicKey, devicePrivateKeyHex: fresh.PREDICATE_DEVICE_P256_KEY, digest: credentialDigestOfJwt(c.jwt), claims: { age, roc_birthday: '0900101' } };
+  return { issuerKeyId: keyId, jwt: c.jwt, disclosures: c.disclosures, issuerPublicKeyJwk: c.issuerPublicKey, devicePrivateKeyHex: fresh.PREDICATE_DEVICE_P256_KEY, digest: credentialDigestOfJwt(c.jwt), claims: Object.fromEntries(claimList.map((c) => [c.key, c.value])) };
 };
 const projector = (...a: string[]) => execFileSync('pnpm', ['-s', 'projector', ...a], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'] }).trim();
 const haveBoth = existsSync(credFile) && existsSync(revokedFile);
@@ -174,7 +182,8 @@ if (!haveBoth) {
 // ── 4. the holder's standing wire ──
 const wireFile = '.secrets/predicate-standing-wire.json';
 if (!existsSync(wireFile)) {
-  const estate = fed.estates.find((e) => e.id === issuer.estate)!;
+  // THE HOLDER'S chain, not the issuer's estate's (Z5: the issuer may be another estate's org while the holder stays home).
+  const estate = (fed.estates as Array<{ id: string; chainId: number; homeChainId?: number; home?: string; delegationManager?: Address }>).find((e) => (e.home ?? '').replace(/\/$/, '') === HOLDER_HOME) ?? fed.estates.find((e) => e.id === issuer.estate)!;
   const chainId = estate.homeChainId ?? estate.chainId;
   if (chainId !== issuer.chainId) throw new Error(`the holder's home chain (${chainId}) is not the issuer's (${issuer.chainId}) — this setup assumes one chain for the wire's enforcers`);
   const predicateDigest = predicateDigestOf(policy.predicates);

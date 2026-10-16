@@ -1,0 +1,26 @@
+{
+  "name": "@ap-federation/pap-door",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "THEIR personal agent at OUR company's door (spec 443 \u00a71.2, Ring 0 spec 442): a PAP Company in front of one service agent \u2014 poppy.json rendered from the company-door projection (404 for listing: none), an OAuth token endpoint that admits foreign client_ids on their metadata documents (RFC 7523 assertions, DPoP, jti replay), device sign-in as a Home ceremony, and an operations endpoint where every confirm records the presenter's approved_by as ITS CLAIM and parks the act at the company agent's own door for the owner's mandate. Receipts with no subject on the public face.",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "dev": "wrangler dev",
+    "deploy:ligonier": "wrangler deploy --env ligonier"
+  },
+  "dependencies": {
+    "@agenticprimitives/a2a": "0.0.0-alpha.40",
+    "@agenticprimitives/admission": "0.0.0-alpha.16",
+    "@agenticprimitives/registry-kit": "0.0.0-alpha.23",
+    "viem": "2.52.2"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "4.20260605.1",
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.3",
+    "vitest": "^4.1.8",
+    "wrangler": "4.93.0"
+  }
+}
