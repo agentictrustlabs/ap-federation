@@ -15,7 +15,7 @@ import { createPublicClient, hashMessage, http, type Address, type Hex } from 'v
 import { privateKeyToAccount } from 'viem/accounts';
 import { compileOpenAcPredicates, deriveNullifier, prepareOpenAcCredential, presentOpenAc, OPENAC_SUITE, type PredicateClaimV1, type PrivatePresentationV1, type ProofRequestV1, type ProvingBackendPort, type OpenAcPreparedCredentialV1 } from '@agenticprimitives/privacy-credentials';
 import { createOpenAcBackend, OPENAC_SDK_BUNDLE_VERSION } from '@agenticprimitives/privacy-credentials-openac';
-import { deviceSignerFor, type DeviceKeyRef } from './predicate-device-key.mts';
+import { deviceSignerFor, boundEvidenceFromEnv, type DeviceKeyRef } from './predicate-device-key.mts';
 import { createPresentationRelease, deriveFromStanding, hashDelegation, intentDigest, presentationIntent, PRESENTATION_RAR_TYPE, type Delegation, type StandingWireV1 } from '@agenticprimitives/delegation';
 
 export interface DoorCredentialPolicy {
@@ -130,8 +130,12 @@ export async function presentUnderWire(i: PresentUnderWireInput): Promise<Presen
   const mandate: Delegation = { ...child, salt: BigInt(child.salt) };
   const decisions: string[] = [];
   // The device signer: local, or the key service's P-256 key signing only under the bound evidence minted for each challenge.
-  const device = await deviceSignerFor(i.credential.device, { predicateDigest, subject: i.harness, env: i.env ?? ((k) => { const v = process.env[k]; if (!v) throw new Error(`${k} is not set`); return v; }) });
-  const release = createPresentationRelease({ mandate, actor: i.harness, enforcers: i.standing.enforcers, checks: i.checks, now: () => Math.floor(Date.now() / 1000), signer: device, onDecision: (d) => decisions.push(d.decision.decision) });
+  const env = i.env ?? ((k: string) => { const v = process.env[k]; if (!v) throw new Error(`${k} is not set`); return v; });
+  const device = await deviceSignerFor(i.credential.device, { env });
+  // A managed key signs only under the release's own attestation of what it judged (digest · venue · predicate digest ·
+  // actor), minted after `allow` and handed to the key with the signature; a local key needs none.
+  const evidence = i.credential.device.kind === 'akcs' ? await boundEvidenceFromEnv(env) : undefined;
+  const release = createPresentationRelease({ mandate, actor: i.harness, enforcers: i.standing.enforcers, checks: i.checks, now: () => Math.floor(Date.now() / 1000), signer: device, ...(evidence ? { evidence } : {}), onDecision: (d) => decisions.push(d.decision.decision) });
   let prepared = i.prepared;
   if (!prepared) {
     const prep = await prepareOpenAcCredential({ jwt: i.credential.jwt, disclosures: i.credential.disclosures, issuerPublicKeyJwk: i.credential.issuerPublicKeyJwk, request: i.request, backend: i.backend });
