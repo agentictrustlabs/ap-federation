@@ -249,6 +249,10 @@ credentials:
             facet: {"type":"IssuerKeyFacetV1","subjectAgent":"0x2ce397435e126e513856d27286248f5497108713","keyId":"issuer-key:sd-jwt:imbnet-org-1","suite":"es256-sd-jwt","publicKeyJwk":{"kty":"EC","crv":"P-256","x":"gUqinqZbBXl9V7FSRy2Wi4lLKBrR3nPQ09QqOUHrvYw","y":"w4pimsOhDf9dBhc-zcfrqdGNsn3kGnLBvWUDe-jOCPY","kid":"vCB6bQfAt-TFWa4VtDQGSV4wYhgJtNlTO1ldbJ1MdhI"},"validFrom":"2026-10-16T16:48:00.293Z"}
             facetHash: sha256:953755a564dfab3878fe1dec1c1313c1e6d5c1707b19231d72053f67b6f6f6b3
             signature: "0xdc126b6df299d1e38ba002d651eb176d9e5e28c169b38457c1366d1c138b44206b2988f5b37e0e192f17b198cef823ef3f3e68486ec99005362ecb002c07e4c71b"
+    # THE STAND-IN (decision 2026-10-16, spec 444 §2.2 item 5, option a): the estate's registry agent issues membership
+    # credentials for a visitor from ANOTHER estate (alice, faithnet), which the organization's own issuer (imbnet-org,
+    # below) cannot do today — cross-estate membership is not built. It stays in the door's trust set for exactly that
+    # case and the nightly gates that prove it. Retire it when cross-estate membership lands (option c).
     - id: imbnet-membership-issuer
       estate: impact-agent
       sa: "0x432FE71eAB5442220Cb0CBb6974f741093De8Bd7"

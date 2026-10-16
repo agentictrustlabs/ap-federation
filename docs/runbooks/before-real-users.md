@@ -11,7 +11,7 @@ re-run the named gate before the first real person relies on a door.
 | 3 | Bound-evidence issuer | The ceremony's own ES256 key (`PREDICATE_EVIDENCE_ES256_KEY`), pinned in the key service's `[authority_evidence]` JWKS | The Home runtime's own attestation key, held as a runtime secret, its JWKS pinned in place of the ceremony's | `/etc/akcs/evidence/jwks.json` on the CVM; ap-home runtime | `gate:predicate` |
 | 4 | Member-payment ticket and predicate windows | 900 s each | Review against how long a real member takes to pay; shorter is safer | `doors[impact-agent].membershipPayments` | `gate:member-payment` |
 | 5 | Receipt full-record window | 30 days | Set from the organization's dispute window, then leave | `doors[].receipts.fullRecordDays` and `RECEIPT_FULL_RECORD_DAYS` | `gate:predicate` |
-| 6 | Membership issuer | imbnet's registry agent stands in | A chartered issuer `.svc` per organization, its facet added to the door's trust set | `credentials.issuers`, `credentialProofs.issuers` | `gate:predicate` |
+| 6 | Membership issuer | imbnet's registry agent stands in for a visitor from ANOTHER estate (alice, faithnet); the organization's own agent issues to its own members on hopechain (`imbnet-org`, spec 444, LIVE 2026-10-16) | Cross-estate membership (spec 444 §2.2 option c); then retire the stand-in from the trust set | `credentials.issuers`, `credentialProofs.issuers` | `gate:predicate` |
 
 Not on this list because they are not test relaxations: the asserted nullifier grade, the linkable status proof, and
 network privacy. Those are real limits, recorded in `docs/architecture/decisions-and-findings.md` and the essay.
