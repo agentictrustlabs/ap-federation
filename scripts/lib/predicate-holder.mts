@@ -15,7 +15,7 @@ import { createPublicClient, hashMessage, http, type Address, type Hex } from 'v
 import { privateKeyToAccount } from 'viem/accounts';
 import { compileOpenAcPredicates, deriveNullifier, prepareOpenAcCredential, presentOpenAc, OPENAC_SUITE, type PredicateClaimV1, type PrivatePresentationV1, type ProofRequestV1, type ProvingBackendPort, type OpenAcPreparedCredentialV1 } from '@agenticprimitives/privacy-credentials';
 import { createOpenAcBackend, OPENAC_SDK_BUNDLE_VERSION } from '@agenticprimitives/privacy-credentials-openac';
-import { LocalEs256Signer } from '@agenticprimitives/key-custody';
+import { deviceSignerFor, type DeviceKeyRef } from './predicate-device-key.mts';
 import { createPresentationRelease, deriveFromStanding, hashDelegation, intentDigest, presentationIntent, PRESENTATION_RAR_TYPE, type Delegation, type StandingWireV1 } from '@agenticprimitives/delegation';
 
 export interface DoorCredentialPolicy {
@@ -32,8 +32,8 @@ export interface IssuedCredential {
   jwt: string;
   disclosures: string[];
   issuerPublicKeyJwk: Record<string, unknown>;
-  /** The custodied device key the credential is bound to (`cnf`), as the holder's secret: a P-256 private scalar. */
-  devicePrivateKeyHex: string;
+  /** The custodied device key the credential is bound to (`cnf`): a local P-256 scalar, or a key the estate's key service holds (Z6). */
+  device: DeviceKeyRef;
 }
 
 /** The OpenAC backend from the keys the holder holds (proving + verifying; `scripts/fetch-openac-keys.sh --proving`). */
@@ -102,6 +102,8 @@ export interface PresentUnderWireInput {
   status?: unknown;
   /** Present under a statement for ANOTHER audience than the request's — the negative twin: the release must refuse. */
   statementAudience?: string;
+  /** The ceremony's env reader (the evidence key, the key-service token) for a managed device key. */
+  env?: (k: string) => string;
 }
 
 export interface PresentedUnderWire {
@@ -127,7 +129,8 @@ export async function presentUnderWire(i: PresentUnderWireInput): Promise<Presen
   const child = derived.presented[0] as unknown as Delegation & { salt: string | bigint };
   const mandate: Delegation = { ...child, salt: BigInt(child.salt) };
   const decisions: string[] = [];
-  const device = new LocalEs256Signer({ privateKeyHex: i.credential.devicePrivateKeyHex });
+  // The device signer: local, or the key service's P-256 key signing only under the bound evidence minted for each challenge.
+  const device = await deviceSignerFor(i.credential.device, { predicateDigest, subject: i.harness, env: i.env ?? ((k) => { const v = process.env[k]; if (!v) throw new Error(`${k} is not set`); return v; }) });
   const release = createPresentationRelease({ mandate, actor: i.harness, enforcers: i.standing.enforcers, checks: i.checks, now: () => Math.floor(Date.now() / 1000), signer: device, onDecision: (d) => decisions.push(d.decision.decision) });
   let prepared = i.prepared;
   if (!prepared) {

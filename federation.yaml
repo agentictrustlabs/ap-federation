@@ -147,6 +147,19 @@ doors:
       nullifier: { require: true, grade: asserted, windowSeconds: 3600 }
       status: required
       maxAgeSeconds: 86400
+    # A MEMBER-GATED PAYMENT (2026-10-16): a visitor who held this door's predicates (over 18 AND a member) may ask for a payment
+    # TICKET naming the organization's treasury; she pays from HER treasury under HER mandate (the door spends nothing); `settled`
+    # reads the transfer on the chain and records the acceptance beside the predicate admission. The organization's membership
+    # treasury is a treasury agent on faithchain chartered 2026-10-16, custodied by maya through www.impact-agent.me.
+    membershipPayments:
+      payee: "0x94886C8491Cd850A903d8140C3044AA475cf5D9b"
+      asset: "0xdae09066a2cc32f6203605619137dcf01a9b49ae"
+      symbol: USDC
+      decimals: 6
+      amount: "5"
+      purpose: membership dues
+      ticketTtlSeconds: 900
+      predicateWindowSeconds: 900
   - estate: faithnet
     url: https://door-faithnet.ap-federation.faithnet.io
     target: alice.me

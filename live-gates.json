@@ -117,6 +117,22 @@
     "NODE_OPTIONS": "--dns-result-order=ipv4first",
     "A2A_ALLOW_LOCAL_DEVICE_KEY": "true"
    }
+  },
+  {
+   "id": "member-payment",
+   "script": "scripts/gate-member-payment.mts",
+   "spec": "specs/443 W5 + the user's ask 2026-10-16; Ring 0 zkID alignment Z5; spec 442 §6 (external payment)",
+   "proves": "a member over 18 pays the organization, treasury to treasury on one chain: the holder proves in zero knowledge at impact-agent's door that she is over 18 AND a member (the credential the organization's own issuer gave her earlier), the door issues a payment TICKET only on that ADMIT (an HMAC over reference · payee · asset · amount · receipt · expiry), her OWN agent pays from HER treasury to the organization's treasury under HER mandate signed at her Home (the confirmation IS the signature), `settled` lets the door read the ERC-20 transfer on the chain and record the acceptance (`door.payment`) beside the predicate admission; the organization learns that a member over 18 paid and not which member.",
+   "twin": "no ticket without a predicate ADMIT within the window; a ticket settles once (the replay store consumes the reference); a settlement naming a transfer to someone else, or short of the amount, is refused; a forged ticket is refused; the identical payment repeated moves nothing.",
+   "required": true,
+   "timeoutSec": 900,
+   "env": {
+    "FEDERATION_DOOR_URL": "https://door.ap-federation.faithnet.io",
+    "FEDERATION_ESTATE": "impact-agent",
+    "A2A_ALLOW_LOCAL_DEVICE_KEY": "true",
+    "NODE_OPTIONS": "--max-old-space-size=8192 --dns-result-order=ipv4first"
+   },
+   "needs": "everything predicate-visitor needs, plus alice's Home sign-in (.secrets/ops.env) and her treasury funded with the dues asset; re-runnable once per hour per device key (the door's nullifier window)."
   }
  ]
 }

@@ -35,6 +35,7 @@
     "gate:pay-outward": "tsx scripts/gate-f3-pay-outward.mts",
     "gate:predicate": "tsx scripts/gate-predicate-visitor.mts",
     "gate:pap-twin": "tsx scripts/gate-pap-twin.mts",
+    "gate:member-payment": "tsx scripts/gate-member-payment.mts",
     "pap:deploy": "pnpm --filter @ap-federation/pap deploy:faithnet",
     "pap-door:deploy": "pnpm --filter @ap-federation/pap-door deploy:ligonier",
     "bind:client-key": "tsx scripts/bind-client-key.mts",

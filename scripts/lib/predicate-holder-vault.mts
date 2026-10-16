@@ -7,6 +7,7 @@ import type { Address, Hex } from 'viem';
 import type { StandingWireV1 } from '@agenticprimitives/delegation';
 import { getVaultRecord, listVaultRecords, type VaultCredentials } from '../../apps/projector/src/vault-ledger.js';
 import type { IssuedCredential } from './predicate-holder.mts';
+import type { DeviceKeyRef } from './predicate-device-key.mts';
 
 export const HOLDER_RECORDS = {
   credential: (digest: Hex) => `credential.anonymous:${digest.toLowerCase()}`,
@@ -22,7 +23,16 @@ export interface HolderCredentialRecordV1 {
   /** Set when the issuer revoked it: the status the holder kept from the sequence where it was live (the gate's twin). */
   revoked?: { staleStatus: unknown; revokedAtSequence: number };
 }
-export interface HolderDeviceKeyRecordV1 { type: 'ap.device-key.v1'; thumbprint: string; privateKeyHex: string; createdAt: string }
+/** The device key, as her vault records it: the scalar itself (local custody), or WHERE it is held (the key service's key id — the
+ *  scalar never leaves the service; the record is a reference, ADR-0055). */
+export type HolderDeviceKeyRecordV1 =
+  | { type: 'ap.device-key.v1'; thumbprint: string; privateKeyHex: string; createdAt: string }
+  | { type: 'ap.device-key.v1'; thumbprint: string; managed: { backend: 'akcs'; keyId: string; baseUrl: string; tenantId: string }; createdAt: string };
+export function deviceRefOf(r: HolderDeviceKeyRecordV1): DeviceKeyRef {
+  if ('managed' in r && r.managed) return { kind: 'akcs', keyId: r.managed.keyId, baseUrl: r.managed.baseUrl, tenantId: r.managed.tenantId };
+  if ('privateKeyHex' in r && r.privateKeyHex) return { kind: 'local', privateKeyHex: r.privateKeyHex };
+  throw new Error('the device-key record names neither a scalar nor a managed key');
+}
 export interface HolderSecretRecordV1 { type: 'ap.holder-secret.v1'; secret: Hex; createdAt: string }
 
 /** The vault credential the gate presents AS HER AGENT: the grant + leaf her custodian minted for the runtime key
@@ -62,13 +72,14 @@ export async function readHolderFromVault(c: VaultCredentials, door: string): Pr
   const revokedRec = newest(creds.filter((x) => !!x.revoked && x.issuerKeyId === liveRec.issuerKeyId)) ?? newest(creds.filter((x) => !!x.revoked));
   if (!revokedRec) throw new Error('her vault holds no revoked credential (the gate\'s twin needs one)');
   const deviceKey = await getVaultRecord<HolderDeviceKeyRecordV1>(c, HOLDER_RECORDS.deviceKey(liveRec.deviceKeyThumbprint));
-  if (!deviceKey?.privateKeyHex) throw new Error(`her vault holds no ${HOLDER_RECORDS.deviceKey(liveRec.deviceKeyThumbprint)}`);
+  if (!deviceKey) throw new Error(`her vault holds no ${HOLDER_RECORDS.deviceKey(liveRec.deviceKeyThumbprint)}`);
+  const deviceRef = deviceRefOf(deviceKey);
   const secretTypes = types.filter((x) => x.startsWith('credential.holder-secret:'));
   const secret = secretTypes.length ? await getVaultRecord<HolderSecretRecordV1>(c, secretTypes[0]!) : null;
   if (!secret?.secret) throw new Error('her vault holds no credential.holder-secret:* record');
   const mandates = mandatesAll;
   const standing = forDoor.find((m) => m.issuerKeyId === liveRec.issuerKeyId);
   if (!standing) throw new Error(`her vault holds no presentation mandate for ${door} under ${liveRec.issuerKeyId} (${mandates.length} mandate(s))`);
-  const asIssued = (r: HolderCredentialRecordV1): IssuedCredential & { digest: Hex } => ({ issuerKeyId: r.issuerKeyId, jwt: r.jwt, disclosures: r.disclosures, issuerPublicKeyJwk: r.issuerPublicKeyJwk, devicePrivateKeyHex: deviceKey.privateKeyHex, digest: r.digest });
+  const asIssued = (r: HolderCredentialRecordV1): IssuedCredential & { digest: Hex } => ({ issuerKeyId: r.issuerKeyId, jwt: r.jwt, disclosures: r.disclosures, issuerPublicKeyJwk: r.issuerPublicKeyJwk, device: deviceRef, digest: r.digest });
   return { live: asIssued(liveRec), revoked: { ...asIssued(revokedRec), staleStatus: revokedRec.revoked!.staleStatus as Record<string, unknown>, revokedAtSequence: revokedRec.revoked!.revokedAtSequence }, holderSecret: secret.secret, standing };
 }

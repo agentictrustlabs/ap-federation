@@ -127,7 +127,7 @@ async function knock(opts: { presentation?: unknown; challengeHeader?: string; p
 const c1 = await challenge();
 const req1 = proofRequestFor({ origin: DOOR }, policy, c1);
 const t0 = Date.now();
-const p1 = await presentUnderWire({ credential, request: req1, backend, standing, runtime: { address: runtime.address, sign: runtimeSign }, harness: harness.address, checks: mc, withNullifier: policy.nullifier?.require ?? false, status: policy.status === 'required' ? statusFor(credential.digest, c1.audience, c1.nonce) : undefined });
+const p1 = await presentUnderWire({ env: envGet,  credential, request: req1, backend, standing, runtime: { address: runtime.address, sign: runtimeSign }, harness: harness.address, checks: mc, withNullifier: policy.nullifier?.require ?? false, status: policy.status === 'required' ? statusFor(credential.digest, c1.audience, c1.nonce) : undefined });
 check('the predicate program the holder derived her mandate for is the one the door asks', declared.predicateDigest?.toLowerCase() === p1.predicateDigest.toLowerCase(), p1.predicateDigest);
 check('the release judged the mandate before each device-key signature (allow)', p1.decisions.length >= 1 && p1.decisions.every((d) => d === 'allow'), `${p1.decisions.length} signature(s) · Prepare+Show ${Math.round((Date.now() - t0) / 1000)} s`);
 const ok = await knock({ presentation: p1.presentation, challengeHeader: c1.header });
@@ -159,7 +159,7 @@ check('the holder\'s own receipt names the mandate the presentation was made und
     const reqz = proofRequestFor({ origin: DOOR }, policy, cz);
     let outcome = '';
     try {
-      const pz = await presentUnderWire({ credential: oldCred, request: reqz, backend, standing, runtime: { address: runtime.address, sign: runtimeSign }, harness: harness.address, checks: mc, withNullifier: policy.nullifier?.require ?? false, status: policy.status === 'required' ? statusFor(oldCred.digest, cz.audience, cz.nonce) : undefined } as never);
+      const pz = await presentUnderWire({ env: envGet,  credential: oldCred, request: reqz, backend, standing, runtime: { address: runtime.address, sign: runtimeSign }, harness: harness.address, checks: mc, withNullifier: policy.nullifier?.require ?? false, status: policy.status === 'required' ? statusFor(oldCred.digest, cz.audience, cz.nonce) : undefined } as never);
       const kz = await knock({ presentation: pz.presentation, challengeHeader: cz.header });
       outcome = `${kz.status} ${kz.json?.effect} ${JSON.stringify(kz.json?.reasonCodes ?? [])}`;
       check('Z5 twin: a credential from another issuer without the member claim is REFUSED at the door', kz.status === 403 || (kz.json?.effect !== 'ADMIT' && kz.json?.effect !== 'ADMIT_CONSTRAINED'), outcome);
@@ -173,7 +173,7 @@ check('the holder\'s own receipt names the mandate the presentation was made und
 const health = await (await fetch(`${DOOR}/health`)).json() as { origin?: string };
 const c2 = await challenge();
 const req2 = proofRequestFor({ origin: DOOR }, policy, c2);
-const p2 = await presentUnderWire({ credential, request: req2, backend, standing, runtime: { address: runtime.address, sign: runtimeSign }, harness: harness.address, checks: mc, prepared: p1.prepared, withNullifier: false, status: policy.status === 'required' ? statusFor(credential.digest, c2.audience, c2.nonce) : undefined });
+const p2 = await presentUnderWire({ env: envGet,  credential, request: req2, backend, standing, runtime: { address: runtime.address, sign: runtimeSign }, harness: harness.address, checks: mc, prepared: p1.prepared, withNullifier: false, status: policy.status === 'required' ? statusFor(credential.digest, c2.audience, c2.nonce) : undefined });
 // A second visit under the SAME nullifier would be refused (that is the twin below); this visit brings none, so the door's
 // policy refuses it as NULLIFIER_REQUIRED — which is what a door that asks for one per audience must do. Said, not hidden.
 const fwd = await knock({ presentation: p2.presentation, challengeHeader: c2.header, path: '/a2a', originAudience: health.origin ? new URL(health.origin).origin : undefined });
@@ -183,19 +183,19 @@ check('twin: a presentation without the nullifier the policy requires is refused
 // 1. the same nullifier again, under a fresh challenge: the door's ledger already holds it for this audience
 const c3 = await challenge();
 const req3 = proofRequestFor({ origin: DOOR }, policy, c3);
-const p3 = await presentUnderWire({ credential, request: req3, backend, standing, runtime: { address: runtime.address, sign: runtimeSign }, harness: harness.address, checks: mc, prepared: p1.prepared, withNullifier: true, status: policy.status === 'required' ? statusFor(credential.digest, c3.audience, c3.nonce) : undefined });
+const p3 = await presentUnderWire({ env: envGet,  credential, request: req3, backend, standing, runtime: { address: runtime.address, sign: runtimeSign }, harness: harness.address, checks: mc, prepared: p1.prepared, withNullifier: true, status: policy.status === 'required' ? statusFor(credential.digest, c3.audience, c3.nonce) : undefined });
 const t1 = await knock({ presentation: p3.presentation, challengeHeader: c3.header });
 check('twin: the same nullifier under a fresh challenge is refused as reused — one visit per audience', t1.status === 403 && t1.json?.reasonCodes?.includes('CREDENTIAL_NULLIFIER_REUSED'), JSON.stringify(t1.json?.reasonCodes));
 // 2. a presentation answering ANOTHER audience (the holder's statement for another venue): the release refuses it — nothing is signed
 let refusedLocally = false;
-try { await presentUnderWire({ credential, request: { ...req3, audience: 'https://another.door.example' }, backend, standing, runtime: { address: runtime.address, sign: runtimeSign }, harness: harness.address, checks: mc, prepared: p1.prepared }); }
+try { await presentUnderWire({ env: envGet,  credential, request: { ...req3, audience: 'https://another.door.example' }, backend, standing, runtime: { address: runtime.address, sign: runtimeSign }, harness: harness.address, checks: mc, prepared: p1.prepared }); }
 catch (e) { refusedLocally = e instanceof PresentationReleaseRefused || /does not cover|refus/i.test(e instanceof Error ? e.message : String(e)); }
 check('twin: a statement for another venue derives no mandate / the release refuses to sign — nothing leaves the holder', refusedLocally, '');
 // 3. the REVOKED credential: its status from the sequence where it was live is stale against the row anchored now
 const c4 = await challenge();
 const req4 = proofRequestFor({ origin: DOOR }, policy, c4);
 const staleStatus = { ...revoked.staleStatus, nonce: c4.nonce, audience: c4.audience };
-const p4 = await presentUnderWire({ credential: revoked, request: req4, backend, standing, runtime: { address: runtime.address, sign: runtimeSign }, harness: harness.address, checks: mc, withNullifier: true, status: staleStatus });
+const p4 = await presentUnderWire({ env: envGet,  credential: revoked, request: req4, backend, standing, runtime: { address: runtime.address, sign: runtimeSign }, harness: harness.address, checks: mc, withNullifier: true, status: staleStatus });
 const t3 = await knock({ presentation: p4.presentation, challengeHeader: c4.header });
 check(`twin: a credential the issuer revoked (live at sequence ${revoked.revokedAtSequence - 1}, absent since ${revoked.revokedAtSequence}) is refused on its stale status — read from neutral ground, not from the holder`, t3.status === 403 && t3.json?.reasonCodes?.includes('CREDENTIAL_STATUS_NOT_LIVE'), JSON.stringify(t3.json?.reasonCodes));
 // 4. the same challenge nonce reused: refused before the verifier is asked (the presentation is re-held — it expired or was consumed)

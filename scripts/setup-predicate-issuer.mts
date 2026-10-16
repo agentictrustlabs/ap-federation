@@ -32,6 +32,7 @@ import { privateKeyToAccount } from 'viem/accounts';
 import { parse } from 'yaml';
 import { computeFacetHash, credentialDigestOfJwt, generateHolderSecret, type IssuerKeyFacetV1, type SignedIssuerKeyFacetV1 } from './lib/predicate-setup-deps.mts';
 import { LocalEs256Signer } from '@agenticprimitives/key-custody';
+import { parseDeviceArg, devicePublicJwk } from './lib/predicate-device-key.mts';
 import { associationAttestationDigest, computeAttestationUid } from '@agenticprimitives/attestations';
 import { buildStandingWire, signedStandingWire, PRESENTATION_CAPABILITY, type EnforcerAddresses } from '@agenticprimitives/delegation';
 import { generateDummyCredential } from 'openac-sdk/testing';
@@ -94,9 +95,14 @@ const fresh = {
   PREDICATE_RUNTIME_KEY: envGet('PREDICATE_RUNTIME_KEY') ?? `0x${randomBytes(32).toString('hex')}`,
   PREDICATE_HARNESS_KEY: envGet('PREDICATE_HARNESS_KEY') ?? `0x${randomBytes(32).toString('hex')}`,
 };
-writeFileSync(envFile, Object.entries(fresh).map(([k, v]) => `${k}=${v}`).join('\n') + '\n', { mode: 0o600 });
+// Merge into the env file: every line this ceremony does not own (the evidence key, the key-service token, another issuer's key) stays.
+{
+  const kept = (existsSync(envFile) ? readFileSync(envFile, 'utf8') : '').split('\n').filter((l) => l.trim() && !(l.split('=')[0]! in fresh));
+  writeFileSync(envFile, [...kept, ...Object.entries(fresh).map(([k, v]) => `${k}=${v}`)].join('\n') + '\n', { mode: 0o600 });
+}
 const issuerKey = new LocalEs256Signer({ privateKeyHex: fresh[ISSUER_KEY_NAME] as string });
-const device = new LocalEs256Signer({ privateKeyHex: fresh.PREDICATE_DEVICE_P256_KEY });
+// --device local (the scalar in env) or --device akcs:<keyId> (the key service's P-256 key, Z6): the credential binds to its public JWK.
+const deviceRef = parseDeviceArg(flag('device'), (k) => (fresh as Record<string, string | undefined>)[k] ?? envGet(k) ?? (() => { throw new Error(`${k} is not set`); })());
 const runtime = privateKeyToAccount(fresh.PREDICATE_RUNTIME_KEY as Hex);
 const harness = privateKeyToAccount(fresh.PREDICATE_HARNESS_KEY as Hex);
 console.log(`issuer ${issuer.id}: SA ${issuer.sa} on eip155:${issuer.chainId} · custodian persona ${CUSTODIAN} at ${ISSUER_HOME}\nholder ${HOLDER} at ${HOLDER_HOME} · runtime key ${runtime.address} · harness key ${harness.address}\ndoor ${DOOR} (in front of ${RECEIVING}) asks ${JSON.stringify(policy.predicates)} over [${policy.claimSchema.join(', ')}]`);
@@ -147,7 +153,8 @@ writeFileSync(recordFile, JSON.stringify({ keyId, document, attestation, salt, s
 // ── 3. two credentials: one to keep, one to revoke ──
 const credFile = '.secrets/predicate-credential.json';
 const revokedFile = '.secrets/predicate-credential-revoked.json';
-const dev = device.publicJwk();
+const dev = await devicePublicJwk(deviceRef, (k) => envGet(k) ?? (() => { throw new Error(`${k} is not set`); })());
+console.log(`device key: ${deviceRef.kind === 'akcs' ? `managed by the key service (${deviceRef.keyId})` : 'local scalar'} · thumbprint ${dev.kid}`);
 // THE CLAIMS FOLLOW THE DOOR'S CLAIM SCHEMA (slot = claim), so a credential this issuer makes is the layout the door
 // accepts: `age` as given; `member` = 1 (Z5: the organization vouches for the membership); `roc_birthday` fixed; anything
 // else zero. Seven-digit values, as the suite requires.
@@ -156,7 +163,7 @@ const issue = (age: string) => {
   const claimList = policy.claimSchema.map((key) => ({ key, value: claimValue(key, age) }));
   const c = generateDummyCredential({ size: '1k', claims: claimList, deviceKey: { kty: 'EC', crv: 'P-256', x: dev.x, y: dev.y }, issuerPrivateKey: (fresh[ISSUER_KEY_NAME] as string).slice(2) });
   if (c.issuerPublicKey.x !== jwk.x || c.issuerPublicKey.y !== jwk.y) throw new Error('the SDK issued under another key than the facet names');
-  return { issuerKeyId: keyId, jwt: c.jwt, disclosures: c.disclosures, issuerPublicKeyJwk: c.issuerPublicKey, devicePrivateKeyHex: fresh.PREDICATE_DEVICE_P256_KEY, digest: credentialDigestOfJwt(c.jwt), claims: Object.fromEntries(claimList.map((c) => [c.key, c.value])) };
+  return { issuerKeyId: keyId, jwt: c.jwt, disclosures: c.disclosures, issuerPublicKeyJwk: c.issuerPublicKey, device: deviceRef, digest: credentialDigestOfJwt(c.jwt), claims: Object.fromEntries(claimList.map((c) => [c.key, c.value])) };
 };
 const projector = (...a: string[]) => execFileSync('pnpm', ['-s', 'projector', ...a], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'] }).trim();
 const haveBoth = existsSync(credFile) && existsSync(revokedFile);
