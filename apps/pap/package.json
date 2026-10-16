@@ -1,0 +1,23 @@
+{
+  "name": "@ap-federation/pap",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "pap.svc@faithnet's public face (spec 443 W1): the client metadata document, the JWKS and the RFC 9421 key directory — pure projections of the service's signed ClientKeyBindingV1 — and the Direct Sign-In return URL that hands the person back to her Home. It holds the service's client key as a Worker secret until faithkms has a P-256 kind (zkID Z6). Never a person's client_id.",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "dev": "wrangler dev",
+    "deploy:faithnet": "wrangler deploy --env faithnet"
+  },
+  "dependencies": {
+    "@agenticprimitives/registry-kit": "0.0.0-alpha.35"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "4.20260605.1",
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.3",
+    "vitest": "^4.1.8",
+    "wrangler": "4.93.0"
+  }
+}

@@ -1,0 +1,18 @@
+# pap.svc@faithnet's public face — spec 443 W1. One Worker per estate's personal-agent SERVICE; never per person.
+# Secrets (never here): PAP_CLIENT_KEY_P256 (the binding key, the stand-in for faithkms P-256 — zkID Z6).
+name = "ap-federation-pap"
+main = "src/index.ts"
+compatibility_date = "2025-09-01"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+PUBLIC_ORIGIN = "http://localhost:8788"
+HOME_RETURN = "http://localhost:3000/oauth/return"
+
+[env.faithnet]
+name = "ap-federation-pap-faithnet"
+routes = [{ pattern = "pap.faithnet.io", custom_domain = true }]
+[env.faithnet.vars]
+PUBLIC_ORIGIN = "https://pap.faithnet.io"
+HOME_RETURN = "https://www.faithnet.me/oauth/return"
+ESTATE = "faithnet"

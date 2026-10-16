@@ -488,7 +488,9 @@ protocols:
   - estate: faithnet
     status: declared
     personalAgent:
-      service: pap.svc@faithnet
+      # `faithnet-pap.svc` (bought 2026-10-16, 10 SHQ from demo-admin's treasury): the gate's domain rule refused `pap` (pap.com exists).
+      service: faithnet-pap.svc@faithnet
+      agent: "0xf29038602367e1645fE09f180fC326f7Cd2634B0"   # chartered 2026-10-16 under demo-admin (tx 0x1564618…); vault bound; steward wire recorded
       clientId: https://pap.faithnet.io/client.json
       jwks: https://pap.faithnet.io/jwks.json
       keyDirectory: https://pap.faithnet.io/.well-known/http-message-signatures-directory

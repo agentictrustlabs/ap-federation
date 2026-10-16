@@ -80,7 +80,7 @@ describe('protocols (spec 443 §2 — the person is never the client)', () => {
   const base = () => parseFederation(readFileSync(new URL('../../../federation.yaml', import.meta.url), 'utf8'));
   it('the register declares faithnet\'s personal-agent service and validates', () => {
     const fed = base();
-    expect(fed.protocols?.[0]?.personalAgent.service).toBe('pap.svc@faithnet');
+    expect(fed.protocols?.[0]?.personalAgent.service).toBe('faithnet-pap.svc@faithnet');
     expect(validateFederation(fed)).toEqual([]);
   });
   it('refuses a per-person client_id, a person as the service, an unpinned version, a public-less door without invitation', () => {
