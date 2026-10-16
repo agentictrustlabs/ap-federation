@@ -24,7 +24,9 @@ import { registryClient, readDeclaredSigner, type AnchoringWireV1 } from '../src
 import { projectEstate } from '../src/project.js';
 import { isRevokedReader } from '../src/revocation.js';
 import type { SubmissionLedger, SubmissionV1 } from '../src/ledger.js';
-import { loadSubmissions, writeSubmission, type VaultCredentials } from '../src/vault-ledger.js';
+import { loadSubmissions, parseVaultCredentials, writeSubmission, type VaultCredentials } from '../src/vault-ledger.js';
+import { projectIssuer } from '../src/issuer.js';
+import type { IssuerRow } from '../src/config.js';
 import federationYaml from '../../../federation.yaml';
 export { SubmissionStoreDO } from './store-do.js';
 
@@ -38,6 +40,9 @@ interface Env {
   /** `{"impact-agent":{…wire…}}` — the anchoring wire per estate, as `issue-anchoring-wire.mts` wrote it. Absent for an
    *  estate ⇒ its key is assumed to be the registered signer, which is the shape §4 says to leave behind. */
   ANCHORING_WIRES?: string;
+  /** Spec 444 — per ISSUER id: the delegate key and anchoring wire that write that issuer's row (its rowSigner's). */
+  ISSUER_SIGNER_KEYS?: string;
+  ISSUER_ANCHORING_WIRES?: string;
   /** Guards the ops routes (submit / retire / project-now). A read of `/status` needs none. */
   OPS_TOKEN?: string;
   REFRESH_AFTER_SECONDS?: string;
@@ -63,7 +68,9 @@ function vaultFor(env: Env, estate: string): VaultCredentials | null {
 }
 
 interface EstateRow { id: string; chainId: number; governance: string | null; signer?: string; delegationManager?: string; profileResolver?: string; rpcUrl?: string; blocked?: string }
-interface Register { registry: { chainId: number; address: string }; estates: EstateRow[] }
+interface Register { registry: { chainId: number; address: string }; estates: EstateRow[]; credentials?: { issuers?: IssuerRow[] } }
+/** Spec 444 — the issuers this job keeps fresh: those whose ledger is their own vault. A file-ledger issuer is the operator's. */
+const vaultIssuers = (f: Register): IssuerRow[] => (f.credentials?.issuers ?? []).filter((i) => i.ledger === 'vault');
 const register = (): Register => parseYaml(federationYaml) as Register;
 const projectable = (f: Register): EstateRow[] => f.estates.filter((e) => e.governance && !e.blocked);
 
@@ -138,6 +145,34 @@ async function projectOne(env: Env, estate: EstateRow, f: Register): Promise<Rec
   };
 }
 
+/** AN ISSUER'S ROW, kept fresh the way an estate's is (spec 444): its live-credential submissions read from ITS vault
+ *  (`VAULT_CREDENTIALS_ISSUER_<ID>`), the row rebuilt, anchored when it changed or aged past the refresh window, by the
+ *  rowSigner's delegate key and wire, held per issuer (`ISSUER_SIGNER_KEYS` / `ISSUER_ANCHORING_WIRES`). Without this a door refuses every member's status a day after
+ *  the operator last ran the CLI. No credentials or no key here ⇒ said, and nothing is written. */
+async function projectIssuerOne(env: Env, issuer: IssuerRow, f: Register): Promise<Record<string, unknown>> {
+  const raw = env[`VAULT_CREDENTIALS_ISSUER_${issuer.id.toUpperCase().replace(/[^A-Z0-9]/g, '_')}` as `VAULT_CREDENTIALS_${string}`];
+  if (!raw) return { issuer: issuer.id, note: `no vault credentials for issuer ${issuer.id} on this deployment — nothing projected` };
+  const rows = await loadSubmissions(parseVaultCredentials(raw, issuer.id));
+  // KEYED BY ISSUER, never by estate: an issuer row is anchored with the rowSigner's delegate key and wire, but handing
+  // that key to this job under the ESTATE's name would also let it re-anchor the estate — from whatever the estate's vault
+  // holds, which is not necessarily what the estate vouches for (2026-10-16: impact-agent's vault held 0 rows, its file 3).
+  const keys = JSON.parse(env.ISSUER_SIGNER_KEYS ?? '{}') as Record<string, string>;
+  const wires = JSON.parse(env.ISSUER_ANCHORING_WIRES ?? '{}') as Record<string, AnchoringWireV1>;
+  const signerKey = keys[issuer.id];
+  const anchoringWire = wires[issuer.id];
+  const registry = registryClient({ rpcUrl: env.FEDERATION_RPC_URL!, chainId: f.registry.chainId, address: f.registry.address as `0x${string}` });
+  const issuerId = await registry.estateIdOf(issuer.chainId, issuer.sa);
+  const run = await projectIssuer({ ...issuer, issuerId }, {
+    registry, ledger: readOnlyLedger(rows), refreshAfterSeconds: Number(env.REFRESH_AFTER_SECONDS ?? 21_600),
+    ...(signerKey ? { signerKey: signerKey as Hex } : {}), ...(anchoringWire ? { anchoringWire } : {}),
+  });
+  return {
+    issuer: issuer.id, issuerId, anchored: run.decision.anchor, sequence: run.decision.sequence, why: run.decision.why, counts: run.counts,
+    vouchedFrom: 'vault', ...(run.txHash ? { txHash: run.txHash } : {}),
+    ...(signerKey ? {} : { note: `no ISSUER_SIGNER_KEYS entry for ${issuer.id} on this deployment — reported what it would do, wrote nothing` }),
+  };
+}
+
 async function runAll(env: Env): Promise<Record<string, unknown>[]> {
   const f = register();
   const out: Record<string, unknown>[] = [];
@@ -145,6 +180,10 @@ async function runAll(env: Env): Promise<Record<string, unknown>[]> {
     try { out.push(await projectOne(env, e, f)); }
     // One estate's chain being unreachable must not stop another's anchor from being refreshed.
     catch (err) { out.push({ estate: e.id, error: err instanceof Error ? err.message : String(err) }); }
+  }
+  for (const i of vaultIssuers(f)) {
+    try { out.push(await projectIssuerOne(env, i, f)); }
+    catch (err) { out.push({ issuer: i.id, error: err instanceof Error ? err.message : String(err) }); }
   }
   return out;
 }

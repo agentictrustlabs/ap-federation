@@ -55,7 +55,7 @@ const harness = privateKeyToAccount(envGet('PREDICATE_HARNESS_KEY') as Hex);
 const vault = holderVaultCredentials({ credsFile: need(process.env.PREDICATE_HOLDER_VAULT_CREDS ?? '.secrets/vault-creds-alice.json'), vaultUrl: process.env.PREDICATE_HOLDER_VAULT_URL ?? 'https://mcp.faithnet.io', agentName: process.env.PREDICATE_HOLDER ?? 'alice.me', ...(process.env.PREDICATE_HOLDER_CHAIN_ID ? { chainId: Number(process.env.PREDICATE_HOLDER_CHAIN_ID) } : {}) });
 const holder = await readHolderFromVault(vault, DOOR);
 const { live: credential, revoked, holderSecret, standing } = holder;
-check('the holder\'s credential, device key, secret and mandate were read from HER vault as her agent (never a file)', !!credential.jwt && !!holderSecret && standing.door === DOOR, `${vault.agentName} · ${vault.vaultUrl}`);
+check('the holder\'s credential, device key, secret and mandate were read from HER vault as her agent (never a file)', !!credential.jwt && !!holderSecret && standing.door === DOOR, `${vault.agentName} · ${vault.vaultUrl} · credential ${credential.digest.slice(0, 12)}… under ${credential.issuerKeyId}`);
 const fed = parse(readFileSync('federation.yaml', 'utf8')) as { registry: { chainId: number }; credentials: { issuers: Array<{ id: string; chainId: number; universalSignatureValidator: Address; rpcEnv?: string }> }; estates: Array<{ id: string; delegationManager?: Address }> };
 const issuer = fed.credentials.issuers.find((i) => i.facets?.some((f: { keyId: string }) => f.keyId === credential.issuerKeyId) as boolean) ?? fed.credentials.issuers[0]!;
 const rpc = (process.env[issuer.rpcEnv ?? 'FEDERATION_RPC_URL'] ?? '').trim() || (() => { throw new Error('FEDERATION_RPC_URL is not set'); })();
@@ -166,8 +166,12 @@ check('the holder\'s own receipt names the mandate the presentation was made und
 // ── Z5 twin: a credential from ANOTHER issuer, without the member claim (the Z4 one, set aside), proves nothing here ──
 {
   const oldFile = '.secrets/z4-faithnet-gate-issuer/predicate-credential.json';
-  if (existsSync(oldFile)) {
-    const oldCred = JSON.parse(readFileSync(oldFile, 'utf8')) as typeof credential;
+  const oldCred = existsSync(oldFile) ? JSON.parse(readFileSync(oldFile, 'utf8')) as typeof credential : null;
+  // The set-aside credential is ALICE's (bound to her device key). For another holder it proves nothing either way, and
+  // "refused before any signature" would pass for the wrong reason — so it runs only for the holder it was issued to.
+  const sameHolder = !!oldCred && JSON.stringify(oldCred.device) === JSON.stringify(credential.device);
+  if (oldCred && !sameHolder) check('Z5 twin: (the set-aside credential is bound to another holder\'s device — twin not run for this holder, said)', true, oldFile);
+  else if (oldCred) {
     const cz = await challenge();
     const reqz = proofRequestFor({ origin: DOOR }, policy, cz);
     let outcome = '';

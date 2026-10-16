@@ -75,6 +75,11 @@ export interface IssuerRow {
    *  issuer on another chain (a hopechain organization) cannot sign on faithchain's registry, so the estate's neutral-ground
    *  agent anchors for it under its anchoring wire. The row id stays the issuer's own (`estateIdOf(chainId, sa)`). */
   rowSigner?: Address;
+  /** Spec 444: WHERE this issuer's live-credential ledger lives — ONE mechanism, declared (ADR-0013). `vault`: the issuer's
+   *  own vault (`federation.projection-submission:live-credential:<digest>`, written by its `credential.issue` act), read by
+   *  the CLI with `.secrets/vault-secret-issuer-<id>.json` and by the scheduled projector with `VAULT_CREDENTIALS_ISSUER_<ID>`.
+   *  Absent: the operator's file ledger (`.submissions/issuer-<id>.json`), the Z3/Z4 ceremony shape. */
+  ledger?: 'vault' | 'file';
   facets?: Array<{ keyId: string; thumbprint?: string; attestation?: Hex; revocationRoot?: string; document?: unknown }>;
 }
 

@@ -26,7 +26,8 @@ import { makeAuthorityPresentation, verifyAuthorityPresentation, type AuthorityP
 import type { Address, Hex } from 'viem';
 import { estateById, issuerById, loadFederation, registryRpc, requireProjectable, signerKey } from '../src/config.js';
 import { presentCredentialStatus, projectIssuer, liveCredentialRows } from '../src/issuer.js';
-import { fileLedger } from '../src/ledger.js';
+import { fileLedger, type SubmissionLedger } from '../src/ledger.js';
+import { parseVaultCredentials, vaultLedger, writeSubmission } from '../src/vault-ledger.js';
 import { readDeclaredSigner, registryClient, type AnchoringWireV1, type DeclaredSigner } from '../src/anchor.js';
 import { buildForSequence, projectEstate } from '../src/project.js';
 import { isRevokedReader } from '../src/revocation.js';
@@ -59,7 +60,13 @@ const estateFlag = () => flag('estate') ?? die('--estate <id> is required');
 // ── ISSUER ROWS (Ring 0 zkID Z3/Z4; spec 443 W5): the same verbs, a credential issuer's live-credential row ──
 if (has('issuer')) {
   const issuer = issuerById(f, flag('issuer') ?? die('--issuer <id> is required'));
-  const ledger = fileLedger(flag('ledger') ?? `.submissions/issuer-${issuer.id}.json`);
+  // ONE LEDGER, the one the register declares (spec 444): the issuer's own vault, or the operator's file. Never both.
+  const fileOf = () => fileLedger(flag('ledger') ?? `.submissions/issuer-${issuer.id}.json`);
+  const vaultSecret = flag('vault-secret') ?? `.secrets/vault-secret-issuer-${issuer.id}.json`;
+  const ledger: SubmissionLedger & { flush?: () => Promise<number> } = issuer.ledger === 'vault'
+    ? await vaultLedger(parseVaultCredentials(readFileSync(vaultSecret, 'utf8'), issuer.id))
+    : fileOf();
+  if (issuer.ledger === 'vault') console.log(`ledger: ${issuer.id}'s own vault (${ledger.list().length} submission record(s))`);
   const wire = issuer.anchoringWire ? ((): AnchoringWireV1 | null => { try { return JSON.parse(readFileSync(issuer.anchoringWire!, 'utf8')) as AnchoringWireV1; } catch { return null; } })() : null;
   if (cmd === 'status') {
     const signer = await registry.signerOf(issuer.issuerId);
@@ -82,11 +89,13 @@ if (has('issuer')) {
     const subject = ((flag('subject') ?? `0x${'00'.repeat(20)}`).toLowerCase()) as Address;
     const out = ledger.add({ estate: issuer.estate, set: 'live-credential', digest, subject, submittedBy: flag('by') ?? 'issuer', source: flag('source') ?? 'cli', ...(flag('expires') ? { expiresAt: flag('expires')! } : {}) });
     console.log(out.added ? `vouched for: live-credential ${digest}\n  the opening (digest + blind) is in the issuer's ledger; the holder needs it for a status presentation` : `not added — ${out.why}`);
+    if (out.added && ledger.flush) console.log(`  written to the vault: ${await ledger.flush()} record(s)`);
   } else if (cmd === 'retire') {
     // REVOCATION, for a credential: the issuer stops standing behind it. The next `project` anchors a root without it.
     const digest = (flag('digest') ?? die('--digest 0x… is required')).toLowerCase() as Hex;
     const reason = flag('reason') ?? die('--reason "<why>" is required');
     console.log(ledger.retire('live-credential', digest, reason) ? `revoked: live-credential ${digest}\n  run \`projector project --issuer ${issuer.id}\` to anchor the row without it; every status built before is stale from then on` : `nothing live to retire for ${digest}`);
+    if (ledger.flush) console.log(`  written to the vault: ${await ledger.flush()} record(s)`);
   } else if (cmd === 'project') {
     const dry = has('dry-run');
     const run = await projectIssuer(issuer, { registry, ledger, refreshAfterSeconds: REFRESH_AFTER, ...(dry ? {} : { signerKey: signerKey(issuer) }), ...(wire ? { anchoringWire: wire } : {}) });
@@ -101,7 +110,14 @@ if (has('issuer')) {
     const file = flag('out') ?? `.submissions/status-${issuer.id}-${digest.slice(2, 10)}.json`;
     writeFileSync(file, `${JSON.stringify(r.presentation, null, 2)}\n`, { mode: 0o600 });
     console.log(`status presentation for ${digest} at sequence ${r.sequence} → ${file}\n  It says the issuer still stands behind this credential as of that sequence, to this audience, for this nonce. It names no subject and authorizes nothing.`);
-  } else die(`unknown issuer command "${cmd}" — status | register | submit | retire | project | present-status`);
+  } else if (cmd === 'backfill-vault') {
+    // ONE-WAY, ONCE: the rows the Z3/Z4-shaped file ledger holds, into the issuer's vault, before the register says
+    // `ledger: vault`. Same blinds, so every status presentation already handed out still opens its leaf.
+    const c = parseVaultCredentials(readFileSync(vaultSecret, 'utf8'), issuer.id);
+    const rows = fileOf().list();
+    for (const row of rows) { await writeSubmission(c, row); console.log(`  ✓ ${row.set}:${row.digest}${row.retired ? ' (retired)' : ''}`); }
+    console.log(`backfilled ${rows.length} row(s) into ${c.agentName}'s vault — now set \`ledger: vault\` on ${issuer.id} in the register`);
+  } else die(`unknown issuer command "${cmd}" — status | register | submit | retire | project | present-status | backfill-vault`);
   process.exit(0);
 }
 

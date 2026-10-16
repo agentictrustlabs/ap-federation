@@ -19,7 +19,10 @@
 import { buildInvocationProof, mintDelegationToken, type Delegation } from '@agenticprimitives/delegation';
 import { hashMessage, type Address, type Hex } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
-import type { SubmissionV1, ProjectionSet } from './ledger.js';
+import type { SubmissionLedger, SubmissionV1, ProjectionSet } from './ledger.js';
+
+/** A random 32-byte blind, by Web Crypto (this module runs in the Worker too, where `ledger.ts`'s Node imports cannot). */
+const newBlind = (): Hex => `0x${[...crypto.getRandomValues(new Uint8Array(32))].map((b) => b.toString(16).padStart(2, '0')).join('')}` as Hex;
 
 /** One estate's vault credentials, as the Worker holds them. The KEY is a delegate under wires its custodian minted;
  *  it is never the agent's identity and it may do nothing this grant does not name. */
@@ -134,4 +137,57 @@ export async function loadSubmissions(c: VaultCredentials, fetchImpl: typeof fet
     if (data && data.type === 'ap.federation-submission.v1' && typeof data.digest === 'string' && typeof data.blind === 'string') rows.push(data);
   }
   return rows.sort((a, b) => a.submittedAt.localeCompare(b.submittedAt));
+}
+
+/** A SubmissionLedger over the vault, for callers that work in one sitting (the CLI, the scheduled projector): the rows are
+ *  read once, `add`/`retire` change the in-memory copy and queue the record they rewrite, and `flush()` writes each queued
+ *  record and reads it back. A write the vault refuses throws; nothing is kept anywhere else in its place (ADR-0013). */
+export async function vaultLedger(c: VaultCredentials, fetchImpl: typeof fetch = fetch): Promise<SubmissionLedger & { flush(): Promise<number> }> {
+  const rows = await loadSubmissions(c, fetchImpl);
+  const pending = new Map<string, SubmissionV1>();
+  const queue = (row: SubmissionV1) => pending.set(submissionRecordType(row.set, row.digest), row);
+  return {
+    list: () => rows,
+    add(input) {
+      const digest = input.digest.toLowerCase() as Hex;
+      const dup = rows.find((r) => r.set === input.set && r.digest.toLowerCase() === digest && !r.retired);
+      if (dup) return { added: false, row: dup, why: 'already vouched for in this set' };
+      const row: SubmissionV1 = {
+        type: 'ap.federation-submission.v1', estate: input.estate, set: input.set, digest, blind: input.blind ?? newBlind(),
+        subject: input.subject.toLowerCase() as `0x${string}`, submittedBy: input.submittedBy, source: input.source,
+        submittedAt: new Date().toISOString(), ...(input.expiresAt ? { expiresAt: input.expiresAt } : {}),
+      };
+      rows.push(row); queue(row);
+      return { added: true, row };
+    },
+    retire(set, digest, reason, at) {
+      const i = rows.findIndex((r) => r.set === set && r.digest.toLowerCase() === digest.toLowerCase() && !r.retired);
+      if (i < 0) return false;
+      rows[i] = { ...rows[i]!, retired: { at: (at ?? new Date()).toISOString(), reason } };
+      queue(rows[i]!);
+      return true;
+    },
+    async flush() {
+      for (const row of pending.values()) {
+        await writeSubmission(c, row, fetchImpl);
+        const back = await getVaultRecord<SubmissionV1>(c, submissionRecordType(row.set, row.digest), fetchImpl);
+        if (!back || JSON.stringify(back) !== JSON.stringify(row)) throw new Error(`${submissionRecordType(row.set, row.digest)}: written and not read back as written`);
+      }
+      const n = pending.size; pending.clear(); return n;
+    },
+  };
+}
+
+/** The vault credential shape both the CLI file and the Worker secret hold (`issue-self-host-vault-credentials.mts` plus the
+ *  delegate key): parsed in one place so the two cannot read it differently. */
+export function parseVaultCredentials(raw: string, fallbackName: string): VaultCredentials {
+  const d = JSON.parse(raw) as Record<string, unknown>;
+  if (!d.chainId) throw new Error(`${fallbackName}: the vault credential names no chainId — a grant is verified on its delegator's chain, which must be declared`);
+  return {
+    agent: d.agent as `0x${string}`, agentName: String(d.agentName ?? fallbackName),
+    vaultUrl: String(d.vaultUrl ?? d.home), interactionsService: d.interactionsService as `0x${string}`,
+    chainId: Number(d.chainId), ...(d.audience ? { audience: String(d.audience) } : {}),
+    grant: d.grant as VaultCredentials['grant'], leaf: (d.sessionLeaf ?? d.leaf) as VaultCredentials['leaf'],
+    signerKey: d.signerKey as `0x${string}`,
+  };
 }

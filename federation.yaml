@@ -225,6 +225,9 @@ credentials:
       rowSigner: "0x432FE71eAB5442220Cb0CBb6974f741093De8Bd7"
       anchorDelegateKeyEnv: IMPACT_AGENT_PROJECTION_SIGNER
       anchoringWire: .secrets/anchoring-wire-impact-agent.json
+      # Spec 444: the ledger is the ORGANIZATION'S vault (its credential.issue act writes the submission); the scheduled
+      # projector re-anchors this row from there, with the rowSigner's delegate key and wire held under this issuer's id.
+      ledger: vault
       since: 2026-10-16
       facets:
         - keyId: issuer-key:sd-jwt:imbnet-org-1
