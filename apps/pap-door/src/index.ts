@@ -39,6 +39,9 @@ const b64urlDecode = (s: string): Uint8Array => Uint8Array.from(atob(s.replace(/
 const b64url = (b: Uint8Array): string => btoa(String.fromCharCode(...b)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 const decJson = (s: string): Record<string, unknown> => JSON.parse(new TextDecoder().decode(b64urlDecode(s))) as Record<string, unknown>;
 const rid = (p: string) => { const b = new Uint8Array(16); crypto.getRandomValues(b); return `${p}_${b64url(b)}`; };
+/** A device user code, XXXX-XXXX, from 32 letters and digits with no look-alikes (no 0/O, 1/I); 32 divides 256, so unbiased. */
+const USER_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const userCode = () => { const b = new Uint8Array(8); crypto.getRandomValues(b); const c = [...b].map((x) => USER_CODE_ALPHABET[x % 32]).join(''); return `${c.slice(0, 4)}-${c.slice(4)}`; };
 const ledger = (env: Env) => { const stub = env.LEDGER.get(env.LEDGER.idFromName('door')); return async (op: string, body: unknown = {}) => (await (await stub.fetch(`https://ledger/${op}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })).json()) as Record<string, unknown>; };
 const f = (env: Env) => env.__fetch ?? fetch;
 
@@ -249,7 +252,7 @@ export default {
       const ck = await clientKeys(env, clientId); if ('error' in ck) return oauthError('invalid_client', 401);
       const ca = await verifyAssertion(env, L, fm.get('client_assertion') ?? '', ck.keys, { iss: clientId, aud: tokenEndpoint, sub: clientId }, 'client', now);
       if (!ca.ok) return oauthError('invalid_client', 401);
-      const d: DeviceRow = { deviceCode: rid('dev'), userCode: `${rid('u').slice(2, 6).toUpperCase()}-${rid('u').slice(2, 6).toUpperCase()}`, clientId, scope: fm.get('scope') ?? '', approved: false, account: null, expiresAt: now + 600 };
+      const d: DeviceRow = { deviceCode: rid('dev'), userCode: userCode(), clientId, scope: fm.get('scope') ?? '', approved: false, account: null, expiresAt: now + 600 };
       await L('device.put', { device: d });
       return json({ device_code: d.deviceCode, user_code: d.userCode, verification_uri: `${origin}/device`, verification_uri_complete: `${origin}/device?user_code=${encodeURIComponent(d.userCode)}`, interval: 2, expires_in: 600 });
     }
