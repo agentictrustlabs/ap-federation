@@ -68,5 +68,6 @@
     "patchedDependencies": {
       "openac-sdk@5.0.0": "patches/openac-sdk@5.0.0.patch"
     }
-  }
+  },
+  "packageManager": "pnpm@10.30.3"
 }

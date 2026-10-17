@@ -276,6 +276,37 @@ credentials:
             facet: {"type":"IssuerKeyFacetV1","subjectAgent":"0x432fe71eab5442220cb0cbb6974f741093de8bd7","keyId":"issuer-key:sd-jwt:imbnet-membership-issuer-1","suite":"es256-sd-jwt","publicKeyJwk":{"kty":"EC","crv":"P-256","x":"bRJGs9GPJ6WzrS7bCTy12DI8QDIZzH1pFWwgrYwdH3o","y":"TDyTrcRtsbZ8HwgnkFze7aKhDOzLzkev1cTEGvuPuT8","kid":"CNFguV_FDOnRyMJeVtr51AUYvNt0pjlSrEzDKNa6kfg"},"validFrom":"2026-10-16T00:15:04.594Z"}
             facetHash: sha256:91591d150dea1ea36ffb3166210d10ca43e103d5f65c42f881a63c8ac154d179
             signature: "0x4d92b9d4ce9d90d7cbcc797cf2bb54873fcd8046aa7863ef6765a2381cc9d8173618d3fc0626ba2c2e3dd64cca2a9e10cbda913105f98f7f887593fdd21023bf1c"
+    # THE PRIVATE-SCRIPTURE BUILD (verifiable-content-demo, 2026-10-17): lbsb.svc — the faithnet service agent that licenses
+    # the LBSB edition, stewarded by ruth.me, paid into lbsb-treasury.treasury — issues its readers' OpenAC credentials
+    # ("licensed reader, valid until day N", bound to a fresh device key) after a payment, so a reader can prove a licence
+    # under a per-ask pen name without anyone learning who holds it. Its issuing key is faithnet's key service (tenant
+    # faithnet, `issuer-key:lbsb-1`, P-256, ES256_ISSUE_SHA256 only). It lives on faithchain, so it could anchor its own row;
+    # the registry agent anchors it instead (`rowSigner`), the shape imbnet-org has, under faithnet's existing wire.
+    - id: lbsb
+      estate: faithnet
+      sa: "0x00ff8ccc7c7145289c8a42fe8870ec5d8cd68774"
+      chainId: 34348
+      kind: service
+      custodian: "ruth (steward; via www.faithnet.me)"
+      attestationRegistry: "0x4c94A0355380b8F5023eDd5f8A8131B020de19FA"
+      universalSignatureValidator: "0xeDd56f500325D4701B9985A34e5Fa6EED6716137"
+      rpcEnv: FEDERATION_RPC_URL
+      rowSigner: "0xdfdAE0a37D35b72D8E2a4E3464087d43d0eB0b5b"
+      anchorDelegateKeyEnv: FAITHNET_PROJECTION_SIGNER
+      anchoringWire: .secrets/anchoring-wire-faithnet.json
+      ledger: vault
+      since: 2026-10-17
+      # Written by scripts/publish-issuer-facet.mts (2026-10-17, custodian ruth through www.faithnet.me): the attestation
+      # (tx 0xdb023cb4…) on faithchain's AttestationRegistry is what a verifier checks.
+      facets:
+        - keyId: issuer-key:sd-jwt:lbsb-1
+          thumbprint: e8eyp_pvaSb0lnonmFQzKYQ1zjg_qx0Afk31gDKsYVw
+          attestation: "0xa14b1c3ce7803a70d3dd4dfa6b9a4c39c22d42f05d36a6317cf634a622f7cbc1"
+          revocationRoot: projection
+          document:
+            facet: {"type":"IssuerKeyFacetV1","subjectAgent":"0x00ff8ccc7c7145289c8a42fe8870ec5d8cd68774","keyId":"issuer-key:sd-jwt:lbsb-1","suite":"es256-sd-jwt","publicKeyJwk":{"kty":"EC","crv":"P-256","x":"5wwjY3HGs_056-TG65CUW_IEKN6F8g3_4UL06pYbTD4","y":"9KRIxcQt3hDdrmyhzScUBCwLvbpUUrVtS25OSt11fws","kid":"e8eyp_pvaSb0lnonmFQzKYQ1zjg_qx0Afk31gDKsYVw"},"validFrom":"2026-10-17T00:11:55.643Z"}
+            facetHash: sha256:bb2f3602463df58ad162d4e4e2d62253b7220903f2366d0ebb5623beff9d5b6b
+            signature: "0x38bfb113ee3295edaee1dca07c7dc11c91f4e79aefabe8ef025ce1361479a430189d73605ecb8460e9ccfeef25186d2a2d594699427a52dd7c497e87353839471c"
     - id: faithnet-gate-issuer
       estate: faithnet
       sa: "0xdfdAE0a37D35b72D8E2a4E3464087d43d0eB0b5b"
