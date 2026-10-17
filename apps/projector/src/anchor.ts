@@ -14,8 +14,7 @@
 //   · a set that never changes must STILL be re-anchored, or every presentation against it ages out;
 //   · therefore the heartbeat interval must sit below the shortest `maxAge` any counterparty uses, and a
 //     presentation is deliberately short-lived. That is the cost of "a stale root is a refusal".
-import { createPublicClient, createWalletClient, encodeFunctionData, http, keccak256, toHex, type Address, type Hex } from 'viem';
-import { privateKeyToAccount } from 'viem/accounts';
+import { createPublicClient, createWalletClient, encodeFunctionData, http, keccak256, toHex, type Address, type Hex, type LocalAccount } from 'viem';
 
 export const ESTATE_PROJECTION_REGISTRY_ABI = [
   { type: 'function', name: 'signerOf', stateMutability: 'view', inputs: [{ name: 'estateId', type: 'bytes32' }], outputs: [{ type: 'address' }] },
@@ -42,6 +41,9 @@ export const DELEGATION_MANAGER_ABI = [
 ] as const;
 
 /** The wire a projector anchors under (spec 439 §4): the estate's registry agent delegating `setRoots` to one key. */
+/** Who writes a row: the key-service account and the wire its owner lent it — never one without the other. */
+export interface AnchorAuthority { account: LocalAccount; wire: AnchoringWireV1 }
+
 export interface AnchoringWireV1 {
   type: 'ap.anchoring-wire.v1';
   chainId: number;
@@ -85,14 +87,14 @@ export interface RegistryClient {
   signerOf(estateId: Hex): Promise<Address | null>;
   roots(estateId: Hex): Promise<AnchoredState>;
   estateIdOf(chainId: number, governance: Address): Promise<Hex>;
-  register(estateId: Hex, signer: Address, key: Hex): Promise<Hex>;
-  setRoots(input: { estateId: Hex; liveGrantRoot: Hex; membershipRoot: Hex; charterHash?: Hex; sequence: number }, key: Hex, wire?: AnchoringWireV1): Promise<Hex>;
+  register(estateId: Hex, signer: Address, account: LocalAccount): Promise<Hex>;
+  setRoots(input: { estateId: Hex; liveGrantRoot: Hex; membershipRoot: Hex; charterHash?: Hex; sequence: number }, account: LocalAccount, wire: AnchoringWireV1): Promise<Hex>;
 }
 
 export function registryClient(opts: { rpcUrl: string; chainId: number; address: Address }): RegistryClient {
   const chain = { id: opts.chainId, name: `chain-${opts.chainId}`, nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 }, rpcUrls: { default: { http: [opts.rpcUrl] } } } as const;
   const pub = createPublicClient({ chain, transport: http(opts.rpcUrl) });
-  const wallet = (key: Hex) => createWalletClient({ account: privateKeyToAccount(key), chain, transport: http(opts.rpcUrl) });
+  const wallet = (account: LocalAccount) => createWalletClient({ account, chain, transport: http(opts.rpcUrl) });
   const base = { address: opts.address, abi: ESTATE_PROJECTION_REGISTRY_ABI } as const;
   return {
     address: opts.address,
@@ -109,34 +111,24 @@ export function registryClient(opts: { rpcUrl: string; chainId: number; address:
     async estateIdOf(chainId, governance) {
       return (await pub.readContract({ ...base, functionName: 'estateIdOf', args: [BigInt(chainId), governance] })) as Hex;
     },
-    async register(estateId, signer, key) {
-      const hash = await wallet(key).writeContract({ ...base, functionName: 'register', args: [estateId, signer] });
+    async register(estateId, signer, account) {
+      const hash = await wallet(account).writeContract({ ...base, functionName: 'register', args: [estateId, signer] });
       await pub.waitForTransactionReceipt({ hash });
       return hash;
     },
-    async setRoots(input, key, wire) {
+    async setRoots(input, account, wire) {
       const args = [input.estateId, input.liveGrantRoot, input.membershipRoot, input.charterHash ?? ZERO_32, BigInt(input.sequence)] as const;
-      // TWO WAYS TO BE THE SIGNER, and the chain can tell them apart (spec 439 §4).
-      //
-      //   with a wire — the registry agent IS `signerOf(estateId)`, and this key merely holds a revocable permission
-      //   to call `setRoots` on its behalf. The manager executes through the agent's account, so the registry sees
-      //   `msg.sender == the agent`. Revoking the wire stops this key anchoring, at once, without touching the agent.
-      //
-      //   without one — the key itself is the registered signer. That is what F1 shipped and what §4 said to leave
-      //   behind: a secret that IS the estate's voice rather than something the estate lent.
-      //
-      // Not a fallback (ADR-0013): the deployment says which, and a wire that does not verify fails rather than
-      // quietly writing as the bare key.
-      if (wire) {
-        const d = { ...wire.wire, salt: BigInt(wire.wire.salt), caveats: wire.wire.caveats.map((c) => ({ ...c, args: c.args ?? '0x' })) };
-        const hash = await wallet(key).writeContract({
-          address: wire.delegationManager, abi: DELEGATION_MANAGER_ABI, functionName: 'redeemDelegation',
-          args: [[d], opts.address, 0n, encodeFunctionData({ abi: ESTATE_PROJECTION_REGISTRY_ABI, functionName: 'setRoots', args })],
-        });
-        await pub.waitForTransactionReceipt({ hash });
-        return hash;
-      }
-      const hash = await wallet(key).writeContract({ ...base, functionName: 'setRoots', args });
+      // ONE WAY TO BE THE SIGNER (spec 439 §4): the registry agent IS `signerOf(estateId)`, and this key — the key
+      // service's, a delegate — merely holds a revocable permission to call `setRoots` on its behalf. The manager executes
+      // through the agent's account, so the registry sees `msg.sender == the agent`. Revoking the wire stops this key
+      // anchoring, at once, without touching the agent. The F1 shape, where the key itself was the registered signer, is
+      // gone: a key that IS the estate's voice is the identity, wherever it is kept.
+      if (account.address.toLowerCase() !== wire.wire.delegate.toLowerCase()) throw new Error(`the anchoring wire names ${wire.wire.delegate} and the key is ${account.address} — nothing was sent`);
+      const d = { ...wire.wire, salt: BigInt(wire.wire.salt), caveats: wire.wire.caveats.map((c) => ({ ...c, args: c.args ?? '0x' })) };
+      const hash = await wallet(account).writeContract({
+        address: wire.delegationManager, abi: DELEGATION_MANAGER_ABI, functionName: 'redeemDelegation',
+        args: [[d], opts.address, 0n, encodeFunctionData({ abi: ESTATE_PROJECTION_REGISTRY_ABI, functionName: 'setRoots', args })],
+      });
       await pub.waitForTransactionReceipt({ hash });
       return hash;
     },

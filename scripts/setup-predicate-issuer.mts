@@ -20,7 +20,7 @@
 //   Everything the gate replays nightly lands in .secrets/predicate-*.json; the public half (facet + attestation uid)
 //   is printed as the YAML to paste under the issuer's `facets:` in federation.yaml.
 //
-//   set -a && . .secrets/ops.env && . .secrets/faithnet-projection-signer.env && set +a
+//   set -a && . .secrets/ops.env && . .secrets/projector-akcs.env && set +a   # the attestation is SENT by the row's key-service key
 //   npx tsx scripts/setup-predicate-issuer.mts [--issuer faithnet-gate-issuer] [--custodian-persona demo-admin]
 //       [--issuer-home https://www.faithnet.me] [--holder alice] [--holder-home https://www.faithnet.me]
 //       [--door https://door.ap-federation.faithnet.io] [--receiving-estate impact-agent]
@@ -30,6 +30,7 @@ import { randomBytes } from 'node:crypto';
 import { createPublicClient, createWalletClient, hashMessage, http, keccak256, toBytes, type Address, type Hex } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { parse } from 'yaml';
+import { anchorAccount } from '../apps/projector/src/config.js';
 import { computeFacetHash, credentialDigestOfJwt, generateHolderSecret, type IssuerKeyFacetV1, type SignedIssuerKeyFacetV1 } from './lib/predicate-setup-deps.mts';
 import { LocalEs256Signer } from '@agenticprimitives/key-custody';
 import { parseDeviceArg, devicePublicJwk } from './lib/predicate-device-key.mts';
@@ -51,7 +52,7 @@ const RECEIVING = flag('receiving-estate') ?? 'impact-agent';
 const fed = parse(readFileSync('federation.yaml', 'utf8')) as {
   registry: { chainId: number; address: Address };
   doors: Array<{ estate: string; url: string; credentialProofs?: DoorCredentialPolicy }>;
-  credentials: { issuers: Array<{ id: string; estate: string; sa: Address; chainId: number; attestationRegistry: Address; universalSignatureValidator: Address; rpcEnv?: string; anchorDelegateKeyEnv?: string }> };
+  credentials: { issuers: Array<{ id: string; estate: string; sa: Address; chainId: number; attestationRegistry: Address; universalSignatureValidator: Address; rpcEnv?: string; anchorKey?: { tenant: string; keyId: string } }> };
   estates: Array<{ id: string; chainId: number; homeChainId?: number; delegationManager?: Address }>;
 };
 const issuer = fed.credentials?.issuers?.find((i) => i.id === ISSUER) ?? (() => { throw new Error(`no issuer ${ISSUER} under credentials.issuers in federation.yaml`); })();
@@ -134,10 +135,8 @@ if (!attestation) {
   const saltN = BigInt(`0x${randomBytes(16).toString('hex')}`);
   const digest = associationAttestationDigest({ subject: issuer.sa, issuer: issuer.sa, schemaId: SCHEMA_ID, credentialType: ISSUER_KEY_FACET_TYPE, credentialHash: facetDigest, chainId: BigInt(issuer.chainId), verifyingContract: issuer.attestationRegistry });
   const { signature } = await personaSign(ISSUER_HOME, CUSTODIAN, digest);
-  const keyEnv = issuer.anchorDelegateKeyEnv ?? 'FAITHNET_PROJECTION_SIGNER';
-  const senderKey = (process.env[keyEnv] ?? '').trim() as Hex;
-  if (!/^0x[0-9a-fA-F]{64}$/.test(senderKey)) throw new Error(`${keyEnv} is not set — the funded delegate key that sends the attestation transaction (anyone may send one; the issuer's signature is what the contract checks)`);
-  const wallet = createWalletClient({ account: privateKeyToAccount(senderKey), chain, transport: http(rpc) });
+  // The SENDER is the row's funded key-service key (anyone may send one; the issuer's signature is what the contract checks).
+  const wallet = createWalletClient({ account: await anchorAccount({ id: issuer.id, anchorKey: issuer.anchorKey }), chain, transport: http(rpc) });
   const req = { schemaId: SCHEMA_ID, credentialType: ISSUER_KEY_FACET_TYPE, credentialHash: facetDigest, offchainCredentialStatusList: `0x${'00'.repeat(32)}` as Hex, subject: issuer.sa, issuer: issuer.sa, issuerSignature: signature, salt: saltN };
   await pub.simulateContract({ address: issuer.attestationRegistry, abi: ATTESTATION_ABI, functionName: 'assertAssociation', args: [req], account: wallet.account });
   const tx = await wallet.writeContract({ address: issuer.attestationRegistry, abi: ATTESTATION_ABI, functionName: 'assertAssociation', args: [req] });

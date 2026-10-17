@@ -14,6 +14,7 @@
     "@agenticprimitives/a2a": "0.0.0-alpha.42",
     "@agenticprimitives/admission": "0.0.0-alpha.18",
     "@agenticprimitives/registry-kit": "0.0.0-alpha.24",
+    "@ap-federation/key-service-account": "workspace:*",
     "viem": "2.52.2"
   },
   "devDependencies": {

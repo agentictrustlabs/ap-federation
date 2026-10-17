@@ -1,0 +1,21 @@
+{
+  "name": "@ap-federation/key-service-account",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "A viem account whose every signature is made by the estate's key service (AKCS): what a Worker signs with when it acts for an agent as a DELEGATE under that agent's wire. Holds no key; holds a caller token and names each signature's purpose.",
+  "main": "src/index.ts",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@agenticprimitives/key-custody": "1.0.0-alpha.41",
+    "viem": "2.52.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.3",
+    "vitest": "^4.1.8"
+  }
+}

@@ -60,10 +60,11 @@ A tick every six hours prunes each estate's leaves against the chain, rebuilds t
 changed **or** when the last anchor is older than six hours. It never re-anchors roots it did not just rebuild: a
 heartbeat that re-asserted a stale root would extend the life of a grant the chain had already revoked. The same tick
 rebuilds and anchors every issuer whose register entry says `ledger: vault`. Secrets: `FEDERATION_RPC_URL`,
-`HOPECHAIN_RPC_URL`, `OPS_TOKEN`; per estate `PROJECTION_SIGNER_KEYS` and `ANCHORING_WIRES` (JSON maps by estate id)
-and `VAULT_CREDENTIALS_<ESTATE>`; per issuer `ISSUER_SIGNER_KEYS` and `ISSUER_ANCHORING_WIRES` (maps by issuer id) and
-`VAULT_CREDENTIALS_ISSUER_<ID>`. Keys are held per issuer, never under an estate's name, so an issuer's key cannot
-re-anchor an estate.
+`HOPECHAIN_RPC_URL`, `OPS_TOKEN`, one key-service caller token per tenant (`AKCS_TOKEN_FAITHNET`, `AKCS_TOKEN_IMB`); per
+estate `ANCHORING_WIRES` (a JSON map by estate id) and `VAULT_CREDENTIALS_<ESTATE>`; per issuer `ISSUER_ANCHORING_WIRES`
+(by issuer id) and `VAULT_CREDENTIALS_ISSUER_<ID>`. **The Worker holds no key.** Each row's anchoring key is the key
+service's, named publicly in the register (`anchorKey: {tenant, keyId}`); each vault credential names its signer the same
+way. Wires are held per issuer, never under an estate's name, so an issuer's wire cannot re-anchor an estate.
 
 **Why the cadence is two numbers.** Anchoring invalidates every presentation in flight, so a short refresh window
 costs sequences and a long one lets anchors age out past a verifier's `maxAge`. Six hours against the doors'

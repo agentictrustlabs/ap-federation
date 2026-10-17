@@ -6,9 +6,10 @@
 //   2. a read under the same grant SEES it (a write-only credential would list nothing, which is a different bug);
 //   3. the record round-trips field for field, including the BLIND — the one value that exists nowhere else.
 //
+//   set -a; . .secrets/projector-akcs.env; set +a   # the projector's caller tokens (AKCS_TOKEN_<TENANT>): it signs as the projector does
 //   FEDERATION_VAULT_SECRET_DIR=.secrets npx tsx scripts/gate-vault-record.mts [estate…]
 import { readFileSync } from 'node:fs';
-import { loadSubmissions, submissionRecordType, writeSubmission, type VaultCredentials } from '../apps/projector/src/vault-ledger.js';
+import { loadSubmissions, submissionRecordType, vaultCredentialsFrom, writeSubmission } from '../apps/projector/src/vault-ledger.js';
 import type { SubmissionV1 } from '../apps/projector/src/ledger.js';
 
 const dir = process.env.FEDERATION_VAULT_SECRET_DIR ?? '.secrets';
@@ -23,13 +24,7 @@ const GATE_BLIND = '0xdeadbeef00000000000000000000000000000000000000000000000000
 let failed = 0;
 
 for (const estate of which) {
-  const raw = JSON.parse(readFileSync(`${dir}/vault-secret-${estate}.json`, 'utf8')) as Record<string, unknown>;
-  const c: VaultCredentials = {
-    agent: raw.agent as `0x${string}`, agentName: String(raw.agentName), vaultUrl: String(raw.vaultUrl),
-    interactionsService: raw.interactionsService as `0x${string}`, chainId: Number(raw.chainId ?? 34348),
-    grant: raw.grant as VaultCredentials['grant'], leaf: (raw.sessionLeaf ?? raw.leaf) as VaultCredentials['leaf'],
-    signerKey: raw.signerKey as `0x${string}`,
-  };
+  const c = await vaultCredentialsFrom(readFileSync(`${dir}/vault-secret-${estate}.json`, 'utf8'), `${estate}.registry`);
   const digest = GATE_DIGEST;
   const row: SubmissionV1 = {
     type: 'ap.federation-submission.v1', estate, set: 'live-grant', digest, blind: GATE_BLIND,

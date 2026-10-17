@@ -3,7 +3,7 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { estateById, loadFederation, registryRpc, requireProjectable, signerKey } from '../src/config.js';
+import { anchorAccount, estateById, loadFederation, registryRpc, requireProjectable } from '../src/config.js';
 
 const write = (yaml: string) => { const p = join(mkdtempSync(join(tmpdir(), 'ap-fed-cfg-')), 'federation.yaml'); writeFileSync(p, yaml); return p; };
 const REGISTRY = `federation: t\nregistry:\n  chainId: 34348\n  chain: faithchain\n  address: "0xb4E116F5C6915a4f1e649E0877e4a0A7a1c1147b"\n  rpcEnv: TEST_RPC\n`;
@@ -27,10 +27,11 @@ describe('loadFederation', () => {
     expect(requireProjectable(estateById(loadFederation(p), 'impact-agent')).estateId).toMatch(/^0x[0-9a-f]{64}$/);
   });
 
-  it('will not guess an endpoint or a key from the environment', () => {
-    const p = write(`${REGISTRY}estates:\n  - id: impact-agent\n    chainId: 34348\n    governance: "0x4457aadf6ADeB31bA8F166fafcC0d0579ECd1015"\n    governanceKind: estate-agent\n    signerKeyEnv: ABSENT_KEY\n`);
+  it('will not guess an endpoint, a key or a caller from the environment', async () => {
+    const p = write(`${REGISTRY}estates:\n  - id: impact-agent\n    chainId: 34348\n    governance: "0x4457aadf6ADeB31bA8F166fafcC0d0579ECd1015"\n    governanceKind: estate-agent\n    anchorKey: { tenant: imb, keyId: k-1 }\n  - id: bare\n    chainId: 34348\n    governance: "0x1111111111111111111111111111111111111111"\n    governanceKind: estate-agent\n`);
     const f = loadFederation(p);
     expect(() => registryRpc(f, {})).toThrow(/TEST_RPC is not set/);
-    expect(() => signerKey(estateById(f, 'impact-agent'), { ABSENT_KEY: 'not-a-key' })).toThrow(/32-byte key/);
+    await expect(anchorAccount(estateById(f, 'bare'), {})).rejects.toThrow(/names no anchorKey/);
+    await expect(anchorAccount(estateById(f, 'impact-agent'), {})).rejects.toThrow(/no AKCS_TOKEN_IMB/);
   });
 });

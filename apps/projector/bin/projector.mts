@@ -14,8 +14,9 @@
 //   projector present-status --issuer <id> --digest 0x… --audience <origin> --nonce <nonce> [--out <file>]
 //   writes the credential-status presentation a holder shows beside a proof. Revocation is `retire` + `project`.
 //
-// Every command reads `federation.yaml` (the register) and `FEDERATION_RPC_URL` (neutral ground). The
-// anchoring key comes from the environment variable the estate's row names and is never printed.
+// Every command reads `federation.yaml` (the register) and `FEDERATION_RPC_URL` (neutral ground). The anchoring key is
+// the key-service key the row names (`anchorKey`); this CLI signs with it through the caller token for its tenant
+// (`AKCS_TOKEN_<TENANT>`, e.g. from .secrets/projector-akcs.env), and holds no key.
 //
 // `verify` runs the same `verifyAuthorityPresentation` the receiving edge will run in F2, against the roots
 // READ FROM THE CHAIN here and now. It is the proof that an anchored root is usable, and it is deliberately
@@ -24,10 +25,10 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';
 import { makeAuthorityPresentation, verifyAuthorityPresentation, type AuthorityPresentationV1 } from '@agenticprimitives/estate-projection';
 import type { Address, Hex } from 'viem';
-import { estateById, issuerById, loadFederation, registryRpc, requireProjectable, signerKey } from '../src/config.js';
+import { anchorAccount, estateById, issuerById, loadFederation, registryRpc, requireProjectable } from '../src/config.js';
 import { presentCredentialStatus, projectIssuer, liveCredentialRows } from '../src/issuer.js';
 import { fileLedger, type SubmissionLedger } from '../src/ledger.js';
-import { parseVaultCredentials, vaultLedger, writeSubmission } from '../src/vault-ledger.js';
+import { vaultCredentialsFrom, vaultLedger, writeSubmission } from '../src/vault-ledger.js';
 import { readDeclaredSigner, registryClient, type AnchoringWireV1, type DeclaredSigner } from '../src/anchor.js';
 import { buildForSequence, projectEstate } from '../src/project.js';
 import { isRevokedReader } from '../src/revocation.js';
@@ -40,8 +41,8 @@ const has = (k: string) => argv.includes(`--${k}`);
 const REGISTER = flag('register-file') ?? 'federation.yaml';
 const f = loadFederation(REGISTER);
 const rpc = registryRpc(f);
-/** `.secrets/anchoring-wire-<estate>.json`, when the operator has one. Absent is not an error here: an estate whose
- *  signer is still a bare key anchors the old way, and `projector status` says which it is. */
+/** `.secrets/anchoring-wire-<estate>.json`, when the operator has one. Absent ⇒ this operator cannot anchor that estate
+ *  (a key-service key with no wire is nobody's signer), and `project` refuses rather than writing as the key. */
 const anchoringWire = (estate: string): AnchoringWireV1 | null => {
   const p = `.secrets/anchoring-wire-${estate}.json`;
   try { return JSON.parse(readFileSync(p, 'utf8')) as AnchoringWireV1; } catch { return null; }
@@ -64,7 +65,7 @@ if (has('issuer')) {
   const fileOf = () => fileLedger(flag('ledger') ?? `.submissions/issuer-${issuer.id}.json`);
   const vaultSecret = flag('vault-secret') ?? `.secrets/vault-secret-issuer-${issuer.id}.json`;
   const ledger: SubmissionLedger & { flush?: () => Promise<number> } = issuer.ledger === 'vault'
-    ? await vaultLedger(parseVaultCredentials(readFileSync(vaultSecret, 'utf8'), issuer.id))
+    ? await vaultLedger(await vaultCredentialsFrom(readFileSync(vaultSecret, 'utf8'), issuer.id))
     : fileOf();
   if (issuer.ledger === 'vault') console.log(`ledger: ${issuer.id}'s own vault (${ledger.list().length} submission record(s))`);
   const wire = issuer.anchoringWire ? ((): AnchoringWireV1 | null => { try { return JSON.parse(readFileSync(issuer.anchoringWire!, 'utf8')) as AnchoringWireV1; } catch { return null; } })() : null;
@@ -79,7 +80,7 @@ if (has('issuer')) {
     const already = await registry.signerOf(issuer.issuerId);
     const rowSigner = (issuer.rowSigner ?? issuer.sa) as Address;
     if (already) die(already.toLowerCase() === rowSigner.toLowerCase() ? `issuer ${issuer.id} is already registered to ${already}` : `issuer ${issuer.id}'s row is registered to ${already}, NOT to ${rowSigner} — first-come-wins; resolve this first`);
-    const tx = await registry.register(issuer.issuerId, rowSigner, signerKey(issuer));
+    const tx = await registry.register(issuer.issuerId, rowSigner, await anchorAccount(issuer));
     console.log(`registered issuer ${issuer.id}: row ${issuer.issuerId} → signer ${rowSigner} (${issuer.rowSigner ? 'the estate\'s neutral-ground agent, anchoring for an issuer on another chain' : 'the issuer SA itself'}; the delegate key anchors under its wire)\n  tx ${tx}`);
   } else if (cmd === 'submit') {
     const digest = (flag('digest') ?? die('--digest 0x… (credentialDigestOf the issued JWT) is required')).toLowerCase() as Hex;
@@ -98,7 +99,8 @@ if (has('issuer')) {
     if (ledger.flush) console.log(`  written to the vault: ${await ledger.flush()} record(s)`);
   } else if (cmd === 'project') {
     const dry = has('dry-run');
-    const run = await projectIssuer(issuer, { registry, ledger, refreshAfterSeconds: REFRESH_AFTER, ...(dry ? {} : { signerKey: signerKey(issuer) }), ...(wire ? { anchoringWire: wire } : {}) });
+    if (!dry && !wire) die(`issuer ${issuer.id} has no anchoring wire here (${issuer.anchoringWire ?? 'none named'}) — its key anchors only under one`);
+    const run = await projectIssuer(issuer, { registry, ledger, refreshAfterSeconds: REFRESH_AFTER, ...(dry ? {} : { anchor: { account: await anchorAccount(issuer), wire: wire! } }) });
     console.log(`issuer ${issuer.id} · row ${run.issuerId}\n  live-credential ${run.counts.live} leaf/leaves → ${run.projection.liveCredentialRoot} (${run.counts.retired} retired/expired)\n  anchored before: ${run.anchoredBefore.never ? 'never' : `seq ${run.anchoredBefore.sequence}`}\n  decision: ${run.decision.anchor ? `anchor at sequence ${run.decision.sequence}` : 'do not anchor'} — ${run.decision.why}`);
     if (run.txHash) console.log(`  tx ${run.txHash}`); else if (dry && run.decision.anchor) console.log('  (dry run: nothing was written)');
   } else if (cmd === 'present-status') {
@@ -113,7 +115,7 @@ if (has('issuer')) {
   } else if (cmd === 'backfill-vault') {
     // ONE-WAY, ONCE: the rows the Z3/Z4-shaped file ledger holds, into the issuer's vault, before the register says
     // `ledger: vault`. Same blinds, so every status presentation already handed out still opens its leaf.
-    const c = parseVaultCredentials(readFileSync(vaultSecret, 'utf8'), issuer.id);
+    const c = await vaultCredentialsFrom(readFileSync(vaultSecret, 'utf8'), issuer.id);
     const rows = fileOf().list();
     for (const row of rows) { await writeSubmission(c, row); console.log(`  ✓ ${row.set}:${row.digest}${row.retired ? ' (retired)' : ''}`); }
     console.log(`backfilled ${rows.length} row(s) into ${c.agentName}'s vault — now set \`ledger: vault\` on ${issuer.id} in the register`);
@@ -152,7 +154,7 @@ if (cmd === 'status') {
   if (already) die(already.toLowerCase() === estate.signer.toLowerCase()
     ? `estate ${estate.id} is already registered to ${already} — registration happens once`
     : `estate ${estate.id} is registered to ${already}, NOT to the ${estate.signer} in the register. \`register\` is first-come-wins; resolve this before anything anchors.`);
-  const key = signerKey(estate);
+  const key = await anchorAccount(estate);
   console.log(`registering ${estate.id}\n  estateId ${estate.estateId}\n  signer   ${estate.signer}\nThis binds the id to that signer permanently (only the signer can rotate it).`);
   const tx = await registry.register(estate.estateId, estate.signer as Address, key);
   const after = await registry.signerOf(estate.estateId);
@@ -194,10 +196,8 @@ if (cmd === 'status') {
     declaredSigner: await declaredSignerFor(estate),
     liveness: { isRevoked: await isRevokedReader(estate) },
     refreshAfterSeconds: REFRESH_AFTER,
-    ...(dry ? {} : { signerKey: signerKey(estate) }),
-    // The wire the estate's registry agent lent this key (spec 439 §4), when this operator holds one. Without it the
-    // key anchors as itself, which only works while it is still the registered signer.
-    ...(anchoringWire(estate.id) ? { anchoringWire: anchoringWire(estate.id)! } : {}),
+    // The key-service key and the wire the estate's registry agent lent it (spec 439 §4) — both, or a dry run.
+    ...(dry ? {} : { anchor: { account: await anchorAccount(estate), wire: anchoringWire(estate.id) ?? die(`${estate.id} has no anchoring wire here (.secrets/anchoring-wire-${estate.id}.json) — its key anchors only under one`) } }),
   });
   for (const w of run.warnings) console.log(`⚠ ${w}`);
   console.log(`${estate.id} · estateId ${run.estateId}`);

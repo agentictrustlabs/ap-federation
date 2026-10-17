@@ -17,16 +17,22 @@
 // approved_by, scope or sign-in grants an act. The authority decision is the company agent's own harness, under the owner's
 // mandate, per step.
 import { companyDoorProfile } from '@agenticprimitives/registry-kit';
-import { callerAssertionDigest, requestBodyHash, sessionAuthorizationHeader } from '@agenticprimitives/a2a/standard';
+import { sessionWireSigner, type DelegationWireV1 } from '@agenticprimitives/a2a/standard';
 import { requestProofDigest, sha256Of, type AgenticRequestProofClaims } from '@agenticprimitives/admission';
 import { createPublicClient, http, parseAbi, keccak256, toBytes, type Address, type Hex } from 'viem';
-import { privateKeyToAccount } from 'viem/accounts';
+import { keyServiceAccount, type KeyServiceAccount } from '@ap-federation/key-service-account';
 import type { AccountTokenRow, DeviceRow, OperationRow, SessionRow } from './do.js';
 export { PapDoorDO } from './do.js';
 
 interface Env {
   PUBLIC_ORIGIN: string; COMPANY_NAME: string; COMPANY_AGENT: string; COMPANY_A2A: string; COMPANY_HOMEPAGE: string; DOOR_AGENT: string; LISTING: string; CHAIN_ID: string; UNIVERSAL_SIGNATURE_VALIDATOR: string;
-  DOOR_SECRET?: string; DOOR_AGENT_KEY?: string; FEDERATION_RPC_URL?: string; LEDGER: DurableObjectNamespace;
+  DOOR_SECRET?: string; FEDERATION_RPC_URL?: string; LEDGER: DurableObjectNamespace;
+  /** THE DOOR'S SIGNER IS A DELEGATE (the service-agent-signing rule). Its service agent is custodied by a PERSON (the
+   *  company's steward), never by this Worker; the steward signed a session wire `door agent → this key-service key`, pinned
+   *  to the company door's one skill and time-bounded, and the Worker holds that wire and a caller token for the key. */
+  AKCS_BASE_URL?: string; AKCS_TENANT?: string; DOOR_KEY_ID?: string; AKCS_TOKEN?: string;
+  /** `{ type: 'ap.door-session-wire.v1', wire, digest, validUntil }`, as `issue-door-session-wire.mts` wrote it. */
+  DOOR_SESSION_WIRE?: string;
   /** Tests inject a fetch for the client's documents and the company agent's door. */
   __fetch?: typeof fetch;
 }
@@ -131,19 +137,33 @@ async function receipt(env: Env, L: ReturnType<typeof ledger>, record: Record<st
 }
 
 // ─── the company agent's door: the act parks THERE, under the owner's mandate ────────────────────────
+/** The steward's wire and the key it names, or null when this door has none (an act then waits, said). */
+interface DoorSessionWireV1 { type: 'ap.door-session-wire.v1'; wire: DelegationWireV1; digest: Hex; validUntil: number }
+const doorConfigured = (env: Env) => !!(env.AKCS_TOKEN && env.AKCS_TENANT && env.DOOR_KEY_ID && env.DOOR_SESSION_WIRE);
+async function doorSigner(env: Env): Promise<{ key: KeyServiceAccount; wire: DoorSessionWireV1 }> {
+  const wire = JSON.parse(env.DOOR_SESSION_WIRE!) as DoorSessionWireV1;
+  const key = await keyServiceAccount({ tenant: env.AKCS_TENANT!, keyId: env.DOOR_KEY_ID! }, { token: env.AKCS_TOKEN!, ...(env.AKCS_BASE_URL ? { baseUrl: env.AKCS_BASE_URL } : {}), ...(env.__fetch ? { fetch: env.__fetch } : {}) });
+  // The wire must be the door agent's, to THIS key — a mismatch is a deployment mistake, refused before anything is sent.
+  if (wire.wire.delegator.toLowerCase() !== env.DOOR_AGENT.toLowerCase()) throw new Error(`the session wire is ${wire.wire.delegator}'s, not the door agent ${env.DOOR_AGENT}'s`);
+  if (wire.wire.delegate.toLowerCase() !== key.address.toLowerCase()) throw new Error(`the session wire names ${wire.wire.delegate} and the key service's key is ${key.address}`);
+  return { key, wire };
+}
+
 /** The two things the company agent's edge asks of an agent that knocks: a signed REQUEST PROOF (spec 339 §13 — this exact
- *  request, this audience, single use) and the A2A-Session CALLER ASSERTION (spec 372 S3c). Both signed by the door's own agent. */
+ *  request, this audience, single use) and the A2A-Session CALLER ASSERTION (spec 372 S3c). Both are signed by the door's
+ *  key-service key, AS the door agent: the assertion's signature is session-wrapped (`0x51`) with the steward's wire, so the
+ *  company agent verifies the wire against the door agent (ERC-1271), its pin, its window and its revocation — and the
+ *  request proof names the key and the wire it acts under. */
 async function knockHeaders(env: Env, method: string, body: string): Promise<Record<string, string>> {
-  const signer = privateKeyToAccount(env.DOOR_AGENT_KEY as Hex);
-  const u = new URL(env.COMPANY_A2A); const now = Math.floor(Date.now() / 1000); const agent = env.DOOR_AGENT.toLowerCase();
-  const claims: AgenticRequestProofClaims = { schemaVersion: '1', principalAgentId: `eip155:${env.CHAIN_ID}:${agent}`, actingAgentId: `eip155:${env.CHAIN_ID}:${agent}`, runtimeId: `urn:ap:runtime:ap-federation:pap-door:${new URL(env.PUBLIC_ORIGIN).host}`, sessionKeyId: signer.address.toLowerCase(), delegationRefs: [], audience: u.origin, issuedAt: now, expiresAt: now + 120, replayId: crypto.randomUUID(), http: { method: 'POST', authority: u.host, pathAndQuery: u.pathname + u.search, bodySha256: await sha256Of(body) }, a2a: { protocolVersion: '1.0', protocolBinding: 'HTTP+JSON', operation: method } };
-  const proofSig = await signer.signMessage({ message: await requestProofDigest(claims) });
-  const base = { agent, method, bodyHash: requestBodyHash(body), issuedAt: now, audience: u.origin };
-  const sig = await signer.sign({ hash: callerAssertionDigest(base) });
-  return { 'content-type': 'application/json', authorization: sessionAuthorizationHeader({ ...base, signature: sig }), 'x-ap-request-proof': b64url(enc.encode(JSON.stringify({ claims, signature: proofSig }))) };
+  const { key, wire } = await doorSigner(env);
+  const u = new URL(env.COMPANY_A2A); const now = Math.floor(Date.now() / 1000); const agent = env.DOOR_AGENT.toLowerCase() as Address;
+  const claims: AgenticRequestProofClaims = { schemaVersion: '1', principalAgentId: `eip155:${env.CHAIN_ID}:${agent}`, actingAgentId: `eip155:${env.CHAIN_ID}:${agent}`, runtimeId: `urn:ap:runtime:ap-federation:pap-door:${new URL(env.PUBLIC_ORIGIN).host}`, sessionKeyId: key.address.toLowerCase(), delegationRefs: [wire.digest], audience: u.origin, issuedAt: now, expiresAt: now + 120, replayId: crypto.randomUUID(), http: { method: 'POST', authority: u.host, pathAndQuery: u.pathname + u.search, bodySha256: await sha256Of(body) }, a2a: { protocolVersion: '1.0', protocolBinding: 'HTTP+JSON', operation: method } };
+  const proofSig = await key.signMessage({ message: await requestProofDigest(claims) });
+  const assertion = await sessionWireSigner({ agent, wire: wire.wire, signDigest: (d) => key.sign({ hash: d }), audience: u.origin })(body, method);
+  return { 'content-type': 'application/json', ...assertion, 'x-ap-request-proof': b64url(enc.encode(JSON.stringify({ claims, signature: proofSig }))) };
 }
 async function forwardToCompanyAgent(env: Env, op: OperationRow, approvedByClaim: string, proof: unknown): Promise<{ state: 'in_progress' | 'succeeded' | 'failed'; taskId: string | null; runRef: string | null; said: string }> {
-  if (!env.DOOR_AGENT_KEY) return { state: 'in_progress', taskId: null, runRef: null, said: 'the door has no agent key; the act waits' };
+  if (!doorConfigured(env)) return { state: 'in_progress', taskId: null, runRef: null, said: 'the door has no session wire or key-service key; the act waits' };
   const text = `A personal agent at the company door confirms operation ${op.operationId} (revision ${op.revision}): ${op.summary}. The presenter says approved_by=${approvedByClaim} — recorded as its claim; the owner's mandate decides.`;
   const body = JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'SendMessage', params: { message: { messageId: crypto.randomUUID(), role: 'ROLE_USER', parts: [{ text }, { data: { papOperation: { operationId: op.operationId, revision: op.revision, terms: op.terms, summary: op.summary }, approvedByClaim, ...(proof ? { proof } : {}) } }], metadata: { papOperationId: op.operationId, approvedByClaim } } } });
   let r: Response;
@@ -156,7 +176,7 @@ async function forwardToCompanyAgent(env: Env, op: OperationRow, approvedByClaim
   return { state: 'in_progress', taskId: task?.id ?? null, runRef: task?.metadata?.runRef ?? null, said: said || `the act is parked at the company agent (${state || r.status}) for the owner's mandate` };
 }
 async function trackCompanyAgent(env: Env, op: OperationRow): Promise<OperationRow> {
-  if (!op.taskId || !env.DOOR_AGENT_KEY) return op;
+  if (!op.taskId || !doorConfigured(env)) return op;
   const body = JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'GetTask', params: { id: op.taskId } });
   const r = await f(env)(env.COMPANY_A2A, { method: 'POST', headers: await knockHeaders(env, 'GetTask', body), body, signal: AbortSignal.timeout(20_000) }).catch(() => null);
   if (!r) return op;
@@ -180,7 +200,7 @@ export default {
     const tokenEndpoint = `${origin}/oauth/token`;
     const opsEndpoint = `${origin}/poppy/operations`;
 
-    if (p === '/' || p === '/health') return json({ ok: true, service: 'ap-federation-pap-door', company: env.COMPANY_NAME, companyAgent: env.COMPANY_AGENT, doorAgent: env.DOOR_AGENT, listing: env.LISTING, configured: !!(env.DOOR_SECRET && env.DOOR_AGENT_KEY), says: 'a PAP company door: it admits sessions on a foreign client\'s own documents and parks every act at the company agent for the owner\'s mandate; approved_by is the presenter\'s claim' });
+    if (p === '/' || p === '/health') return json({ ok: true, service: 'ap-federation-pap-door', company: env.COMPANY_NAME, companyAgent: env.COMPANY_AGENT, doorAgent: env.DOOR_AGENT, listing: env.LISTING, configured: !!env.DOOR_SECRET && doorConfigured(env), says: 'a PAP company door: it admits sessions on a foreign client\'s own documents and parks every act at the company agent for the owner\'s mandate; approved_by is the presenter\'s claim' });
 
     // ── discovery: the company-door projection, rendered as PAP; refused for listing: none (the profile travels inside the invitation) ──
     if (p === '/.well-known/poppy.json') {

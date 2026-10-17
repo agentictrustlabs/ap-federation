@@ -40,7 +40,9 @@ never spend a sequence on an unchanged, still-fresh projection. Presentations ar
 
 ```bash
 export FEDERATION_RPC_URL=…            # neutral ground (carries an app token; never in federation.yaml)
-export IMPACT_AGENT_PROJECTION_SIGNER=0x…    # the estate's anchoring key, per its register row
+set -a; . .secrets/projector-akcs.env; set +a   # AKCS_TOKEN_<TENANT>: the caller that may sign with the rows' anchorKey
+# The anchoring key is the KEY SERVICE'S (the row's `anchorKey: {tenant, keyId}`), a delegate under the anchoring wire in
+# .secrets/anchoring-wire-<estate>.json. Nothing here holds a key; `project` without a wire refuses.
 
 pnpm projector status                                        # register vs chain, for every estate
 pnpm projector register --estate impact-agent                      # binds the estate id to its signer — ONCE
