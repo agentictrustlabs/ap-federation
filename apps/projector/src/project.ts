@@ -17,7 +17,7 @@
 // re-anchor to refresh a root it did not rebuild; or claim a live-grant root it did not prune. The empty
 // set's root is `0x00…00`, which is also what an estate that has never anchored reads as — an ambiguity
 // that is safe in exactly one direction, since every presentation against it fails inclusion.
-import type { AnchoringWireV1, DeclaredSigner } from './anchor.js';
+import type { AnchorAuthority, DeclaredSigner } from './anchor.js';
 import { buildProjection, type EstateProjectionV1 } from '@agenticprimitives/estate-projection';
 import type { Hex } from 'viem';
 import { anchorDecision, type AnchorDecision, type AnchoredState, type RegistryClient } from './anchor.js';
@@ -45,13 +45,11 @@ export interface ProjectDeps {
   /** Seconds after which an unchanged projection is re-anchored so presentations do not age out. */
   refreshAfterSeconds: number;
   now?: () => Date;
-  /** Absent in a dry run: the job then reports the decision it would have taken and writes nothing. */
-  signerKey?: Hex;
   /** What the estate agent declares on its own chain (spec 439 F2.5), when the run read it. */
   declaredSigner?: DeclaredSigner;
-  /** The wire the estate's registry agent lent this key to anchor under (spec 439 §4). Absent ⇒ the key is the
-   *  registered signer itself, which is what §4 says to leave behind. */
-  anchoringWire?: AnchoringWireV1;
+  /** WHO WRITES: the key-service key and the wire the estate's registry agent lent it (spec 439 §4) — always both.
+   *  Absent in a dry run: the job then reports the decision it would have taken and writes nothing. */
+  anchor?: AnchorAuthority;
 }
 
 /**
@@ -128,13 +126,13 @@ export async function projectEstate(estate: ProjectableEstate, deps: ProjectDeps
     counts: { liveGrant: built.kept.liveGrant.length, membership: built.kept.membership.length },
     dropped, decision, warnings,
   };
-  if (!decision.anchor || !deps.signerKey) return run;
+  if (!decision.anchor || !deps.anchor) return run;
 
   run.txHash = await deps.registry.setRoots({
     estateId: estate.estateId,
     liveGrantRoot: projection.liveGrantRoot,
     membershipRoot: projection.membershipRoot,
     sequence: decision.sequence,
-  }, deps.signerKey, deps.anchoringWire);
+  }, deps.anchor.account, deps.anchor.wire);
   return run;
 }

@@ -56,9 +56,10 @@ estates:
     signer: "0x432FE71eAB5442220Cb0CBb6974f741093De8Bd7"
     signerKind: registry-agent
     signerCustodian: "maya (a person of this estate, via its Home)"
-    # The key the projector holds is a DELEGATE under a wire this agent signed: `setRoots` on the registry, nothing
-    # else, time-bounded, revocable on chain in one transaction without touching the agent (ADR-0019).
-    anchorDelegateKeyEnv: IMPACT_AGENT_PROJECTION_SIGNER
+    # The key that anchors is the KEY SERVICE'S, a DELEGATE under a wire this agent signed: `setRoots` on the registry,
+    # nothing else, time-bounded, revocable on chain in one transaction without touching the agent (ADR-0019). No
+    # deployment holds it; the projector holds a caller token that may ask the key service to sign with it.
+    anchorKey: { tenant: imb, keyId: 01a149cb-06e9-7802-ab64-3cd5fdbe0913 }   # projector-imb-1 → 0x0c31ee18c4c3c885cd3605a6c45a95113874a38a (key service; a delegate under the wire)
     anchoringWire: .secrets/anchoring-wire-impact-agent.json
     # Revocation is read on the ESTATE'S chain, and this is the contract that answers (Ring 0
     # `deployments-faithchain.json#delegationManager`). No address here means nothing can be pruned, and the
@@ -109,7 +110,7 @@ estates:
     signer: "0xdfdAE0a37D35b72D8E2a4E3464087d43d0eB0b5b"
     signerKind: registry-agent
     signerCustodian: "demo-admin (a person of this estate)"
-    anchorDelegateKeyEnv: FAITHNET_PROJECTION_SIGNER
+    anchorKey: { tenant: faithnet, keyId: 01a149cb-0410-70a2-9049-d601396ecafc }   # projector-faithnet-1 → 0xe5344d08b4e5ee037833a194a1cc9f05865ed608 (key service; a delegate under the wire)
     anchoringWire: .secrets/anchoring-wire-faithnet.json
     delegationManager: "0x710cb1bF08C234Df397e0910331e0A29710EF4F7"
     profileResolver: "0xB03F7C06ad3274F584AB72794406D639c02A45e1"
@@ -234,7 +235,7 @@ credentials:
       universalSignatureValidator: "0xa5855906C0De3813E74BEe201973071e0c844115"
       rpcEnv: HOPECHAIN_RPC_URL
       rowSigner: "0x432FE71eAB5442220Cb0CBb6974f741093De8Bd7"
-      anchorDelegateKeyEnv: IMPACT_AGENT_PROJECTION_SIGNER
+      anchorKey: { tenant: imb, keyId: 01a149cb-06e9-7802-ab64-3cd5fdbe0913 }   # projector-imb-1 → 0x0c31ee18c4c3c885cd3605a6c45a95113874a38a (key service; a delegate under the wire)
       anchoringWire: .secrets/anchoring-wire-impact-agent.json
       # Spec 444: the ledger is the ORGANIZATION'S vault (its credential.issue act writes the submission); the scheduled
       # projector re-anchors this row from there, with the rowSigner's delegate key and wire held under this issuer's id.
@@ -262,7 +263,7 @@ credentials:
       attestationRegistry: "0x4c94A0355380b8F5023eDd5f8A8131B020de19FA"
       universalSignatureValidator: "0xeDd56f500325D4701B9985A34e5Fa6EED6716137"
       rpcEnv: FEDERATION_RPC_URL
-      anchorDelegateKeyEnv: IMPACT_AGENT_PROJECTION_SIGNER
+      anchorKey: { tenant: imb, keyId: 01a149cb-06e9-7802-ab64-3cd5fdbe0913 }   # projector-imb-1 → 0x0c31ee18c4c3c885cd3605a6c45a95113874a38a (key service; a delegate under the wire)
       anchoringWire: .secrets/anchoring-wire-impact-agent.json
       since: 2026-10-16
       # Written by scripts/setup-predicate-issuer.mts (2026-10-16, custodian maya through www.impact-agent.me): the facet is PUBLIC; the
@@ -292,7 +293,7 @@ credentials:
       universalSignatureValidator: "0xeDd56f500325D4701B9985A34e5Fa6EED6716137"
       rpcEnv: FEDERATION_RPC_URL
       rowSigner: "0xdfdAE0a37D35b72D8E2a4E3464087d43d0eB0b5b"
-      anchorDelegateKeyEnv: FAITHNET_PROJECTION_SIGNER
+      anchorKey: { tenant: faithnet, keyId: 01a149cb-0410-70a2-9049-d601396ecafc }   # projector-faithnet-1 → 0xe5344d08b4e5ee037833a194a1cc9f05865ed608 (key service; a delegate under the wire)
       anchoringWire: .secrets/anchoring-wire-faithnet.json
       ledger: vault
       since: 2026-10-17
@@ -315,7 +316,7 @@ credentials:
       attestationRegistry: "0x4c94A0355380b8F5023eDd5f8A8131B020de19FA"      # Ring 0 deployments-faithchain.json#attestationRegistry
       universalSignatureValidator: "0xeDd56f500325D4701B9985A34e5Fa6EED6716137"
       rpcEnv: FEDERATION_RPC_URL
-      anchorDelegateKeyEnv: FAITHNET_PROJECTION_SIGNER
+      anchorKey: { tenant: faithnet, keyId: 01a149cb-0410-70a2-9049-d601396ecafc }   # projector-faithnet-1 → 0xe5344d08b4e5ee037833a194a1cc9f05865ed608 (key service; a delegate under the wire)
       anchoringWire: .secrets/anchoring-wire-faithnet.json
       since: 2026-10-15
       # Written by scripts/setup-predicate-issuer.mts (2026-10-15): the facet is PUBLIC (a key and the agent's signature over
@@ -494,10 +495,15 @@ kms:
         - { subject: demo-bible-mcp-faithnet, worker: demo-bible-mcp-faithnet, operations: [key-public-key, key-sign], protectionLevels: [CVM_WRAPPED] }
         - { subject: scripture-validator, operations: [key-public-key, key-sign], protectionLevels: [CVM_WRAPPED] }
         - { subject: coach-a2a-faithnet, worker: coach-a2a-faithnet, operations: [key-public-key, key-sign], protectionLevels: [CVM_WRAPPED] }
+        # 2026-10-17 — ap-federation's Workers hold no key: each signs as a DELEGATE with a key of this tenant, under a wire
+        # its owner signed. Purposes pinned to the Worker's own keys; signing purposes to what its code names per act.
+        - { subject: projector-faithnet, worker: ap-federation-projector, operations: [key-public-key, key-sign], purposes: ["projector:faithnet"], signingPurposes: [EIP155_TRANSACTION, PERSONAL_SIGN_DIGEST, RAW_32_BYTE_DIGEST], protectionLevels: [CVM_WRAPPED, CVM_DERIVED], since: 2026-10-17 }
+        - { subject: pap-door-ligonier, worker: ap-federation-pap-door-ligonier, operations: [key-public-key, key-sign], purposes: ["pap-door:ligonier"], signingPurposes: [PERSONAL_SIGN_DIGEST, RAW_32_BYTE_DIGEST], protectionLevels: [CVM_WRAPPED, CVM_DERIVED], since: 2026-10-17 }
       # The runtime still holds RAW_32_BYTE_DIGEST (condition 1's residual): the relayer signs EIP-155 transaction
       # digests that no purpose in the enum describes, and the interactions-session key signs a 32-byte DEL-001 leaf
-      # that is really EIP-712. Neither is the custody key.
-      rawDigestGrant: [faithnet-runtime]
+      # that is really EIP-712. Neither is the custody key. ap-federation's two callers hold it too, for the vault's
+      # invocation proof and the A2A caller assertion (32-byte digests by construction), and only over their own keys.
+      rawDigestGrant: [faithnet-runtime, projector-faithnet, pap-door-ligonier]
       note: "faithnet-b, the second deployment, has no caller of its own yet — it is the next thing this tenant owes (spec 366 R5)"
     - tenant: impact
       estate: impact
@@ -531,9 +537,10 @@ kms:
           operations: [status, mac-generate, mac-verify, key-read, key-public-key, key-sign]
           protectionLevels: [CVM_WRAPPED, CVM_DERIVED]
           since: 2026-10-14
+        - { subject: projector-imb, worker: ap-federation-projector, operations: [key-public-key, key-sign], purposes: ["projector:imb"], signingPurposes: [EIP155_TRANSACTION, PERSONAL_SIGN_DIGEST, RAW_32_BYTE_DIGEST], protectionLevels: [CVM_WRAPPED, CVM_DERIVED], since: 2026-10-17 }
       # NO PRIVATE KEY IN A WORKER SECRET (441 D3): impact-agent's relay and interactions-session keys are keys of this
       # tenant now, and A2A_MASTER_PRIVATE_KEY / A2A_INTERACTIONS_SESSION_PRIVATE_KEY are deleted from its Worker.
-      rawDigestGrant: [imb-runtime-3]
+      rawDigestGrant: [imb-runtime-3, projector-imb]
       note: "bound with --audiences urn:mcp:server:person --purposes '*' (one KEK purpose per person); 10 logical keys — 8 vault KEKs plus imb-relay and imb-interactions-session, both SIGNING/secp256k1/CVM_WRAPPED, created 2026-10-14"
   conditions:
     - id: 1

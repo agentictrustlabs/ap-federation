@@ -109,7 +109,7 @@ export interface FederationDoor { estate: string; url: string; target?: string; 
 /** Spec 443 §2 `credentials:` (Ring 0 zkID Z4): the verifier side the doors run, and the issuers whose facets the
  *  federation lists — read the way a stranger reads them (attested on the issuer's chain, revocation on neutral ground). */
 export interface FederationIssuerFacet { keyId: string; thumbprint?: string; attestation?: string; revocationRoot?: 'projection' | 'statusList'; document?: { facet: { type: string; subjectAgent: string; keyId: string; suite: string; publicKeyJwk?: Record<string, unknown>; validFrom: string; validUntil?: string }; facetHash: string; signature: string } }
-export interface FederationIssuer { id: string; estate: string; sa: string; chainId: number; kind?: string; attestationRegistry?: string; universalSignatureValidator?: string; rpcEnv?: string; anchorDelegateKeyEnv?: string; anchoringWire?: string; since?: string; note?: string; facets?: FederationIssuerFacet[] }
+export interface FederationIssuer { id: string; estate: string; sa: string; chainId: number; kind?: string; attestationRegistry?: string; universalSignatureValidator?: string; rpcEnv?: string; anchorKey?: { tenant: string; keyId: string }; anchoringWire?: string; since?: string; note?: string; facets?: FederationIssuerFacet[] }
 export interface FederationCredentials { suite: string; backend?: { package: string; version: string; role: string }; verifierPlacement?: string; issuerTrust?: string; issuers?: FederationIssuer[] }
 
 /** Spec 443 §2 — what an estate PRESENTS at companies' doors and which company doors it runs. Declared; nothing here grants. */

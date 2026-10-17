@@ -18,15 +18,23 @@ async function world(listing = 'public') {
   const clientId = 'https://agent.foreign.example/agent.json';
   const kid = await thumb(client.jwk);
   const parked: Array<Record<string, unknown>> = [];
+  const knocks: Headers[] = []; const kmsPurposes: string[] = [];
+  // A test stand-in for the key service's key, and the steward's wire from the door agent to it (its signature is not
+  // checked here — the company agent's edge checks it through ERC-1271 on the chain; this test checks what the door SENDS).
+  const kmsKey = privateKeyToAccount(`0x${'33'.repeat(32)}`);
+  const sessionWire = { type: 'ap.door-session-wire.v1', digest: `0x${'ab'.repeat(32)}`, validUntil: 9_999_999_999, wire: { delegator: '0x4444444444444444444444444444444444444444', delegate: kmsKey.address, authority: `0x${'ff'.repeat(32)}`, caveats: [], salt: '1', signature: '0x01' } };
   const originFetch: typeof fetch = async (input, init) => {
     const u = typeof input === 'string' ? input : (input as Request).url;
     if (u === clientId) return new Response(JSON.stringify({ client_id: clientId, client_name: 'Foreign Agent', jwks_uri: 'https://agent.foreign.example/jwks.json', redirect_uris: ['https://agent.foreign.example/cb'], token_endpoint_auth_method: 'private_key_jwt' }));
     if (u === 'https://agent.foreign.example/jwks.json') return new Response(JSON.stringify({ keys: [{ ...client.jwk, kid }] }));
-    if (u === 'https://company-agent.example/a2a') { const body = JSON.parse(String(init?.body)); parked.push(body); return new Response(JSON.stringify({ jsonrpc: '2.0', id: 1, result: { task: { id: 'task_1', status: { state: 'TASK_STATE_AUTH_REQUIRED', message: { parts: [{ text: 'parked for the owner\'s mandate' }] } }, metadata: { runRef: 'run-1' } } } })); }
+    // THE KEY SERVICE, stood in for: the door's key is the service's, so the door asks it for its address and each signature.
+    if (u === 'https://kms.test/v1/keys/k-door/public-key') return new Response(JSON.stringify({ ethereumAddress: kmsKey.address, protectionLevel: 'CVM_WRAPPED' }));
+    if (u === 'https://kms.test/v1/keys/k-door/sign') { const raw = init?.body; const b = JSON.parse(typeof raw === 'string' ? raw : new TextDecoder().decode(raw as Uint8Array)) as { digest: `0x${string}`; signingPurpose: string }; kmsPurposes.push(b.signingPurpose); return new Response(JSON.stringify({ signature: await kmsKey.sign({ hash: b.digest }), signatureEncoding: 'RSV_65', signerAddress: kmsKey.address, keyId: 'k-door', protectionLevel: 'CVM_WRAPPED' })); }
+    if (u === 'https://company-agent.example/a2a') { const body = JSON.parse(String(init?.body)); parked.push(body); knocks.push(new Headers(init?.headers)); return new Response(JSON.stringify({ jsonrpc: '2.0', id: 1, result: { task: { id: 'task_1', status: { state: 'TASK_STATE_AUTH_REQUIRED', message: { parts: [{ text: 'parked for the owner\'s mandate' }] } }, metadata: { runRef: 'run-1' } } } })); }
     return new Response('{"error":"not_found"}', { status: 404 });
   };
   const ledger = fakeLedger();
-  const env = { PUBLIC_ORIGIN: ORIGIN, COMPANY_NAME: 'Acme Books', COMPANY_AGENT: 'eip155:34348:0x3333333333333333333333333333333333333333', COMPANY_A2A: 'https://company-agent.example/a2a', COMPANY_HOMEPAGE: 'https://company.example', DOOR_AGENT: '0x4444444444444444444444444444444444444444', LISTING: listing, CHAIN_ID: '34348', UNIVERSAL_SIGNATURE_VALIDATOR: '0x0000000000000000000000000000000000000001', DOOR_SECRET: 'test-secret', DOOR_AGENT_KEY: '0x' + '22'.repeat(32), LEDGER: ledger.ns, __fetch: originFetch };
+  const env = { PUBLIC_ORIGIN: ORIGIN, COMPANY_NAME: 'Acme Books', COMPANY_AGENT: 'eip155:34348:0x3333333333333333333333333333333333333333', COMPANY_A2A: 'https://company-agent.example/a2a', COMPANY_HOMEPAGE: 'https://company.example', DOOR_AGENT: '0x4444444444444444444444444444444444444444', LISTING: listing, CHAIN_ID: '34348', UNIVERSAL_SIGNATURE_VALIDATOR: '0x0000000000000000000000000000000000000001', DOOR_SECRET: 'test-secret', AKCS_BASE_URL: 'https://kms.test', AKCS_TENANT: 'faithnet', DOOR_KEY_ID: 'k-door', AKCS_TOKEN: 'caller-token', DOOR_SESSION_WIRE: JSON.stringify(sessionWire), LEDGER: ledger.ns, __fetch: originFetch };
   const call = (path: string, init: RequestInit = {}) => worker.fetch(new Request(`${ORIGIN}${path}`, init), env as never);
   const now = () => Math.floor(Date.now() / 1000);
   const clientAssertion = () => jws(client.kp, { typ: 'JWT', kid }, { iss: clientId, sub: clientId, aud: `${ORIGIN}/oauth/token`, iat: now(), exp: now() + 60, jti: b64url(crypto.getRandomValues(new Uint8Array(16))) });
@@ -35,7 +43,7 @@ async function world(listing = 'public') {
   const token = async (fields: Record<string, string>) => { const r = await call('/oauth/token', { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded', DPoP: await proof('POST', `${ORIGIN}/oauth/token`) }, body: form({ ...fields, client_id: clientId, client_assertion_type: 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer', client_assertion: await clientAssertion() }) }); return { status: r.status, json: await r.json() as Record<string, unknown> }; };
   const session = async (sub = 'usr_foreign_1') => token({ grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer', assertion: await jws(client.kp, { typ: 'JWT', kid }, { iss: clientId, sub, aud: `${ORIGIN}/oauth/token`, iat: now(), exp: now() + 60, jti: b64url(crypto.getRandomValues(new Uint8Array(16))) }) });
   const api = async (path: string, accessToken: string, init: { method?: string; body?: unknown } = {}) => { const method = init.method ?? 'GET'; const r = await call(path, { method, headers: { authorization: `DPoP ${accessToken}`, DPoP: await proof(method, `${ORIGIN}${path}`, accessToken), ...(init.body !== undefined ? { 'content-type': 'application/json' } : {}) }, ...(init.body !== undefined ? { body: JSON.stringify(init.body) } : {}) }); return { status: r.status, json: await r.json() as Record<string, unknown>, headers: r.headers }; };
-  return { call, token, session, api, parked, ledger, clientId, clientAssertion, form };
+  return { call, token, session, api, parked, knocks, kmsKey, kmsPurposes, ledger, clientId, clientAssertion, form };
 }
 
 describe('pap-door — their personal agent at our company\'s door (spec 443 W2)', () => {
@@ -107,6 +115,17 @@ describe('pap-door — their personal agent at our company\'s door (spec 443 W2)
     const forwarded = JSON.stringify(w.parked[0]);
     expect(forwarded).toContain('approvedByClaim');
     expect(forwarded).toContain(op.operation_id);
+    // …knocked AS the door agent, by the key service's key under the steward's wire: the assertion is session-wrapped (0x51),
+    // the request proof names the key and the wire, and each signature was asked for under its own purpose.
+    const auth = w.knocks[0]!.get('authorization') ?? '';
+    expect(auth.startsWith('A2A-Session ')).toBe(true);
+    const assertion = JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(auth.slice(12).replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil((auth.length - 12) / 4) * 4, '=')), (ch) => ch.charCodeAt(0)))) as { agent: string; signature: string };
+    expect(assertion.agent).toBe('0x4444444444444444444444444444444444444444');
+    expect(assertion.signature.startsWith('0x51')).toBe(true);
+    const rp = JSON.parse(new TextDecoder().decode(Uint8Array.from(atob((w.knocks[0]!.get('x-ap-request-proof') ?? '').replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil((w.knocks[0]!.get('x-ap-request-proof') ?? '').length / 4) * 4, '=')), (ch) => ch.charCodeAt(0)))) as { claims: { sessionKeyId: string; delegationRefs: string[] } };
+    expect(rp.claims.sessionKeyId).toBe(w.kmsKey.address.toLowerCase());
+    expect(rp.claims.delegationRefs).toEqual([`0x${'ab'.repeat(32)}`]);
+    expect(w.kmsPurposes).toEqual(['PERSONAL_SIGN_DIGEST', 'RAW_32_BYTE_DIGEST']);
     // a repeated confirm is safe: the operation as it is, nothing forwarded twice
     const again = await w.api(`/poppy/operations/${op.operation_id}/confirm`, tok2, { method: 'POST', body: { revision: 1, approved_by: 'user' } });
     expect(again.json.state).toBe('in_progress');

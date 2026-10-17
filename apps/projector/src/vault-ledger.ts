@@ -18,7 +18,7 @@
 // so; it never falls back to the DO as the record (ADR-0013).
 import { buildInvocationProof, mintDelegationToken, type Delegation } from '@agenticprimitives/delegation';
 import { hashMessage, type Address, type Hex } from 'viem';
-import { privateKeyToAccount } from 'viem/accounts';
+import { keyServiceAccount, tokenFor, type KeyServiceRef } from '@ap-federation/key-service-account';
 import type { SubmissionLedger, SubmissionV1, ProjectionSet } from './ledger.js';
 
 /** A random 32-byte blind, by Web Crypto (this module runs in the Worker too, where `ledger.ts`'s Node imports cannot). */
@@ -42,9 +42,12 @@ export interface VaultCredentials {
   chainId: number;
   grant: Delegation;
   leaf: Delegation;
-  /** The delegate key the leaf binds, as a hex private key. */
-  signerKey: Hex;
+  /** What signs as the leaf's delegate: the key service's key (the Worker, the CLI), or a test person's own key in a gate
+   *  script. Never a private key in this shape — only something that can sign a digest and say its address. */
+  signer: VaultSigner;
 }
+
+export interface VaultSigner { address: Address; sign(args: { hash: Hex }): Promise<Hex> }
 
 export const SUBMISSION_RECORD_PREFIX = 'federation.projection-submission:';
 
@@ -60,7 +63,7 @@ type NativeResult = { ok?: boolean; error?: string; code?: string; detail?: stri
 const DEFAULT_AUDIENCE = 'urn:mcp:server:person';
 
 async function callVault(c: VaultCredentials, tool: string, toolArgs: Record<string, unknown>, fetchImpl: typeof fetch): Promise<NativeResult & { status: number }> {
-  const account = privateKeyToAccount(c.signerKey);
+  const account = c.signer;
   if (account.address.toLowerCase() !== c.leaf.delegate.toLowerCase()) {
     throw new Error(`the signer key is ${account.address} and ${c.agentName}'s leaf names ${c.leaf.delegate} — the key and the wire disagree, so nothing was sent`);
   }
@@ -178,16 +181,21 @@ export async function vaultLedger(c: VaultCredentials, fetchImpl: typeof fetch =
   };
 }
 
-/** The vault credential shape both the CLI file and the Worker secret hold (`issue-self-host-vault-credentials.mts` plus the
- *  delegate key): parsed in one place so the two cannot read it differently. */
-export function parseVaultCredentials(raw: string, fallbackName: string): VaultCredentials {
+/** The vault credential shape both the CLI file and the Worker secret hold (`issue-self-host-vault-credentials.mts` plus
+ *  `signer: {tenant, keyId}`, the key-service key the leaf binds): parsed in one place so the two cannot read it differently.
+ *  A credential carrying a private key is refused by name — that shape is retired. */
+export async function vaultCredentialsFrom(raw: string, fallbackName: string, env: Record<string, unknown> = process.env): Promise<VaultCredentials> {
   const d = JSON.parse(raw) as Record<string, unknown>;
   if (!d.chainId) throw new Error(`${fallbackName}: the vault credential names no chainId — a grant is verified on its delegator's chain, which must be declared`);
+  if ('signerKey' in d) throw new Error(`${fallbackName}: the vault credential carries a private key (signerKey) — re-issue it to a key-service key and name it as signer: {tenant, keyId}`);
+  const ref = d.signer as Partial<KeyServiceRef> | undefined;
+  if (!ref?.tenant || !ref.keyId) throw new Error(`${fallbackName}: the vault credential names no signer {tenant, keyId}`);
+  const signer = await keyServiceAccount({ tenant: ref.tenant, keyId: ref.keyId }, { token: tokenFor(env, ref.tenant), ...(typeof env.AKCS_BASE_URL === 'string' ? { baseUrl: env.AKCS_BASE_URL } : {}) });
   return {
     agent: d.agent as `0x${string}`, agentName: String(d.agentName ?? fallbackName),
     vaultUrl: String(d.vaultUrl ?? d.home), interactionsService: d.interactionsService as `0x${string}`,
     chainId: Number(d.chainId), ...(d.audience ? { audience: String(d.audience) } : {}),
     grant: d.grant as VaultCredentials['grant'], leaf: (d.sessionLeaf ?? d.leaf) as VaultCredentials['leaf'],
-    signerKey: d.signerKey as `0x${string}`,
+    signer,
   };
 }

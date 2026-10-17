@@ -41,7 +41,7 @@ const deviceRecord: HolderDeviceKeyRecordV1 = live.device.kind === 'akcs'
   : { type: 'ap.device-key.v1', thumbprint, privateKeyHex: live.device.privateKeyHex, createdAt: new Date().toISOString() };
 const claimSchema = live.claims ? Object.keys(live.claims) : ['age', 'roc_birthday'];
 const now = new Date().toISOString();
-console.log(`holder ${c.agentName} (${c.agent}) · vault ${c.vaultUrl} · writing as delegate ${privateKeyToAccount(c.signerKey).address}`);
+console.log(`holder ${c.agentName} (${c.agent}) · vault ${c.vaultUrl} · writing as delegate ${c.signer.address}`);
 
 const credentialRecord = (src: Record<string, unknown>, extra: Record<string, unknown> = {}): HolderCredentialRecordV1 => ({
   type: 'ap.anonymous-credential.v1', issuerKeyId: String(src.issuerKeyId), jwt: String(src.jwt), disclosures: src.disclosures as string[],
