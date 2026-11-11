@@ -662,7 +662,7 @@ protocols:
     personalAgent:
       # `faithnet-pap.svc` (bought 2026-10-16, 10 SHQ from demo-admin's treasury): the gate's domain rule refused `pap` (pap.com exists).
       service: faithnet-pap.svc@faithnet
-      agent: "0xf29038602367e1645fE09f180fC326f7Cd2634B0"   # chartered 2026-10-16 under demo-admin (tx 0x1564618…); vault bound; steward wire recorded
+      agent: "0xb88420134b1b22485646430399AbbEaBD496e4B2"   # faithnet-pap.svc, generation 4 (re-chartered 2026-11-11 under demo-admin; gen-1 0xf2903860…); vault bound; steward wire recorded
       clientId: https://pap.faithnet.io/client.json
       jwks: https://pap.faithnet.io/jwks.json
       keyDirectory: https://pap.faithnet.io/.well-known/http-message-signatures-directory
