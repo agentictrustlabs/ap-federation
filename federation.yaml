@@ -157,6 +157,17 @@ doors:
       # (`CREDENTIAL_ISSUER_NOT_ACCEPTED`). The organization vouches for its members through ITS issuer; no other
       # issuer's "member" means anything here.
       issuers: [imbnet-membership-issuer, imbnet-org]   # spec 444 W4 — the organization issues its own members' credentials, through its agent
+      # THE CREDENTIAL TYPE(S) THIS DOOR ASKS FOR (Ring 0 spec 445 / DATA-7, 2026-11-10) — NOT YET NAMED, and until it is
+      # this door refuses every credential presentation (`CREDENTIAL_CREDENTIAL_TYPE_UNSTATED`) once it runs on the new
+      # packages. A proof request now states the type(s) wanted and the issuers accepted, and the suite enforces both:
+      # the issuers are the `sa` of the ids above; the type is bound through the issuer's KEY — each accepted issuer's
+      # facet must be re-signed declaring the same type(s) (`scripts/publish-issuer-facet.mts` / `setup-predicate-issuer.mts
+      # --credential-types …`), or it is refused `credential_type_unbound`. The name is the owner's to choose; it is
+      # written once here and once into each facet. Nothing in this repository named a credential type before, so none
+      # is invented here — see SPEC-445-CONSUMER-NOTES.md (second pass, open question 2).
+      # Named by the owner's delegation 2026-11-10: the organization's membership credential (spec 444), which also carries
+      # the age attribute the over-18 predicate reads. Versioned; a new shape gets /v2, never a silent change.
+      credentialTypes: ["https://agenticprimitives.dev/vct/organization-membership/v1"]
     # RECEIPT RETENTION (2026-10-16): a receipt keeps its parties (the pairwise account, the detail, the references) for
     # this many days — the window in which a dispute could need them — then collapses to kind · effect · codes · decision;
     # its hash in the chain never changes. The door's Worker reads the same number from RECEIPT_FULL_RECORD_DAYS.

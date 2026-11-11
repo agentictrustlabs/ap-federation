@@ -2,17 +2,19 @@
 // THE PROJECTOR'S CLI (spec 439 F1) — one estate, one pass, everything said out loud.
 //
 //   projector status  [--estate <id>]                      what the register claims and what the chain holds
-//   projector register --estate <id>                       bind the estate id to its signer (ONCE, forever)
 //   projector submit  --estate <id> --set live-grant|membership --digest 0x… --subject 0x… [--expires <iso>]
 //   projector retire  --estate <id> --digest 0x… --reason "<why>" [--set live-grant|membership]
 //   projector project --estate <id> [--dry-run] [--refresh-after <seconds>]
 //   projector present --estate <id> --digest 0x… --audience <origin> [--nonce 0x…] [--out <file>]
-//   projector verify  --file <presentation.json> [--max-age <seconds>]
+//   projector verify  --file <presentation.json> --chain <the subject's chain id> [--max-age <seconds>] [--accept-bearer-v1]
 //
 //   --issuer <id> (zkID Z4) routes status | register | submit | retire | project at a credential ISSUER's row
 //   (`credentials.issuers[]` in the register; set `live-credential`; ledger `.submissions/issuer-<id>.json`), and
 //   projector present-status --issuer <id> --digest 0x… --audience <origin> --nonce <nonce> [--out <file>]
 //   writes the credential-status presentation a holder shows beside a proof. Revocation is `retire` + `project`.
+//
+// No `register` since generation 4 (spec 445 REG-2): a row is `(estateId, signer)`, opened by the signer's first `project`.
+// The row a verifier reads is the one the estate DECLARED (`atl:projectionSigner`), so `status` says whether it is declared.
 //
 // Every command reads `federation.yaml` (the register) and `FEDERATION_RPC_URL` (neutral ground). The anchoring key is
 // the key-service key the row names (`anchorKey`); this CLI signs with it through the caller token for its tenant
@@ -21,17 +23,24 @@
 // `verify` runs the same `verifyAuthorityPresentation` the receiving edge will run in F2, against the roots
 // READ FROM THE CHAIN here and now. It is the proof that an anchored root is usable, and it is deliberately
 // the only command that needs no key at all: a verifier holds nothing.
+//
+// A PRESENTATION IS PROOF OF POSSESSION (Ring 0 spec 445 §3.8). `present` writes the ESTATE's half — the leaf, its
+// opening and its proof for one challenge — and that file is NOT yet presentable: the SUBJECT signs the challenge
+// (EIP-712, `authorityPresentationTypedData(pres, { chainId })`, on the chain its account lives on) and attaches
+// `subjectSignature`. This CLI holds no subject's key and never signs as one. `verify` therefore needs `--chain`: the
+// chain the subject's account is asked on, declared by whoever verifies and never defaulted.
 import { readFileSync, writeFileSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';
-import { makeAuthorityPresentation, verifyAuthorityPresentation, type AuthorityPresentationV1 } from '@agenticprimitives/estate-projection';
+import { estateIdOf, makeAuthorityPresentation, verifyAuthorityPresentation, type AuthorityPresentationV1 } from '@agenticprimitives/estate-projection';
 import type { Address, Hex } from 'viem';
 import { anchorAccount, estateById, issuerById, loadFederation, registryRpc, requireProjectable } from '../src/config.js';
 import { presentCredentialStatus, projectIssuer, liveCredentialRows } from '../src/issuer.js';
 import { fileLedger, type SubmissionLedger } from '../src/ledger.js';
 import { vaultCredentialsFrom, vaultLedger, writeSubmission } from '../src/vault-ledger.js';
 import { readDeclaredSigner, registryClient, type AnchoringWireV1, type DeclaredSigner } from '../src/anchor.js';
-import { buildForSequence, projectEstate } from '../src/project.js';
+import { buildForSequence, projectEstate, rowSignerOf } from '../src/project.js';
 import { isRevokedReader } from '../src/revocation.js';
+import { declaredSubjectChain, subjectSignatureCheckFor } from '../src/subject-signature.js';
 
 const argv = process.argv.slice(2);
 const cmd = argv[0] ?? 'status';
@@ -70,18 +79,14 @@ if (has('issuer')) {
   if (issuer.ledger === 'vault') console.log(`ledger: ${issuer.id}'s own vault (${ledger.list().length} submission record(s))`);
   const wire = issuer.anchoringWire ? ((): AnchoringWireV1 | null => { try { return JSON.parse(readFileSync(issuer.anchoringWire!, 'utf8')) as AnchoringWireV1; } catch { return null; } })() : null;
   if (cmd === 'status') {
-    const signer = await registry.signerOf(issuer.issuerId);
-    const r = await registry.roots(issuer.issuerId);
+    const signer = (issuer.rowSigner ?? issuer.sa) as Address;
+    const r = await registry.roots(issuer.issuerId, signer);
     const live = liveCredentialRows(ledger.list());
-    console.log(`── issuer ${issuer.id} (${issuer.kind ?? 'issuer'} of ${issuer.estate}) ──\n  sa        ${issuer.sa} on eip155:${issuer.chainId}\n  issuerId  ${issuer.issuerId}\n  signer    ${signer ?? 'not registered'}${signer && signer.toLowerCase() !== issuer.sa.toLowerCase() ? '  ⚠ not the issuer SA' : ''}`);
+    console.log(`── issuer ${issuer.id} (${issuer.kind ?? 'issuer'} of ${issuer.estate}) ──\n  sa        ${issuer.sa} on eip155:${issuer.chainId}\n  issuerId  ${issuer.issuerId}\n  row signer ${signer}${signer.toLowerCase() !== issuer.sa.toLowerCase() ? '  (not the issuer SA: the estate\'s neutral-ground agent anchors for it)' : ''}`);
     console.log(r.never ? '  roots     nothing anchored yet (sequence 0)' : `  roots     seq ${r.sequence} · live-credential ${r.liveGrantRoot.slice(0, 18)}… · tag ${r.charterHash.slice(0, 10)}… · anchored ${new Date(r.anchoredAt * 1000).toISOString()}`);
     console.log(`  vouches   ${live.kept.length} live credential(s) in the ledger (${live.dropped.length} retired/expired)\n  facets    ${(issuer.facets ?? []).map((x) => `${x.keyId}${x.attestation ? ' (attested)' : ' (NOT attested)'}`).join(', ') || 'none declared'}`);
   } else if (cmd === 'register') {
-    const already = await registry.signerOf(issuer.issuerId);
-    const rowSigner = (issuer.rowSigner ?? issuer.sa) as Address;
-    if (already) die(already.toLowerCase() === rowSigner.toLowerCase() ? `issuer ${issuer.id} is already registered to ${already}` : `issuer ${issuer.id}'s row is registered to ${already}, NOT to ${rowSigner} — first-come-wins; resolve this first`);
-    const tx = await registry.register(issuer.issuerId, rowSigner, await anchorAccount(issuer));
-    console.log(`registered issuer ${issuer.id}: row ${issuer.issuerId} → signer ${rowSigner} (${issuer.rowSigner ? 'the estate\'s neutral-ground agent, anchoring for an issuer on another chain' : 'the issuer SA itself'}; the delegate key anchors under its wire)\n  tx ${tx}`);
+    die(`there is no register step since generation 4 (spec 445 REG-2): ${issuer.id}'s row opens at its first \`project\`, written by its row signer ${issuer.rowSigner ?? issuer.sa}. Run \`projector project --issuer ${issuer.id}\`.`);
   } else if (cmd === 'submit') {
     const digest = (flag('digest') ?? die('--digest 0x… (credentialDigestOf the issued JWT) is required')).toLowerCase() as Hex;
     if (!/^0x[0-9a-f]{64}$/.test(digest)) die('--digest must be 32 bytes');
@@ -119,7 +124,7 @@ if (has('issuer')) {
     const rows = fileOf().list();
     for (const row of rows) { await writeSubmission(c, row); console.log(`  ✓ ${row.set}:${row.digest}${row.retired ? ' (retired)' : ''}`); }
     console.log(`backfilled ${rows.length} row(s) into ${c.agentName}'s vault — now set \`ledger: vault\` on ${issuer.id} in the register`);
-  } else die(`unknown issuer command "${cmd}" — status | register | submit | retire | project | present-status | backfill-vault`);
+  } else die(`unknown issuer command "${cmd}" — status | submit | retire | project | present-status | backfill-vault`);
   process.exit(0);
 }
 
@@ -135,30 +140,27 @@ if (cmd === 'status') {
     console.log(`  estateId   ${estate.estateId}`);
     const onChain = await registry.estateIdOf(estate.chainId, estate.governance);
     console.log(`  derivation ${onChain.toLowerCase() === estate.estateId.toLowerCase() ? 'agrees with the contract' : `DISAGREES with the contract (${onChain})`}`);
-    const signer = await registry.signerOf(estate.estateId);
-    console.log(`  signer     ${signer ?? 'not registered'}${signer && row.signer && signer.toLowerCase() !== row.signer.toLowerCase() ? `  ⚠ the register claims ${row.signer}` : ''}`);
-    const r = await registry.roots(estate.estateId);
-    if (r.never) console.log('  roots      nothing anchored yet (sequence 0)');
-    else console.log(`  roots      seq ${r.sequence} · live-grant ${r.liveGrantRoot.slice(0, 18)}… · membership ${r.membershipRoot.slice(0, 18)}… · anchored ${new Date(r.anchoredAt * 1000).toISOString()} (${Math.floor(Date.now() / 1000) - r.anchoredAt}s ago)`);
+    // REG-2: the row a verifier reads is the DECLARED signer's — read the declaration first, then that signer's row.
+    const declared = await declaredSignerFor(estate).catch((e) => ({ error: e instanceof Error ? e.message : String(e) }));
+    const claimed = row.signer as Address | undefined;
+    const undeclared = 'error' in declared || !declared.declared;
+    const signer = undeclared ? claimed : (declared as { signer: Address }).signer;
+    console.log(`  signer     ${signer ?? 'none (nothing declared, none in the register)'}${undeclared ? '  (the register\'s claim — not declared on chain)' : '  (declared on the estate\'s chain)'}${signer && claimed && signer.toLowerCase() !== claimed.toLowerCase() ? `  ⚠ the register claims ${claimed}` : ''}`);
+    if (signer) {
+      const retired = await registry.isRetired(estate.estateId, signer);
+      const r = await registry.roots(estate.estateId, signer);
+      if (retired) console.log('  roots      ✗ this signer is RETIRED on neutral ground — every verifier refuses its row');
+      else if (r.never) console.log('  roots      nothing anchored yet under this signer (sequence 0)');
+      else console.log(`  roots      seq ${r.sequence} · live-grant ${r.liveGrantRoot.slice(0, 18)}… · membership ${r.membershipRoot.slice(0, 18)}… · anchored ${new Date(r.anchoredAt * 1000).toISOString()} (${Math.floor(Date.now() / 1000) - r.anchoredAt}s ago)`);
+    }
     const rows = ledgerFor(row.id).list();
     console.log(`  vouches    ${rows.filter((x) => !x.retired).length} live submission(s) in the ledger (${rows.length} ever)`);
-    const declared = await declaredSignerFor(estate).catch((e) => ({ error: e instanceof Error ? e.message : String(e) }));
     if ('error' in declared) console.log(`  declared   could not read the estate's chain: ${declared.error}`);
-    else if (!declared.declared) console.log('  declared   ⚠ the estate agent has not declared atl:projectionSigner on its own chain — reviewable here and in ap-town, not yet chain-verifiable (spec 439 F2.5; ap-home scripts/set-projection-signer.mts)');
-    else console.log(`  declared   ${declared.signer}${signer && declared.signer.toLowerCase() === signer.toLowerCase() ? ' — agrees with neutral ground: chain-verifiable both ways' : signer ? `  ✗ DISAGREES with neutral ground (${signer}) — this registration is not the estate's` : ''}`);
+    else if (!declared.declared) console.log('  declared   ⚠ the estate agent has not declared atl:projectionSigner on its own chain — since generation 4 a verifier reads NO row for it (it reads only the declared signer\'s); ap-home scripts/set-projection-signer.mts writes the declaration');
+    else console.log(`  declared   ${declared.signer}${claimed && declared.signer.toLowerCase() === claimed.toLowerCase() ? ' — agrees with the register' : claimed ? `  ✗ DISAGREES with the register (${claimed})` : ''}`);
   }
 } else if (cmd === 'register') {
-  const estate = requireProjectable(estateById(f, estateFlag()));
-  if (!estate.signer) die(`estate ${estate.id} has no signer address in the register`);
-  const already = await registry.signerOf(estate.estateId);
-  if (already) die(already.toLowerCase() === estate.signer.toLowerCase()
-    ? `estate ${estate.id} is already registered to ${already} — registration happens once`
-    : `estate ${estate.id} is registered to ${already}, NOT to the ${estate.signer} in the register. \`register\` is first-come-wins; resolve this before anything anchors.`);
-  const key = await anchorAccount(estate);
-  console.log(`registering ${estate.id}\n  estateId ${estate.estateId}\n  signer   ${estate.signer}\nThis binds the id to that signer permanently (only the signer can rotate it).`);
-  const tx = await registry.register(estate.estateId, estate.signer as Address, key);
-  const after = await registry.signerOf(estate.estateId);
-  console.log(`  tx ${tx}\n  signerOf now ${after}`);
+  die('there is no register step since generation 4 (spec 445 REG-2): a row is (estateId, signer), opened by the signer\'s first `project`, and the row a verifier reads is the one the estate DECLARED as `atl:projectionSigner` on its own chain (ap-home scripts/set-projection-signer.mts). Run `projector status` to see the declaration, then `projector project`.');
 } else if (cmd === 'submit') {
   const row = estateById(f, estateFlag());
   const set = (flag('set') ?? 'live-grant') as 'live-grant' | 'membership';
@@ -213,7 +215,8 @@ if (cmd === 'status') {
   const digest = (flag('digest') ?? die('--digest 0x… is required')).toLowerCase() as Hex;
   const audience = flag('audience') ?? die('--audience <the verifier\'s origin> is required: a presentation answers ONE challenge');
   const nonce = (flag('nonce') ?? `0x${randomBytes(32).toString('hex')}`) as Hex;
-  const anchored = await registry.roots(estate.estateId);
+  const signer = rowSignerOf(estate, await declaredSignerFor(estate));
+  const anchored = await registry.roots(estate.estateId, signer);
   if (anchored.never) die(`${estate.id} has nothing anchored — there is no root to prove against`);
   // Built at the ANCHORED sequence, then checked against the anchored roots: if the set has moved since,
   // the proof would be against a tree nobody can verify, and saying so beats handing over a dead proof.
@@ -230,20 +233,44 @@ if (cmd === 'status') {
   if (!pres) die('the leaf is in the set but no proof could be made for it — that is a bug, not a refusal');
   const file = flag('out') ?? `.submissions/presentation-${estate.id}-${digest.slice(2, 10)}.json`;
   writeFileSync(file, `${JSON.stringify(pres, null, 2)}\n`, { mode: 0o600 });
-  console.log(`presentation for ${set} ${digest}\n  subject  ${pres!.subject}\n  sequence ${pres!.sequence}\n  audience ${audience}\n  written  ${file}`);
+  console.log(`presentation for ${set} ${digest}\n  suite    ${pres!.suite}\n  subject  ${pres!.subject}\n  sequence ${pres!.sequence}\n  audience ${audience}\n  written  ${file}`);
+  console.log(pres!.suite === 'merkle-membership-v2'
+    ? `  NOT YET PRESENTABLE: this is the estate's half. The subject ${pres!.subject} signs this challenge with its own account —\n  EIP-712 \`authorityPresentationTypedData(pres, { chainId: <the chain its account lives on> })\` — and attaches \`subjectSignature\` (spec 445 §3.8).`
+    : '  ⚠ a merkle-membership-v1 presentation: a BEARER value, refused by a door unless it opted in. Re-anchor this estate (`projector project`) under the current package.');
   console.log('  It is EVIDENCE, not authority: it says this subject holds a live grant in this estate as of that sequence, and nothing more.');
 } else if (cmd === 'verify') {
   const file = flag('file') ?? die('--file <presentation.json> is required');
   const pres = JSON.parse(readFileSync(file, 'utf8')) as AuthorityPresentationV1;
   const maxAgeSeconds = Number(flag('max-age') ?? 3600);
-  const anchored = await registry.roots(pres.estateId);
-  const verdict = verifyAuthorityPresentation(pres, {
-    estateId: pres.estateId, sequence: anchored.sequence,
+  // REG-2: the row read is the estate's DECLARED signer's — found from the register by the id the presentation names, and
+  // then from the estate's own chain. Never a signer the presentation (or this operator's guess) offers.
+  const estateRow = f.estates.find((e) => e.governance && estateIdOf(e.chainId, e.governance).toLowerCase() === String(pres.estateId).toLowerCase());
+  if (!estateRow) die(`the register has no estate for ${pres.estateId}, so there is no declared signer to read the row of`);
+  const declaredOf = await declaredSignerFor(requireProjectable(estateRow));
+  if (!declaredOf.declared) die(`${estateRow.id} has not declared atl:projectionSigner on its own chain — a verifier reads no row for it, so nothing can verify`);
+  if (await registry.isRetired(pres.estateId, declaredOf.signer)) die(`${estateRow.id}'s declared signer is retired on neutral ground — its row is refused`);
+  const anchored = await registry.roots(pres.estateId, declaredOf.signer);
+  if (anchored.never) die(`${estateRow.id}'s declared signer ${declaredOf.signer} has anchored nothing for ${pres.estateId}`);
+  // THE SUBJECT'S SIGNATURE (spec 445 §3.8) is read on the SUBJECT's chain, which the verifier declares: `--chain`.
+  // Not the registry's chain because it is at hand, not the estate's anchoring chain — an estate's people may live on
+  // another (`homeChainId`). A v1 file carries no signature, so it needs no chain; it is refused unless opted in.
+  const v2 = pres.suite === 'merkle-membership-v2';
+  const acceptBearerV1 = has('accept-bearer-v1');
+  let subjectChain: number | undefined; let verifySubjectSignature: ReturnType<typeof subjectSignatureCheckFor> | undefined;
+  if (v2) {
+    try { subjectChain = declaredSubjectChain(flag('chain')); verifySubjectSignature = subjectSignatureCheckFor(f.towns, subjectChain); }
+    catch (e) { die(e instanceof Error ? e.message : String(e)); }
+  }
+  const verdict = await verifyAuthorityPresentation(pres, {
+    estateId: pres.estateId, signer: anchored.signer, sequence: anchored.sequence,
     liveGrantRoot: anchored.liveGrantRoot, membershipRoot: anchored.membershipRoot, anchoredAt: anchored.anchoredAt,
-  }, { subject: pres.subject, nonce: pres.nonce, audience: pres.audience, now: Math.floor(Date.now() / 1000), maxAgeSeconds });
-  console.log(`roots read from ${f.registry.address} (chain ${f.registry.chainId}) — not from the presentation`);
+  }, { subject: pres.subject, nonce: pres.nonce, audience: pres.audience, now: Math.floor(Date.now() / 1000), maxAgeSeconds },
+  { ...(subjectChain !== undefined ? { chainId: subjectChain } : {}), ...(verifySubjectSignature ? { verifySubjectSignature } : {}), acceptBearerV1 });
+  console.log(`roots read from ${f.registry.address} (chain ${f.registry.chainId}) — not from the presentation${subjectChain !== undefined ? `; the subject's signature read on eip155:${subjectChain}` : ''}`);
   console.log(verdict.ok
-    ? `VERIFIED: ${verdict.subject} holds a live ${verdict.set} leaf in estate ${verdict.estateId} as of sequence ${verdict.sequence}.\n  This authorizes nothing. The receiving estate still decides, under its own mandate, per step.`
+    ? (verdict.grade === 'standing'
+      ? `VERIFIED: ${verdict.subject} holds a live ${verdict.set} leaf in estate ${verdict.estateId} as of sequence ${verdict.sequence}, and signed this challenge.\n  This authorizes nothing. The receiving estate still decides, under its own mandate, per step.`
+      : `ACCEPTED AS A BEARER VALUE (--accept-bearer-v1): a ${verdict.set} leaf of estate ${verdict.estateId} at sequence ${verdict.sequence} opens — for whoever holds this file.\n  It does NOT show that ${verdict.subject} is the party presenting it. Re-anchor the estate to get a v2 presentation.`)
     : `REFUSED (${verdict.code}): ${verdict.reason}`);
   if (!verdict.ok) process.exit(2);
 } else if (cmd === 'push') {
@@ -269,5 +296,5 @@ if (cmd === 'status') {
   }
   console.log(`${row.id} → ${to}: ${added} added, ${already} already there, ${retired} retirement(s) carried over (${rows.length} row(s) local)`);
 } else {
-  die(`unknown command "${cmd}" — status | register | submit | retire | project | present | verify | push`);
+  die(`unknown command "${cmd}" — status | submit | retire | project | present | verify | push`);
 }

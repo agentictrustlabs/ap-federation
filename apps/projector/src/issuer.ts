@@ -15,7 +15,7 @@
 // What a holder takes from here is a `CredentialStatusPresentationV1`: one leaf, its opening, a proof against the
 // ANCHORED sequence, bound to the verifier's challenge. It names no subject.
 import { buildIssuerProjection, issuerRowArgs, ISSUER_ROW_TAG, makeCredentialStatusPresentation, type CredentialStatusPresentationV1, type IssuerProjectionV1 } from '@agenticprimitives/estate-projection';
-import type { Hex } from 'viem';
+import type { Address, Hex } from 'viem';
 import { anchorDecision, type AnchorDecision, type AnchoredState, type AnchorAuthority, type RegistryClient } from './anchor.js';
 import type { IssuerRow } from './config.js';
 import { leafOf, type SubmissionLedger, type SubmissionV1 } from './ledger.js';
@@ -54,18 +54,17 @@ export function buildIssuerForSequence(issuer: ProjectableIssuer, input: { ledge
 
 export async function projectIssuer(issuer: ProjectableIssuer, deps: { registry: RegistryClient; ledger: SubmissionLedger; refreshAfterSeconds: number; anchor?: AnchorAuthority; now?: () => Date }): Promise<IssuerRun> {
   const now = deps.now ?? (() => new Date());
-  const signer = await deps.registry.signerOf(issuer.issuerId);
-  if (!signer) throw new Error(`issuer ${issuer.id} is not registered on neutral ground yet — run \`projector register --issuer ${issuer.id}\` first`);
-  const expectedSigner = (issuer.rowSigner ?? issuer.sa).toLowerCase();
-  if (signer.toLowerCase() !== expectedSigner) throw new Error(`issuer ${issuer.id}: neutral ground has ${signer} as the signer of ${issuer.issuerId}; the register says ${issuer.rowSigner ? `its row signer ${issuer.rowSigner}` : `the issuer SA ${issuer.sa}`} is — resolve this first`);
-  const anchoredBefore = await deps.registry.roots(issuer.issuerId);
+  // REG-2: an issuer row is the ROW SIGNER's row — the issuer SA itself, or the estate's neutral-ground agent anchoring for it.
+  const signer = (issuer.rowSigner ?? issuer.sa) as Address;
+  if (await deps.registry.isRetired(issuer.issuerId, signer)) throw new Error(`issuer ${issuer.id}: its row signer ${signer} is retired on neutral ground — nothing anchored`);
+  const anchoredBefore = await deps.registry.roots(issuer.issuerId, signer);
   if (!anchoredBefore.never && anchoredBefore.charterHash.toLowerCase() !== ISSUER_ROW_TAG.toLowerCase()) throw new Error(`the row under ${issuer.issuerId} is not tagged as an issuer row (charterHash ${anchoredBefore.charterHash}) — something else anchored here`);
   const built = buildIssuerForSequence(issuer, { ledger: deps.ledger, sequence: anchoredBefore.sequence + 1, now });
   const args = issuerRowArgs(built.projection);
   const decision = anchorDecision({ anchored: anchoredBefore, liveGrantRoot: args.liveGrantRoot, membershipRoot: args.membershipRoot, charterHash: args.charterHash, now: Math.floor(now().getTime() / 1000), refreshAfterSeconds: deps.refreshAfterSeconds });
   const run: IssuerRun = { issuer: issuer.id, issuerId: issuer.issuerId, anchoredBefore, projection: built.projection, counts: { live: built.kept.length, retired: built.dropped.length }, decision };
   if (!decision.anchor || !deps.anchor) return run;
-  run.txHash = await deps.registry.setRoots({ ...args, sequence: decision.sequence }, deps.anchor.account, deps.anchor.wire);
+  run.txHash = await deps.registry.setRoots({ signer, ...args, sequence: decision.sequence }, deps.anchor.account, deps.anchor.wire);
   return run;
 }
 
@@ -73,7 +72,7 @@ export async function projectIssuer(issuer: ProjectableIssuer, deps: { registry:
  *  credential is not live. Built from the ledger, checked against what the chain holds — a presentation against a tree
  *  nobody anchored is a dead proof, and saying so beats handing one over. */
 export async function presentCredentialStatus(issuer: ProjectableIssuer, deps: { registry: RegistryClient; ledger: SubmissionLedger; digest: Hex; nonce: string; audience: string }): Promise<{ ok: true; presentation: CredentialStatusPresentationV1; sequence: number } | { ok: false; reason: string }> {
-  const anchored = await deps.registry.roots(issuer.issuerId);
+  const anchored = await deps.registry.roots(issuer.issuerId, (issuer.rowSigner ?? issuer.sa) as Address);
   if (anchored.never) return { ok: false, reason: `${issuer.id} has nothing anchored — there is no root to prove against` };
   const built = buildIssuerForSequence(issuer, { ledger: deps.ledger, sequence: anchored.sequence });
   if (built.projection.liveCredentialRoot.toLowerCase() !== anchored.liveGrantRoot.toLowerCase()) return { ok: false, reason: `the live-credential set has moved since sequence ${anchored.sequence} (rebuilt ${built.projection.liveCredentialRoot}, anchored ${anchored.liveGrantRoot}). Re-anchor (\`projector project --issuer ${issuer.id}\`) and present again.` };

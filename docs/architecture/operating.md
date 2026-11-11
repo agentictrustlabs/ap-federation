@@ -33,7 +33,6 @@ Load with `set -a && . .secrets/ops.env && . .secrets/<estate>-projection-signer
 ```
 pnpm projector status                       # every estate: id, signer, roots, declared signer vs neutral ground
 pnpm projector status --issuer <id>         # an issuer's row: id, signer (or rowSigner), roots, live credentials, facets
-pnpm projector register --estate <id>       # once; binds the id to the signer permanently
 pnpm projector submit --estate <id> --digest 0x… --subject 0x… --by <who>   # a holder vouches for a leaf
 pnpm projector retire --estate <id> --digest 0x… --reason "…"               # the estate stops vouching
 pnpm projector project --estate <id> [--dry-run]                            # prune, build, anchor if changed
@@ -143,7 +142,8 @@ payment). The door's nullifier window is five minutes for testing: two runs as o
 
 1. **An organization issues** (spec 444): its own agent in ap-home runs `credential.issue` under its steward's mandate.
    Before that: a P-256 issuing key in the estate's key-service tenant (purpose `issuer-key:<org>-<n>`), its facet
-   signed by the organization and attested on its chain (`scripts/publish-issuer-facet.mts`), the facet record in the
+   signed by the organization and attested on its chain (`scripts/publish-issuer-facet.mts --credential-types …`: the
+   facet states the credential type(s) the key signs, and a door refuses a facet that states none), the facet record in the
    organization's vault (ap-home `scripts/put-issuer-facet.mts`), a row in `credentials.issuers[]` with `ledger: vault`
    (and a `rowSigner` when the organization's chain is not the registry's), `projector register --issuer`, the
    Worker's per-issuer secrets, and the issuer added to the door's trust set.
@@ -163,7 +163,7 @@ payment). The door's nullifier window is five minutes for testing: two runs as o
 3. The agent **declares the signer** on its own chain (`estate-agent-declare.mts --signer …` or
    `set-projection-signer.mts`).
 4. A row in `federation.yaml` and in the town's `town.yaml`; `pnpm check:federation`.
-5. `pnpm projector register`, a first leaf, `pnpm projector project`.
+5. The estate declares its signer (`atl:projectionSigner`); a first leaf; `pnpm projector project` (no `register` since generation 4 — the row opens at the first anchor).
 6. A door in front of it, if it receives visitors: a new env in `apps/door/wrangler.toml`, a row in `doors:`, and
    its boundary id in the estate runtime's `FEDERATION_DOORS` allow-list.
 

@@ -198,7 +198,8 @@ export default {
       const now = Math.floor(Date.now() / 1000);
       const estates = await Promise.all(projectable(f).map(async (e) => {
         const estateId = await registry.estateIdOf(e.chainId, e.governance as `0x${string}`);
-        const r = await registry.roots(estateId);
+        // REG-2: the row read is the register's signer's (the estate's declared one, which `projectEstate` insists it agrees with).
+        const r = await registry.roots(estateId, (e.signer ?? `0x${'00'.repeat(20)}`) as `0x${string}`);
         const rows = await store(env).rows(e.id);
         return {
           estate: e.id, estateId, sequence: r.sequence, anchoredAt: r.never ? null : new Date(r.anchoredAt * 1000).toISOString(),

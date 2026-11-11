@@ -12,10 +12,18 @@
 // so a revoked leaf leaves the live set whether or not anybody tells the projector (`liveness.ts`). The
 // asymmetry is the safety property: adding requires consent, dropping requires only the truth.
 //
-// THE BLIND. Each submission carries a random 32-byte blind, and the leaf on the tree is
-// `keccak256(digest ‖ blind)`. The roots are public and a grant digest is often guessable, so without the
-// blind anyone could test membership against the root. The blind is held by the estate (to build the tree)
-// and by the holder (to open their leaf) and by nobody else.
+// THE BLIND. Each submission carries a random 32-byte blind, and an estate leaf on the tree is
+// `keccak256(digest ‖ blind ‖ subject32)` (Ring 0 spec 445 §3.8, `merkle-membership-v2`). The roots are public and a
+// grant digest is often guessable, so without the blind anyone could test membership against the root. The blind is
+// held by the estate (to build the tree) and by the holder (to open their leaf) and by nobody else.
+//
+// THE SUBJECT IS IN THE LEAF (spec 445 §3.8, audit H-14). Before it, the leaf was `keccak256(digest ‖ blind)` and named
+// nobody, so an opening that anyone had SEEN could be re-presented under another subject. Now the opening opens for
+// one account only, and that account also signs the verifier's challenge. Nothing is stored that needs recomputing:
+// the ledger keeps digest, blind and subject, and the commitment is derived on every build — so the first `project`
+// after the package bump builds different roots from the same rows and anchors them at the next sequence.
+// An ISSUER's `live-credential` leaf is the exception and stays `keccak256(digest ‖ blind)`: it is about a credential,
+// names no subject, and possession is proved where the credential is presented (estate-projection `issuer.ts`).
 //
 // WHERE THIS LIVES. A file under `.submissions/<estate>.json`, 0600, gitignored. That is honest for F1 and
 // wrong for F2: the estate's copy belongs in the registry service agent's own vault and the holder's copy in
@@ -24,7 +32,7 @@
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { randomBytes } from 'node:crypto';
-import { commitmentOf } from '@agenticprimitives/estate-projection';
+import { commitmentOf, commitmentOfV1 } from '@agenticprimitives/estate-projection';
 import type { Hex } from 'viem';
 
 /** The estate's two sets (spec 439 F1) and, since Z4, an ISSUER's one: `live-credential` is the set of credentials an issuer
@@ -66,9 +74,12 @@ export function newBlind(): Hex {
   return `0x${randomBytes(32).toString('hex')}` as Hex;
 }
 
-/** The leaf as it reaches the tree — recomputed from the opening every time, never stored and trusted. */
+/** The leaf as it reaches the tree — recomputed from the opening every time, never stored and trusted. An estate leaf
+ *  (`live-grant`, `membership`) commits to its subject; an issuer's `live-credential` leaf names none (see above). The
+ *  tree builders (`buildProjection`, `buildIssuerProjection`) derive the same value from the same three fields. */
 export function leafOf(row: SubmissionV1): { digest: Hex; blind: Hex; subject: `0x${string}`; commitment: Hex } {
-  return { digest: row.digest, blind: row.blind, subject: row.subject, commitment: commitmentOf(row.digest, row.blind) };
+  const commitment = row.set === 'live-credential' ? commitmentOfV1(row.digest, row.blind) : commitmentOf(row.digest, row.blind, row.subject);
+  return { digest: row.digest, blind: row.blind, subject: row.subject, commitment };
 }
 
 export function fileLedger(path: string, now: () => Date = () => new Date()): SubmissionLedger {

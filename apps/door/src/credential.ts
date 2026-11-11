@@ -23,6 +23,10 @@ export interface DoorCredentialPolicy {
   /** THE TRUST SET: the register issuers (by id) whose facets this door accepts a credential under. Absent ⇒ none — a door
    *  that names no issuer accepts no credential (fail closed; the register validator requires the list). */
   issuers?: string[];
+  /** WHAT IT ASKS FOR (spec 445 / DATA-7): the credential type(s) this door wants — stated in the register, sent in
+   *  every proof request and enforced by the suite against the types the issuer's facet is SA-signed for. Absent ⇒ the
+   *  verifier refuses every presentation (`credential_type_unstated`): a door that names no type accepts no credential. */
+  credentialTypes?: string[];
 }
 
 /** The issuers this door's policy accepts, by id — the only facets the verifier is ever handed. */
@@ -38,7 +42,12 @@ export function issuerOfKey(accepted: RegisterIssuer[], issuerKeyId: string): Re
 export interface RegisterIssuer {
   id: string; estate: string; sa: string; chainId: number;
   attestationRegistry?: string; universalSignatureValidator?: string; rpcEnv?: string;
-  facets?: Array<{ keyId: string; attestation?: string; document?: { facet: { keyId: string; subjectAgent: string }; facetHash: string; signature: string } }>;
+  /** The account that SIGNS this issuer's row on neutral ground when it is not the issuer itself (spec 444). Generation 4 keys a
+   *  row by `(issuerId, signer)`, so the verifier reads THIS signer's row (default: the issuer SA) — never another's. */
+  rowSigner?: string;
+  /** `credentialTypes` rides INSIDE the SA-signed facet (spec 445 / DATA-7): a facet signed before 2026-11-10 carries
+   *  none and is refused `credential_type_unbound` until its issuer re-publishes it. */
+  facets?: Array<{ keyId: string; attestation?: string; document?: { facet: { keyId: string; subjectAgent: string; credentialTypes?: string[] }; facetHash: string; signature: string } }>;
 }
 
 /** What the presenter POSTs to `/federation/present` ahead of the knock: `{ presentation: PrivatePresentationV1 }`. An OpenAC
@@ -68,9 +77,19 @@ export async function presentationRef(issuerKeyId: string, presentation: Private
   return `credential:${issuerKeyId}:presentation:${(await sha256Of(JSON.stringify(presentation))).slice(7, 39)}`;
 }
 
-/** The proof request as THIS door asks it: its policy, its audience, the challenge it issued. */
-export function proofRequestFor(policy: DoorCredentialPolicy, origin: string, challenge: { nonce: string; audience: string }): ProofRequestV1 {
-  return { type: 'ProofRequestV1', suite: OPENAC_SUITE, verifierId: new URL(origin).host, requestedClaims: [], predicates: policy.predicates, nonce: challenge.nonce, audience: challenge.audience, openac: { claimSchema: policy.claimSchema, vcSize: policy.vcSize, acceptedVersions: policy.acceptedVersions } };
+/** The proof request as THIS door asks it: its policy, its audience, the challenge it issued — and WHAT IT TRUSTS
+ *  (spec 445 / DATA-7), both from the register and neither from the presentation: `credentialTypes` is the policy's
+ *  own list, `acceptedIssuers` the Smart Agents of the issuers the policy names by id (`credentialProofs.issuers` →
+ *  `credentials.issuers[].sa`). There is no default: a policy with no type, or no issuer, yields a request the suite
+ *  refuses (`credential_type_unstated` / `issuer_trust_unstated`). */
+export function proofRequestFor(policy: DoorCredentialPolicy, origin: string, challenge: { nonce: string; audience: string }, issuers: RegisterIssuer[]): ProofRequestV1 {
+  const trusted = [...new Set(acceptedIssuers(policy, issuers).map((i) => i.sa.toLowerCase()))] as Hex[];
+  return {
+    type: 'ProofRequestV1', suite: OPENAC_SUITE, verifierId: new URL(origin).host, requestedClaims: [], predicates: policy.predicates, nonce: challenge.nonce, audience: challenge.audience,
+    openac: { claimSchema: policy.claimSchema, vcSize: policy.vcSize, acceptedVersions: policy.acceptedVersions },
+    ...(policy.credentialTypes?.length ? { credentialTypes: [...policy.credentialTypes] } : {}),
+    ...(trusted.length ? { acceptedIssuers: trusted } : {}),
+  };
 }
 
 /** The digest of the predicate PROGRAM the door asked (the compiled DSL, canonical): what the holder's wire names and
@@ -127,17 +146,30 @@ export function verifierChains(fed: { registry: { chainId: number; address: stri
 
 /** The evaluator's `verify`: the Node verifier's verdict, then the door's own one-per-audience store — the nullifier's
  *  atomic insert happens HERE, in the ledger DO, because the verifier holds no state and must not. */
-export function credentialVerify(deps: { client: VerifierClient; issuers: RegisterIssuer[]; chains: ReturnType<typeof verifierChains>; policy: DoorCredentialPolicy; consume: (namespace: string, id: string, digest: string) => Promise<'CONSUMED' | 'REPLAY' | 'CONFLICT'> }): CredentialPresentationEvaluatorDeps['verify'] {
+export function credentialVerify(deps: {
+  client: VerifierClient; issuers: RegisterIssuer[]; chains: ReturnType<typeof verifierChains>; policy: DoorCredentialPolicy;
+  consume: (namespace: string, id: string, digest: string) => Promise<'CONSUMED' | 'REPLAY' | 'CONFLICT'>;
+  /** THE CHALLENGE IS SINGLE-USE, AND SPENT ONLY BY A PROOF THAT VERIFIED (spec 445 / DATA-17). Called once, after the
+   *  verifier's verdict is `valid` and before the nullifier is stored: the ledger DO's insert-if-absent is the atomic
+   *  step, so of two valid presentations of one challenge exactly one is admitted and the other is `nonce_replayed`.
+   *  A junk bundle carrying a visitor's nonce never reaches this call, so it cannot burn her challenge. */
+  consumeChallenge: (challenge: { audience: string; nonce: string }) => Promise<'CONSUMED' | 'REPLAY' | 'CONFLICT'>;
+}): CredentialPresentationEvaluatorDeps['verify'] {
   return async (presentation, request) => {
     const v = await deps.client.verify({
       presentation, request,
       // Only the trust set's facets reach the verifier: a facet the door does not accept cannot verify anything here.
-      issuers: acceptedIssuers(deps.policy, deps.issuers).flatMap((i) => (i.facets ?? []).filter((f) => f.document).map((f) => ({ id: i.id, chainId: i.chainId, attestation: f.attestation, document: f.document }))),
+      issuers: acceptedIssuers(deps.policy, deps.issuers).flatMap((i) => (i.facets ?? []).filter((f) => f.document).map((f) => ({ id: i.id, chainId: i.chainId, rowSigner: i.rowSigner ?? i.sa, attestation: f.attestation, document: f.document }))),
       chains: deps.chains.chains, registry: deps.chains.registry,
-      policy: { nullifier: deps.policy.nullifier, status: deps.policy.status ?? 'none', maxAgeSeconds: deps.policy.maxAgeSeconds ?? 86400 },
+      // `status` is sent AS THE REGISTER STATES IT (spec 445 / DATA-18): `required` → the verifier reads the issuer's row
+      // on neutral ground; `none` → the door has declared it checks no status; absent → the verifier refuses
+      // (`status_check_unstated`). It used to default to `none` here, which made silence a relaxation.
+      policy: { nullifier: deps.policy.nullifier, ...(deps.policy.status ? { status: deps.policy.status } : {}), maxAgeSeconds: deps.policy.maxAgeSeconds ?? 86400 },
     });
-    if (!v.valid || !v.nullifier) return v;
-    const audience = (request as ProofRequestV1).audience;
+    if (!v.valid) return v;
+    const { audience, nonce } = request as ProofRequestV1;
+    if ((await deps.consumeChallenge({ audience, nonce })) !== 'CONSUMED') return { ...v, valid: false, reason: 'nonce_replayed' };
+    if (!v.nullifier) return v;
     // The store is keyed by the window too: a door that changes its rule starts a fresh count under the new rule.
     const window = deps.policy.nullifier?.windowSeconds ?? 365 * 86400;
     const r = await deps.consume(`nullifier:${audience}:w${window}`, String(v.nullifier.value).toLowerCase(), 'presented');

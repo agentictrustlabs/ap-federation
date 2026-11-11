@@ -33,9 +33,18 @@ export interface OperationDeps extends SessionDeps {
 }
 
 /** The company's operation → OUR ref. `authority` = the company's issuer (its CAIP-10 when it has one is spec 443 W2's door). */
+/** The company's issuer as a CANONICAL https origin — lower-case host, no userinfo, no default port, no path — which is what
+ *  Ring 0's `externalOperationRef` accepts as an authority (spec 445 / COV-8: `https://bank.example@evil.example` is refused).
+ *  Derived through the URL parser, never by string surgery; an issuer that carries userinfo is refused, not stripped. */
+export function authorityOfIssuer(issuer: string): string {
+  const u = new URL(issuer);
+  if (u.protocol !== 'https:' || u.username || u.password) throw new Error(`the company's issuer ${issuer} is not a plain https origin`);
+  return u.origin;
+}
+
 export function refOf(company: Company, op: PapOperation): ExternalOperationRefV1 {
   const expiresAt = op.expires_at ? Math.floor(new Date(op.expires_at).getTime() / 1000) : Math.floor(Date.now() / 1000) + 3600;
-  return externalOperationRef({ authority: company.issuer, operationId: op.operation_id, revision: op.revision, terms: op.terms ?? { summary: op.summary }, expiresAt });
+  return externalOperationRef({ authority: authorityOfIssuer(company.issuer), operationId: op.operation_id, revision: op.revision, terms: op.terms ?? { summary: op.summary }, expiresAt });
 }
 
 export function parkedOf(company: Company, op: PapOperation): ParkedExternalOperation {

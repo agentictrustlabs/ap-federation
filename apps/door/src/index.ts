@@ -12,8 +12,14 @@
 //   2. canonical resolution — the acting agent IS the proof's signer (CAIP-10, an account, never a name).
 //   3. admission — `createAdmissionEngine` with the FOREIGN-ESTATE EVALUATOR: the presentation this request
 //      carried is verified against roots READ FROM NEUTRAL GROUND now (never cached; a stale sequence is a refusal),
-//      bound to the challenge THIS door issued, about THIS signer. The decision is written to a hash-chained ledger
-//      and returned by reference.
+//      bound to the challenge THIS door issued, about THIS signer — and SIGNED BY ITS SUBJECT for that challenge
+//      (Ring 0 spec 445 §3.8: proof of possession, read on the presenting estate's home chain — `./presentation.ts`).
+//      The decision is written to a hash-chained ledger and returned by reference.
+//      NO EVIDENCE, NO ADMISSION (Ring 0 spec 445 / ING-2): the engine admits only on an AFFIRMATIVE opinion. This
+//      door's evaluators judge a foreign presentation and a credential presentation; a visitor who cites neither is
+//      authenticated and then REFUSED (`FOREIGN_ESTATE_NOT_PRESENTED` + `NO_AFFIRMATIVE_OPINION`) — it used to be
+//      admitted "as nobody-foreign" and forwarded. This door has no evaluator of its own that affirms an anonymous
+//      visitor; adding one is a policy decision (SPEC-445-CONSUMER-NOTES.md, second pass, open question 1).
 //   4. forward — admitted bytes go to the estate's A2A door with the evidence in headers (`x-ap-foreign-standing`,
 //      `x-ap-admission-receipt`). The estate's runtime still runs its own authority per step; this door granted
 //      nothing. A refusal is a generic 403 with the receipt reference and the FEDERATION's own reason codes
@@ -28,7 +34,8 @@
 import { createAdmissionEngine, credentialPresentationEvaluator, foreignEstateEvaluator, verifyRequestProof, sha256Of, type AdmissionRequest, type AdmissionDecision, type AgenticRequestProofClaims, type AtomicReplayStore } from '@agenticprimitives/admission';
 import { credentialVerify, parsePresentation, parsePresentationRef, predicateDigestOf, presentationRef, proofRequestFor, verifierChains, verifierClient, type DoorCredentialPolicy, type RegisterIssuer, acceptedIssuers, issuerOfKey } from './credential';
 import type { PrivatePresentationV1 } from '@agenticprimitives/privacy-credentials';
-import { verifyAuthorityPresentation, type AuthorityPresentationV1 } from '@agenticprimitives/estate-projection';
+import { readAnchoredRoots, type AuthorityPresentationV1 } from '@agenticprimitives/estate-projection';
+import { acceptBearerV1From, presentationVerifier, VALIDATOR_ABI } from './presentation';
 import { createPublicClient, hashMessage, http, keccak256, toHex, type Address, type Hex } from 'viem';
 import { issueChallenge, verifyChallengeHeader } from './challenge';
 import { parse as parseYaml } from 'yaml';
@@ -43,6 +50,9 @@ interface Env {
   PUBLIC_ORIGIN: string; BOUNDARY_ID: string; RECEIVING_ESTATE: string; ORIGIN_A2A: string; TARGET_AGENT_ID: string; TARGET_RUNTIME_ID: string;
   CHAIN_ID: string; REGISTRY_ADDRESS: string; UNIVERSAL_SIGNATURE_VALIDATOR: string; MAX_AGE_SECONDS: string; PROFILE_RESOLVER: string;
   FEDERATION_RPC_URL?: string; DOOR_SECRET?: string;
+  /** Spec 445 §3.8 changeover allowance: exactly "true" ⇒ a `merkle-membership-v1` (bearer) presentation is admitted,
+   *  graded bearer on the receipt and forwarded without a standing header. Absent / anything else ⇒ refused. Default OFF. */
+  ACCEPT_BEARER_V1?: string;
   /** The `predicate` grade's verifier (spec 443 W5): the Container binding OR a URL, never both; the secret it is called with. */
   VERIFIER?: DurableObjectNamespace; VERIFIER_URL?: string; VERIFIER_SECRET?: string;
   /** Any other chain's endpoint, under the name the register's town row gives it (`towns[].rpcEnv`, e.g. HOPECHAIN_RPC_URL). */
@@ -50,11 +60,6 @@ interface Env {
   LEDGER: DurableObjectNamespace;
 }
 
-const REGISTRY_ABI = [
-  { type: 'function', name: 'roots', stateMutability: 'view', inputs: [{ name: 'estateId', type: 'bytes32' }], outputs: [
-    { name: 'liveGrantRoot', type: 'bytes32' }, { name: 'membershipRoot', type: 'bytes32' }, { name: 'charterHash', type: 'bytes32' },
-    { name: 'sequence', type: 'uint64' }, { name: 'anchoredAt', type: 'uint64' }] },
-] as const;
 const PROFILE_RESOLVER_ABI = [
   { type: 'function', name: 'getAddressProperty', stateMutability: 'view', inputs: [{ name: 'agent', type: 'address' }, { name: 'predicate', type: 'bytes32' }], outputs: [{ type: 'address' }] },
 ] as const;
@@ -62,7 +67,6 @@ const ATL_PROJECTION_SIGNER = keccak256(toHex('atl:projectionSigner'));
 /** Ring 0 estate-projection `ISSUER_ROW_TAG`: the charterHash slot of a credential ISSUER's row (zkID Z3). Such a row is
  *  not an estate's, and a leaf of it is never standing — the door refuses a presentation read against one. */
 const ISSUER_ROW_TAG = keccak256(toHex('ap.issuer-projection.v1'));
-const SIGNER_OF_ABI = [{ type: 'function', name: 'signerOf', stateMutability: 'view', inputs: [{ name: 'estateId', type: 'bytes32' }], outputs: [{ type: 'address' }] }] as const;
 
 /** The register, bundled as text. From it the door needs which GOVERNANCE an estate id belongs to (and on which chain
  *  that agent declares its signer), and, per TOWN, how to reach that chain and which validator answers for a signature
@@ -110,9 +114,9 @@ function clientFor(env: Env, chainId: number): { pub: ReturnType<typeof createPu
   return { pub: mk(rpc), validator: town.universalSignatureValidator as Address };
 }
 
-const VALIDATOR_ABI = [
-  { type: 'function', name: 'isValidSig', stateMutability: 'view', inputs: [{ name: 'signer', type: 'address' }, { name: 'hash', type: 'bytes32' }, { name: 'sig', type: 'bytes' }], outputs: [{ type: 'bool' }] },
-] as const;
+/** The register row an estate id belongs to (its governance derives the id), or undefined when the register has none. */
+const registerEstateOf = (estateId: string): RegisterEstate | undefined =>
+  registerEstates().find((e) => e.governance && estateIdOf(e.chainId, e.governance as Address) === estateId.toLowerCase());
 
 const CORS = { 'access-control-allow-origin': '*', 'access-control-allow-methods': 'GET, POST, OPTIONS', 'access-control-allow-headers': 'content-type, x-ap-request-proof, x-ap-authority-presentation, x-ap-credential-presentation, x-ap-challenge', 'access-control-expose-headers': 'x-ap-admission-receipt, x-ap-admission-effect' };
 /** This door's credential policy (`doors[].credentialProofs` in the register), keyed by the receiving estate. Absent ⇒ the door has no `predicate` grade. */
@@ -163,7 +167,9 @@ interface Knock {
   decision: AdmissionDecision;
   /** What the door can say publicly: the federation's own codes; never the authentication codes. */
   publicReasons: string[];
-  standing: { estateId: string; set: string; sequence: number } | null;
+  /** `grade` (spec 445 §3.8): `standing` — the subject signed this door's challenge; `bearer` — a v1 opening admitted
+   *  under ACCEPT_BEARER_V1, which shows that someone holds the opening and not that the presenter is its subject. */
+  standing: { estateId: string; set: string; sequence: number; grade: 'standing' | 'bearer' } | null;
   actingAgentId: string;
   presentationRef: string | null;
   /** The `predicate` grade's evidence when a credential was presented and held: never a claim value, never the person. */
@@ -237,18 +243,22 @@ async function admit(req: Request, env: Env, rawBody: Uint8Array): Promise<Knock
   // The credential's proof request: this door's policy under the challenge it issued to THIS signer. A credential
   // knock with no valid challenge has no request to be verified against — it resolves to nothing and is refused as
   // missing, which is the evaluator's word for "the door holds no request for this reference".
-  const credRequest = credRef && credPolicy && challenge.ok ? proofRequestFor(credPolicy, env.PUBLIC_ORIGIN, { nonce: challenge.nonce, audience: challenge.audience }) : null;
-  // The challenge nonce is single-use for a credential proof (1/OPENAC §Challenge Freshness): consumed in the ledger DO
-  // before the verifier is asked, so a second proof under the same nonce never reaches it.
-  if (credRequest) {
-    const used = await L.replayStore.consume({ namespace: `credential-challenge:${env.PUBLIC_ORIGIN}`, replayId: challenge.ok ? challenge.nonce : '', digest: credRef!, expiresAt: new Date((nowSec + 600) * 1000).toISOString() });
-    if (used !== 'CONSUMED') { await L.audit.append({ kind: 'door.credential', effect: 'DENY', code: 'CHALLENGE_REPLAYED', actingAgentId: proof.claims.actingAgentId, at: new Date().toISOString() }).catch(() => undefined); return json({ error: 'credential_challenge_replayed' }, 403); }
-  }
+  const credRequest = credRef && credPolicy && challenge.ok ? proofRequestFor(credPolicy, env.PUBLIC_ORIGIN, { nonce: challenge.nonce, audience: challenge.audience }, register().issuers) : null;
+  // The challenge nonce is single-use for a credential proof (1/OPENAC §Challenge Freshness) — and it is spent ONLY by
+  // a proof that verified (spec 445 / DATA-17): `credentialVerify` consumes it in the ledger DO after the verifier's
+  // verdict and before the nullifier is stored. Consuming it here, before the verifier was asked, let anyone who saw a
+  // visitor's nonce burn her challenge with a junk bundle. The DO's insert-if-absent keeps a second VALID proof under
+  // the same nonce a replay (`CREDENTIAL_NONCE_REPLAYED`).
+  const consumeChallenge = async (c: { audience: string; nonce: string }) => {
+    const used = await L.replayStore.consume({ namespace: `credential-challenge:${c.audience}`, replayId: c.nonce, digest: credRef!, expiresAt: new Date((nowSec + 600) * 1000).toISOString() });
+    if (used !== 'CONSUMED') await L.audit.append({ kind: 'door.credential', effect: 'DENY', code: 'CHALLENGE_REPLAYED', actingAgentId: proof.claims.actingAgentId, at: new Date().toISOString() }).catch(() => undefined);
+    return used;
+  };
   const verifier = credRequest ? verifierClient(env) : null;
   const credEvaluator = credRequest && verifier && !('error' in verifier)
     ? credentialPresentationEvaluator({
       resolve: async (ref) => (ref === credRef && cred ? { presentation: cred.presentation, request: credRequest } : null),
-      verify: credentialVerify({ client: verifier, issuers: register().issuers, chains: verifierChains(register(), register().issuers), policy: credPolicy!, consume: async (namespace, id, digest) => L.replayStore.consume({ namespace, replayId: id, digest, expiresAt: new Date((nowSec + (credPolicy!.nullifier?.windowSeconds ?? 365 * 86400)) * 1000).toISOString() }) }),
+      verify: credentialVerify({ client: verifier, issuers: register().issuers, chains: verifierChains(register(), register().issuers), policy: credPolicy!, consumeChallenge, consume: async (namespace, id, digest) => L.replayStore.consume({ namespace, replayId: id, digest, expiresAt: new Date((nowSec + (credPolicy!.nullifier?.windowSeconds ?? 365 * 86400)) * 1000).toISOString() }) }),
       predicateDigestOf,
       ...(credPolicy!.nullifier ? { nullifier: credPolicy!.nullifier } : {}),
       now: () => nowSec,
@@ -256,18 +266,45 @@ async function admit(req: Request, env: Env, rawBody: Uint8Array): Promise<Knock
     : null;
   if (credRequest && verifier && 'error' in verifier) await L.audit.append({ kind: 'door.credential', effect: 'DENY', code: 'VERIFIER_UNCONFIGURED', detail: verifier.error, at: new Date().toISOString() }).catch(() => undefined);
   const engine = createAdmissionEngine({
+    // Spec 445 / ING-2: the engine itself now refuses evidence addressed elsewhere. Request proofs at this door are
+    // signed for its PUBLIC ORIGIN (`verifyRequestProof({ expectedAudience: env.PUBLIC_ORIGIN })` above, and the
+    // challenge's audience), not for the boundary id — so the origin is the accepted audience, and only the origin.
+    acceptedAudiences: [env.PUBLIC_ORIGIN],
     boundaryId: env.BOUNDARY_ID, audit: L.audit, sign: async (digest) => `hmac-sha256:${await hmacHex(env.DOOR_SECRET!, digest)}`, grantTtlSeconds: 300,
     evaluators: [...(credEvaluator ? [credEvaluator] : []), foreignEstateEvaluator({
       resolvePresentation: async (ref) => (pres && ref === presRef ? pres : null),
-      readRoots: async (estateId) => {
-        const r = (await pub.readContract({ address: env.REGISTRY_ADDRESS as Address, abi: REGISTRY_ABI, functionName: 'roots', args: [estateId] })) as readonly [Hex, Hex, Hex, bigint, bigint];
+      // Spec 445 / generation 4 / B2 (REG-2): the registry keeps a row per (estateId, signer) and no longer says which is the
+      // estate's. The row read is the estate's DECLARED signer's — its `atl:projectionSigner` record, read on the chain its
+      // projection anchors on (`row.chainId`) — never one the presentation names. An estate the register does not know, or
+      // a chain this door cannot reach, has no declaration to read: null is refused by name, a throw is INDETERMINATE.
+      declaredSigner: async (estateId) => {
+        const row = registerEstateOf(estateId);
+        if (!row || !row.governance) return null;
+        const estateSide = clientFor(env, row.chainId);
+        if (!estateSide) throw new Error(`no endpoint for eip155:${row.chainId}`);
+        const declared = (await estateSide.pub.readContract({ address: (row.profileResolver ?? env.PROFILE_RESOLVER) as Address, abi: PROFILE_RESOLVER_ABI, functionName: 'getAddressProperty', args: [row.governance as Address, ATL_PROJECTION_SIGNER] })) as Address;
+        return /^0x0{40}$/i.test(declared) ? null : (declared.toLowerCase() as Address);
+      },
+      readRoots: async (estateId, signer) => {
+        const read = await readAnchoredRoots((call) => pub.readContract(call as never), { registry: env.REGISTRY_ADDRESS as Address, estateId, declaredSigner: signer });
+        if (read.status === 'unanchored') return null;
+        const zero = `0x${'00'.repeat(32)}` as Hex;
+        if (read.status === 'retired') return { estateId, signer: read.signer, sequence: 1, liveGrantRoot: zero, membershipRoot: zero, anchoredAt: 1, retired: true };
+        const r = read.roots;
         // An issuer's row shares the registry and the id function with the estates'. Its liveGrantRoot slot holds a
         // credential root, so a credential leaf would verify as a "live grant" of a row that is not an estate. Read as
         // never anchored, and refused below by name.
-        if (r[2].toLowerCase() === ISSUER_ROW_TAG.toLowerCase()) { rootsReadFromIssuerRow = true; return { estateId, liveGrantRoot: r[0], membershipRoot: r[1], sequence: 0, anchoredAt: 0 }; }
-        return { estateId, liveGrantRoot: r[0], membershipRoot: r[1], sequence: Number(r[3]), anchoredAt: Number(r[4]) };
+        if (r.charterHash.toLowerCase() === ISSUER_ROW_TAG.toLowerCase()) { rootsReadFromIssuerRow = true; return null; }
+        return { estateId, signer: r.signer, liveGrantRoot: r.liveGrantRoot, membershipRoot: r.membershipRoot, sequence: r.sequence, anchoredAt: r.anchoredAt };
       },
-      verify: (p, roots, expect) => verifyAuthorityPresentation(p as AuthorityPresentationV1, roots, expect),
+      // Spec 445 §3.8: the subject's signature over THIS challenge, read on the presenting estate's declared home chain
+      // (the register's `homeChainId ?? chainId` for the estate the presentation names) — never this door's chain by
+      // default. An estate the register does not know, or a chain this door cannot reach, is a refusal by name.
+      verify: presentationVerifier({
+        homeChainOf: (id) => { const row = registerEstateOf(id); return row ? (row.homeChainId ?? row.chainId) : null; },
+        clientFor: (chainId) => clientFor(env, chainId),
+        acceptBearerV1: acceptBearerV1From(env.ACCEPT_BEARER_V1),
+      }),
       challengeFor: () => (challenge.ok ? { nonce: challenge.nonce, audience: challenge.audience } : null),
       maxAgeSeconds: Number(env.MAX_AGE_SECONDS) || 86400,
       now: () => nowSec,
@@ -288,36 +325,15 @@ async function admit(req: Request, env: Env, rawBody: Uint8Array): Promise<Knock
   };
   let decision = await engine.evaluate(request);
   if (rootsReadFromIssuerRow) decision = { ...decision, effect: 'DENY', reasonCodes: [...decision.reasonCodes, 'FOREIGN_ESTATE_ROW_IS_AN_ISSUER_ROW'] };
-  // ── 3b. F2.5 — the cross-check that closes first-come-wins. The evaluator trusted the registry's roots for this
-  // estate id; whoever REGISTERED that id controls them. So, once admitted on a presentation, read what the estate's
-  // own agent declares on its own chain and compare with `signerOf`. Declared and different ⇒ the registration is
-  // somebody else's ⇒ refused. Undeclared ⇒ admitted, with the gap said in the reason codes.
-  if (pres && (decision.effect === 'ADMIT' || decision.effect === 'ADMIT_CONSTRAINED')) {
-    const estateId = String(pres.estateId).toLowerCase();
-    const row = registerEstates().find((e) => e.governance && estateIdOf(e.chainId, e.governance as Address) === estateId);
-    const extra: string[] = [];
-    if (!row) extra.push('FOREIGN_ESTATE_SIGNER_UNKNOWN_ESTATE');
-    else {
-      try {
-        // The estate agent declares its signer on the chain its PROJECTION anchors on (`row.chainId`), which may not be the registry's.
-        const estateSide = clientFor(env, row.chainId);
-        if (!estateSide) throw new Error(`no endpoint for eip155:${row.chainId}`);
-        const [registered, declared] = await Promise.all([
-          pub.readContract({ address: env.REGISTRY_ADDRESS as Address, abi: SIGNER_OF_ABI, functionName: 'signerOf', args: [estateId as Hex] }) as Promise<Address>,
-          estateSide.pub.readContract({ address: (row.profileResolver ?? env.PROFILE_RESOLVER) as Address, abi: PROFILE_RESOLVER_ABI, functionName: 'getAddressProperty', args: [row.governance as Address, ATL_PROJECTION_SIGNER] }) as Promise<Address>,
-        ]);
-        if (/^0x0{40}$/i.test(declared)) extra.push('FOREIGN_ESTATE_SIGNER_UNDECLARED');
-        else if (declared.toLowerCase() !== registered.toLowerCase()) extra.push('FOREIGN_ESTATE_SIGNER_MISMATCH');
-        else extra.push('FOREIGN_ESTATE_SIGNER_DECLARED');
-      } catch { extra.push('FOREIGN_ESTATE_SIGNER_UNREADABLE'); }
-    }
-    const refuse = extra.includes('FOREIGN_ESTATE_SIGNER_MISMATCH') || extra.includes('FOREIGN_ESTATE_SIGNER_UNREADABLE');
-    decision = { ...decision, effect: refuse ? 'DENY' : decision.effect, reasonCodes: [...decision.reasonCodes, ...extra] };
-    if (refuse) await L.audit.append({ kind: 'door.signer-cross-check', decisionId: decision.decisionId, estateId, reasonCodes: extra, at: new Date().toISOString() }).catch(() => undefined);
-  }
+  // ── 3b. F2.5 — closed by construction since generation 4. The evaluator reads only the row of the signer the estate
+  // DECLARED on its own chain (`declaredSigner` above), so an admission on a presentation already means "the estate's
+  // declared signer anchored these roots"; a stranger's row for the same id is never read, an undeclared estate is
+  // refused (`FOREIGN_ESTATE_SIGNER_UNDECLARED`), a retired signer is refused (`FOREIGN_ESTATE_SIGNER_RETIRED`). The code
+  // below only says so on the receipt.
+  if (pres && (decision.effect === 'ADMIT' || decision.effect === 'ADMIT_CONSTRAINED')) decision = { ...decision, reasonCodes: [...decision.reasonCodes, 'FOREIGN_ESTATE_SIGNER_DECLARED'] };
   // A credential cited where the door holds no evaluator for it: refused, with the reason the door can say.
   if (credRef && !credEvaluator) decision = { ...decision, effect: 'DENY', reasonCodes: [...decision.reasonCodes, !credPolicy ? 'CREDENTIAL_NOT_ACCEPTED_HERE' : !challenge.ok ? 'CREDENTIAL_CHALLENGE_INVALID' : 'CREDENTIAL_VERIFIER_UNAVAILABLE'] };
-  const publicReasons = decision.reasonCodes.filter((c) => c.startsWith('FOREIGN_ESTATE_') || c.startsWith('CREDENTIAL_') || c === 'AUDIT_SINK_UNAVAILABLE' || c === 'POLICY_DEPENDENCY_UNAVAILABLE');
+  const publicReasons = decision.reasonCodes.filter((c) => c.startsWith('FOREIGN_ESTATE_') || c.startsWith('CREDENTIAL_') || c === 'AUDIT_SINK_UNAVAILABLE' || c === 'POLICY_DEPENDENCY_UNAVAILABLE' || c === 'NO_AFFIRMATIVE_OPINION');
   const credContribution = decision.contributions.find((c) => c.contributorId === 'binding-credential-presentation');
   const credEvidence = credContribution?.evidenceRefs ?? [];
   const credential: Knock['credential'] = credRef && credContribution?.effect === 'ALLOW' && credContribution.reasonCodes.includes('CREDENTIAL_PREDICATE_HELD')
@@ -331,7 +347,7 @@ async function admit(req: Request, env: Env, rawBody: Uint8Array): Promise<Knock
     : null;
   const live = decision.contributions.find((c) => c.contributorId === 'foreign-estate-presentation');
   const standing = pres && (decision.effect === 'ADMIT' || decision.effect === 'ADMIT_CONSTRAINED') && live?.reasonCodes.some((c) => c === 'FOREIGN_ESTATE_LIVE_GRANT' || c === 'FOREIGN_ESTATE_MEMBER')
-    ? { estateId: String(pres.estateId).toLowerCase(), set: pres.set, sequence: pres.sequence } : null;
+    ? { estateId: String(pres.estateId).toLowerCase(), set: pres.set, sequence: pres.sequence, grade: live.reasonCodes.includes('FOREIGN_ESTATE_BEARER_GRADE') ? 'bearer' as const : 'standing' as const } : null;
   // The predicate held, as a record of its own beside the minimized decision: the facet, the program, the nullifier grade,
   // the status sequence, where it was verified — what an auditor asks of a `predicate` admission. No claim, no person.
   if (credential) await L.audit.append({ kind: 'door.credential', decisionId: decision.decisionId, actingAgentId: proof.claims.actingAgentId, ...credential, at: new Date().toISOString() }).catch(() => undefined);
@@ -346,7 +362,7 @@ async function subjectDigest(env: Env, actingAgentId: string): Promise<string | 
   return [...mac.slice(0, 16)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-const PUBLIC_CODE = /^(FOREIGN_ESTATE_|CREDENTIAL_)/;
+const PUBLIC_CODE = /^(FOREIGN_ESTATE_|CREDENTIAL_|NO_AFFIRMATIVE_OPINION$)/;
 
 /** The public list: counts · codes · recent rows with a subject digest. What a stranger may learn from a door's ledger. */
 async function minimizeReceipts(env: Env, rows: Array<{ record?: Record<string, unknown>; at?: string }>) {
@@ -372,7 +388,7 @@ export default {
     if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
     const p = url.pathname.replace(/\/+$/, '') || '/';
 
-    if (req.method === 'GET' && (p === '/' || p === '/health')) return json({ ok: true, service: 'ap-federation-door', boundaryId: env.BOUNDARY_ID, receivingEstate: env.RECEIVING_ESTATE, origin: env.ORIGIN_A2A, registry: env.REGISTRY_ADDRESS, chainId: Number(env.CHAIN_ID), configured: !!(env.FEDERATION_RPC_URL && env.DOOR_SECRET), says: 'it admits on evidence read from neutral ground; it never decides what the agent may do' });
+    if (req.method === 'GET' && (p === '/' || p === '/health')) return json({ ok: true, service: 'ap-federation-door', boundaryId: env.BOUNDARY_ID, receivingEstate: env.RECEIVING_ESTATE, origin: env.ORIGIN_A2A, registry: env.REGISTRY_ADDRESS, chainId: Number(env.CHAIN_ID), configured: !!(env.FEDERATION_RPC_URL && env.DOOR_SECRET), presentations: { suite: 'merkle-membership-v2', subjectSignature: 'required', acceptsBearerV1: acceptBearerV1From(env.ACCEPT_BEARER_V1) }, says: 'it admits on evidence read from neutral ground; it never decides what the agent may do' });
     if (p === '/federation/challenge') {
       // THE SUBJECT NEVER RIDES IN A URL (spec 442 §7.6, finding P4): a query string lands in logs, referers and caches —
       // the placement ban of spec 338 §4. The subject comes in the body; a GET is refused with the reason, never served.
@@ -384,7 +400,7 @@ export default {
       if (!env.DOOR_SECRET) return json({ error: 'door_unconfigured' }, 503);
       const c = await issueChallenge(env.DOOR_SECRET, subject as `0x${string}`, env.PUBLIC_ORIGIN);
       // The subject is not echoed: the presenter knows whom it asked for.
-      return json({ nonce: c.nonce, audience: c.audience, expiresAt: c.expiresAt, ticket: c.ticket, header: `${c.nonce}.${c.expiresAt}.${c.ticket}`, present: `projector present --estate <yours> --digest 0x… --audience ${env.PUBLIC_ORIGIN} --nonce ${c.nonce}` });
+      return json({ nonce: c.nonce, audience: c.audience, expiresAt: c.expiresAt, ticket: c.ticket, header: `${c.nonce}.${c.expiresAt}.${c.ticket}`, present: `projector present --estate <yours> --digest 0x… --audience ${env.PUBLIC_ORIGIN} --nonce ${c.nonce}`, sign: 'the subject then signs the presentation for this challenge (EIP-712 AgenticAuthorityPresentation v2, chainId = its estate\'s home chain) and attaches subjectSignature; an unsigned presentation is refused' });
     }
     if (req.method === 'GET' && p === '/federation/credentials') {
       // THE `predicate` GRADE, declared: what this door asks a credential to prove, which issuer facets it trusts (from
@@ -395,7 +411,10 @@ export default {
       return json({
         boundaryId: env.BOUNDARY_ID, receivingEstate: env.RECEIVING_ESTATE, audience: env.PUBLIC_ORIGIN,
         accepts: !!policy, policy,
-        predicateDigest: policy ? predicateDigestOf(proofRequestFor(policy, env.PUBLIC_ORIGIN, { nonce: '0x00', audience: env.PUBLIC_ORIGIN })) : null,
+        predicateDigest: policy ? predicateDigestOf(proofRequestFor(policy, env.PUBLIC_ORIGIN, { nonce: '0x00', audience: env.PUBLIC_ORIGIN }, register().issuers)) : null,
+        // Spec 445 / DATA-7: the credential type(s) this door asks for, as the register states them. `null` means the
+        // register states none, and then every credential presentation here is refused (`credential_type_unstated`).
+        credentialTypes: policy?.credentialTypes?.length ? policy.credentialTypes : null,
         acceptedIssuers: policy?.issuers ?? [],
         receipts: { fullRecordDays: retentionDays(env.RECEIPT_FULL_RECORD_DAYS), says: 'a receipt keeps its parties for this many days, then collapses to kind · effect · codes · decision; its hash in the chain never changes' },
         issuers: acceptedIssuers(policy, register().issuers).map((i) => ({ id: i.id, estate: i.estate, sa: i.sa, chainId: i.chainId, facets: (i.facets ?? []).map((f) => ({ keyId: f.keyId, attestation: f.attestation ?? null, thumbprint: f.document?.facet ? (f.document.facet as { publicKeyJwk?: { kid?: string } }).publicKeyJwk?.kid ?? null : null })) })),
@@ -496,7 +515,7 @@ export default {
       if (k instanceof Response) return k;
       const admitted = k.decision.effect === 'ADMIT' || k.decision.effect === 'ADMIT_CONSTRAINED';
       const headers = { 'x-ap-admission-receipt': k.decision.receiptRef, 'x-ap-admission-effect': k.decision.effect };
-      const summary = { effect: k.decision.effect, reasonCodes: k.publicReasons, receiptRef: k.decision.receiptRef, decisionId: k.decision.decisionId, evaluatedAt: k.decision.evaluatedAt, actingAgentId: k.actingAgentId, presentationRef: k.presentationRef, standing: k.standing, credential: k.credential, says: admitted ? 'admitted on evidence; whether anything runs is the estate\'s own mandate, verified per step' : 'refused at admission' };
+      const summary = { effect: k.decision.effect, reasonCodes: k.publicReasons, receiptRef: k.decision.receiptRef, decisionId: k.decision.decisionId, evaluatedAt: k.decision.evaluatedAt, actingAgentId: k.actingAgentId, presentationRef: k.presentationRef, standing: k.standing, credential: k.credential, says: admitted ? 'admitted on evidence; whether anything runs is the estate\'s own mandate, verified per step' : k.publicReasons.includes('NO_AFFIRMATIVE_OPINION') ? 'refused at admission: the request cited no evidence this door judges (a foreign-estate presentation or a credential presentation) — an authenticated visitor with nothing to show is not admitted' : 'refused at admission' };
       if (p === '/federation/knock') return json(summary, admitted ? 200 : 403, headers);
       if (!admitted) return json({ error: 'admission denied', ...summary }, 403, headers);
       // ── 4. Forward the exact bytes; the evidence rides in headers the origin may read and may ignore ──
@@ -504,7 +523,9 @@ export default {
       req.headers.forEach((v, h) => { if (!h.startsWith('x-ap-') && h !== 'host' && h !== 'content-length') fwd.set(h, v); });
       fwd.set('x-ap-admission-receipt', k.decision.receiptRef);
       fwd.set('x-ap-admission-boundary', env.BOUNDARY_ID);
-      if (k.standing) fwd.set('x-ap-foreign-standing', `${k.standing.estateId}:${k.standing.set}@${k.standing.sequence}`);
+      // A bearer-grade admission (ACCEPT_BEARER_V1) is NOT the subject's standing: the estate's door is told nothing
+      // about standing for it. The grade is on the receipt (`FOREIGN_ESTATE_BEARER_GRADE`) and in the knock's summary.
+      if (k.standing && k.standing.grade === 'standing') fwd.set('x-ap-foreign-standing', `${k.standing.estateId}:${k.standing.set}@${k.standing.sequence}`);
       // The predicate held, as evidence the origin may read: which facet, which program, at which status sequence. No claim.
       if (k.credential) fwd.set('x-ap-credential-predicate', `${k.credential.issuerKeyId}:${k.credential.predicateDigest}@${k.credential.statusSequence ?? '-'}`);
       let origin: Response;

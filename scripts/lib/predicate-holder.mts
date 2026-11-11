@@ -25,6 +25,8 @@ export interface DoorCredentialPolicy {
   acceptedVersions?: string[];
   nullifier?: { require: boolean; grade: 'asserted' | 'in-circuit' };
   status?: 'required' | 'none';
+  /** The credential type(s) the door asks for (Ring 0 spec 445 / DATA-7), as its register states them. */
+  credentialTypes?: string[];
 }
 
 export interface IssuedCredential {
@@ -60,6 +62,9 @@ export function proofRequestFor(door: { origin: string }, policy: DoorCredential
     type: 'ProofRequestV1', suite: OPENAC_SUITE, verifierId: new URL(door.origin).host, requestedClaims: [], predicates: policy.predicates,
     nonce: challenge.nonce, audience: challenge.audience,
     openac: { claimSchema: policy.claimSchema, vcSize: policy.vcSize, acceptedVersions: policy.acceptedVersions ?? [OPENAC_SDK_BUNDLE_VERSION] },
+    // What the door asks for (Ring 0 spec 445 / DATA-7), as it publishes it. The holder states it for the record; the
+    // door's own request — built from its register, with the issuers it accepts — is the one that is enforced.
+    ...(policy.credentialTypes?.length ? { credentialTypes: policy.credentialTypes } : {}),
   };
 }
 
@@ -135,7 +140,15 @@ export async function presentUnderWire(i: PresentUnderWireInput): Promise<Presen
   // A managed key signs only under the release's own attestation of what it judged (digest · venue · predicate digest ·
   // actor), minted after `allow` and handed to the key with the signature; a local key needs none.
   const evidence = i.credential.device.kind === 'akcs' ? await boundEvidenceFromEnv(env) : undefined;
-  const release = createPresentationRelease({ mandate, actor: i.harness, enforcers: i.standing.enforcers, checks: i.checks, now: () => Math.floor(Date.now() / 1000), signer: device, ...(evidence ? { evidence } : {}), onDecision: (d) => decisions.push(d.decision.decision) });
+  // Ring 0 spec 445 §3.2 (audit H-8): the release is told WHOSE key it guards and is handed the WHOLE chain, and it
+  // verifies that chain before every signature — the root granted by the holder (her signature, read through
+  // `checks`), unrevoked, in window, and this audience / predicate program / issuer facet within every link. The
+  // holder is the standing wire's delegator (her person agent — it is her wire); the chain is what the derivation
+  // returned, `[child, standing]`, the standing link exactly as she signed it.
+  const holder = i.standing.wire.delegator as Address;
+  const standingLink = derived.presented[1] as unknown as Delegation & { salt: string | bigint };
+  const chain: Delegation[] = [mandate, { ...standingLink, salt: BigInt(standingLink.salt) }];
+  const release = createPresentationRelease({ mandate, holder, chain, actor: i.harness, enforcers: i.standing.enforcers, checks: i.checks, now: () => Math.floor(Date.now() / 1000), signer: device, ...(evidence ? { evidence } : {}), onDecision: (d) => decisions.push(d.decision.decision) });
   let prepared = i.prepared;
   if (!prepared) {
     const prep = await prepareOpenAcCredential({ jwt: i.credential.jwt, disclosures: i.credential.disclosures, issuerPublicKeyJwk: i.credential.issuerPublicKeyJwk, request: i.request, backend: i.backend });

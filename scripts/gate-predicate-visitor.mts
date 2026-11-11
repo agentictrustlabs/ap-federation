@@ -215,13 +215,25 @@ const staleStatus = { ...revoked.staleStatus, nonce: c4.nonce, audience: c4.audi
 const p4 = await presentUnderWire({ env: envGet,  credential: revoked, request: req4, backend, standing, runtime: { address: runtime.address, sign: runtimeSign }, harness: harness.address, checks: mc, withNullifier: true, status: staleStatus });
 const t3 = await knock({ presentation: p4.presentation, challengeHeader: c4.header });
 check(`twin: a credential the issuer revoked (live at sequence ${revoked.revokedAtSequence - 1}, absent since ${revoked.revokedAtSequence}) is refused on its stale status — read from neutral ground, not from the holder`, t3.status === 403 && t3.json?.reasonCodes?.includes('CREDENTIAL_STATUS_NOT_LIVE'), JSON.stringify(t3.json?.reasonCodes));
-// 4. the same challenge nonce reused: refused before the verifier is asked (the presentation is re-held — it expired or was consumed)
+// 4. the same challenge nonce reused. Since Ring 0 spec 445 / DATA-17 the door spends a challenge only AFTER the proof
+//    verified (a junk bundle must not burn a visitor's nonce), so the second answer is verified and then refused: by the
+//    challenge store (CREDENTIAL_NONCE_REPLAYED) — or, if the presentation's ten-minute hold lapsed, as MISSING.
 const t4 = await knock({ presentation: p1.presentation, challengeHeader: c1.header });
-check('twin: a challenge already answered is refused at the door before any proof is verified', t4.status === 403 && (t4.json?.error === 'credential_challenge_replayed' || t4.json?.reasonCodes?.some((c: string) => /NONCE|CHALLENGE/.test(c))), `${t4.status} ${t4.json?.error ?? JSON.stringify(t4.json?.reasonCodes)}`);
-// 5. no credential at all: admitted as nobody with no predicate (the predicate grade is optional evidence, not a gate)
+check('twin: a challenge already answered is refused — single use, spent by the proof that verified', t4.status === 403 && t4.json?.reasonCodes?.some((c: string) => c === 'CREDENTIAL_NONCE_REPLAYED' || c === 'CREDENTIAL_PRESENTATION_MISSING'), `${t4.status} ${t4.json?.error ?? JSON.stringify(t4.json?.reasonCodes)}`);
+// 4b. (445 DATA-17) a JUNK bundle under a fresh challenge does not spend it: the genuine presentation under the SAME
+//     challenge is still judged on its own merits afterwards (a reused nullifier inside the window, or admitted outside it — never a replayed nonce).
+const c4b = await challenge();
+const junk = { ...p1.presentation, payload: JSON.stringify({ ...JSON.parse(p1.presentation.payload), bundle: 'AAAA' }) };
+const t4b = await knock({ presentation: junk, challengeHeader: c4b.header });
+const req4b = proofRequestFor({ origin: DOOR }, policy, c4b);
+const p4b = await presentUnderWire({ env: envGet, credential, request: req4b, backend, standing, runtime: { address: runtime.address, sign: runtimeSign }, harness: harness.address, checks: mc, withNullifier: true, prepared: p1.prepared });
+const t4c = await knock({ presentation: p4b.presentation, challengeHeader: c4b.header });
+check('twin (445 DATA-17): a junk bundle carrying a fresh nonce is refused and does NOT burn the challenge', t4b.status === 403 && !t4b.json?.reasonCodes?.includes('CREDENTIAL_NONCE_REPLAYED') && !t4c.json?.reasonCodes?.includes('CREDENTIAL_NONCE_REPLAYED'), `junk ${t4b.status} ${JSON.stringify(t4b.json?.reasonCodes)} · genuine after ${t4c.status} ${JSON.stringify(t4c.json?.reasonCodes)}`);
+// 5. no credential at all. Since Ring 0 spec 445 / ING-2 an evaluator with nothing to judge ABSTAINS and the engine
+//    admits only on an affirmative ALLOW: a visitor who cites no credential and no presentation is refused.
 const t5 = await knock({});
-check('a knock with no credential is admitted as nobody-foreign and claims no predicate', t5.status === 200 && t5.json?.effect === 'ADMIT' && t5.json?.credential === null, JSON.stringify(t5.json?.reasonCodes));
+check('twin (445 ING-2): a knock with no credential and no presentation is REFUSED — nothing cited, no affirmative opinion, no predicate claimed', t5.status === 403 && t5.json?.effect === 'DENY' && t5.json?.credential === null && t5.json?.reasonCodes?.includes('NO_AFFIRMATIVE_OPINION'), `${t5.status} ${JSON.stringify(t5.json?.reasonCodes)}`);
 
 const failed = checks.filter((c) => !c.ok);
-console.log(failed.length ? `\nPREDICATE GATE RED · ${failed.length} of ${checks.length} failed` : `\nPREDICATE GATE GREEN · ${checks.length} checks incl. 5 refusals — a predicate held, no name, no address, no claim`);
+console.log(failed.length ? `\nPREDICATE GATE RED · ${failed.length} of ${checks.length} failed` : `\nPREDICATE GATE GREEN · ${checks.length} checks incl. 7 refusals — a predicate held, no name, no address, no claim`);
 process.exit(failed.length ? 1 : 0);

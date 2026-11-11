@@ -9,3 +9,4 @@ export { pruneLive, type LivenessDeps, type PruneOutcome } from './liveness.js';
 export { registryClient, anchorDecision, ESTATE_PROJECTION_REGISTRY_ABI, ZERO_32, type RegistryClient, type AnchoredState, type AnchorDecision } from './anchor.js';
 export { isRevokedReader, estateRpc, IS_REVOKED_ABI } from './revocation.js';
 export { projectEstate, buildForSequence, type ProjectionRun, type ProjectDeps } from './project.js';
+export { subjectSignatureCheckFor, declaredSubjectChain, UNIVERSAL_VALIDATOR_ABI, type SubjectSignatureCheck, type TownRow } from './subject-signature.js';

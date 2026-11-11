@@ -21,13 +21,13 @@
 //   is printed as the YAML to paste under the issuer's `facets:` in federation.yaml.
 //
 //   set -a && . .secrets/ops.env && . .secrets/projector-akcs.env && set +a   # the attestation is SENT by the row's key-service key
-//   npx tsx scripts/setup-predicate-issuer.mts [--issuer faithnet-gate-issuer] [--custodian-persona demo-admin]
+//   npx tsx scripts/setup-predicate-issuer.mts --credential-types <type[,type]> [--issuer faithnet-gate-issuer] [--custodian-persona demo-admin]
 //       [--issuer-home https://www.faithnet.me] [--holder alice] [--holder-home https://www.faithnet.me]
 //       [--door https://door.ap-federation.faithnet.io] [--receiving-estate impact-agent]
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
-import { createPublicClient, createWalletClient, hashMessage, http, keccak256, toBytes, type Address, type Hex } from 'viem';
+import { createPublicClient, encodeFunctionData, hashMessage, http, keccak256, toBytes, type Address, type Hex } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { parse } from 'yaml';
 import { anchorAccount } from '../apps/projector/src/config.js';
@@ -35,6 +35,7 @@ import { computeFacetHash, credentialDigestOfJwt, generateHolderSecret, type Iss
 import { LocalEs256Signer } from '@agenticprimitives/key-custody';
 import { parseDeviceArg, devicePublicJwk } from './lib/predicate-device-key.mts';
 import { associationAttestationDigest, computeAttestationUid } from '@agenticprimitives/attestations';
+import { sendAsAccount } from './lib/send-as-account.mts';
 import { buildStandingWire, signedStandingWire, PRESENTATION_CAPABILITY, type EnforcerAddresses } from '@agenticprimitives/delegation';
 import { generateDummyCredential } from 'openac-sdk/testing';
 import { predicateDigestOf, type DoorCredentialPolicy } from './lib/predicate-holder.mts';
@@ -48,6 +49,12 @@ const HOLDER = flag('holder') ?? 'alice';
 const HOLDER_HOME = (flag('holder-home') ?? 'https://www.faithnet.me').replace(/\/$/, '');
 const DOOR = (flag('door') ?? 'https://door.ap-federation.faithnet.io').replace(/\/$/, '');
 const RECEIVING = flag('receiving-estate') ?? 'impact-agent';
+// THE CREDENTIAL TYPE(S) THIS KEY SIGNS (Ring 0 spec 445 / DATA-7) — SA-signed inside the facet. An openac proof reveals
+// the issuer key and nothing of the credential, so the type is bound through the key: a verifier refuses a facet that
+// declares none (`credential_type_unbound`) and one that declares a type it did not ask for (`credential_type_mismatch`).
+// Stated by the operator, never defaulted: it must be the type the receiving door asks for (`credentialProofs.credentialTypes`).
+const CREDENTIAL_TYPES = (flag('credential-types') ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+if (!CREDENTIAL_TYPES.length) throw new Error('--credential-types <type[,type]> is required: the credential type(s) this issuing key signs, SA-signed into the facet (Ring 0 spec 445 / DATA-7). There is no default.');
 
 const fed = parse(readFileSync('federation.yaml', 'utf8')) as {
   registry: { chainId: number; address: Address };
@@ -58,6 +65,12 @@ const fed = parse(readFileSync('federation.yaml', 'utf8')) as {
 const issuer = fed.credentials?.issuers?.find((i) => i.id === ISSUER) ?? (() => { throw new Error(`no issuer ${ISSUER} under credentials.issuers in federation.yaml`); })();
 const door = fed.doors.find((d) => d.estate === RECEIVING && d.credentialProofs) ?? (() => { throw new Error(`no door for ${RECEIVING} with credentialProofs in federation.yaml`); })();
 const policy = door.credentialProofs!;
+{
+  const asked = policy.credentialTypes ?? [];
+  if (!asked.length) throw new Error(`doors[${RECEIVING}].credentialProofs.credentialTypes is not stated in federation.yaml — the door names the credential type(s) it asks for before an issuer signs a facet for them`);
+  const stray = CREDENTIAL_TYPES.filter((t) => !asked.includes(t));
+  if (stray.length) throw new Error(`--credential-types names ${stray.join(', ')}, which the door for ${RECEIVING} does not ask for (${asked.join(', ')}): every type a key signs must be one the verifier asked for, or the facet is refused (credential_type_mismatch)`);
+}
 const rpc = (process.env[issuer.rpcEnv ?? 'FEDERATION_RPC_URL'] ?? '').trim() || (() => { throw new Error(`${issuer.rpcEnv ?? 'FEDERATION_RPC_URL'} is not set (set -a && . .secrets/ops.env)`); })();
 const chain = { id: issuer.chainId, name: `chain-${issuer.chainId}`, nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 }, rpcUrls: { default: { http: [rpc] } } } as const;
 const pub = createPublicClient({ chain, transport: http(rpc) });
@@ -110,10 +123,18 @@ console.log(`issuer ${issuer.id}: SA ${issuer.sa} on eip155:${issuer.chainId} ·
 
 // ── 1. the facet ──
 const recordFile = `.secrets/predicate-issuer-${issuer.id}.json`;
-const record = existsSync(recordFile) ? JSON.parse(readFileSync(recordFile, 'utf8')) as { keyId: string; document: SignedIssuerKeyFacetV1; attestation: Hex; salt: string; schemaId: Hex } : null;
-const keyId = record?.keyId ?? `issuer-key:sd-jwt:${issuer.id}-1`;
+const onFile = existsSync(recordFile) ? JSON.parse(readFileSync(recordFile, 'utf8')) as { keyId: string; document: SignedIssuerKeyFacetV1; attestation: Hex; salt: string; schemaId: Hex } : null;
+// RE-PUBLISH (spec 445 / DATA-7): a facet on file that declares other credential types than asked — or none, as every
+// facet signed before 2026-11-10 — is not kept. The same key gets a NEW facet document (new hash, new SA signature, new
+// attestation); the old attestation stays on chain and names a facet no verifier accepts any more.
+const sameTypes = (f: IssuerKeyFacetV1 | undefined) => { const t = (f as { credentialTypes?: string[] } | undefined)?.credentialTypes ?? []; return t.length === CREDENTIAL_TYPES.length && CREDENTIAL_TYPES.every((x) => t.includes(x)); };
+const republish = !!onFile?.document && !sameTypes(onFile.document.facet);
+if (republish) console.log(`facet on file declares [${((onFile!.document.facet as { credentialTypes?: string[] }).credentialTypes ?? []).join(', ') || 'no credential types'}]; re-publishing it for [${CREDENTIAL_TYPES.join(', ')}] — a new facet hash, signature and attestation`);
+const record = republish ? null : onFile;
+const priorKeyFacet = republish ? onFile!.document.facet : null;
+const keyId = onFile?.keyId ?? `issuer-key:sd-jwt:${issuer.id}-1`;
 const jwk = issuerKey.publicJwk();
-const facet: IssuerKeyFacetV1 = record?.document.facet ?? { type: 'IssuerKeyFacetV1', subjectAgent: issuer.sa.toLowerCase() as Hex, keyId, suite: 'es256-sd-jwt', publicKeyJwk: { kty: jwk.kty, crv: jwk.crv, x: jwk.x, y: jwk.y, kid: jwk.kid }, validFrom: new Date().toISOString() };
+const facet: IssuerKeyFacetV1 = record?.document.facet ?? { type: 'IssuerKeyFacetV1', subjectAgent: issuer.sa.toLowerCase() as Hex, keyId, suite: 'es256-sd-jwt', publicKeyJwk: { kty: jwk.kty, crv: jwk.crv, x: jwk.x, y: jwk.y, kid: jwk.kid }, credentialTypes: CREDENTIAL_TYPES, validFrom: priorKeyFacet?.validFrom ?? new Date().toISOString() } as IssuerKeyFacetV1;
 if (facet.publicKeyJwk?.x !== jwk.x || facet.publicKeyJwk?.y !== jwk.y) throw new Error(`${recordFile} holds a facet for another key than ${envFile}'s — remove one of them, deliberately`);
 const facetHash = await computeFacetHash(facet);
 const facetDigest = `0x${facetHash.slice(7)}` as Hex;
@@ -132,14 +153,15 @@ const SCHEMA_ID = keccak256(toBytes('ap.issuer-key-facet.v1'));
 let attestation = record?.attestation ?? null;
 let salt = record?.salt ?? null;
 if (!attestation) {
+  const STATUS_LIST = `0x${'00'.repeat(32)}` as Hex; // the issuer names its own revocation channel inside the digest it signs (REG-8); none for a facet
   const saltN = BigInt(`0x${randomBytes(16).toString('hex')}`);
-  const digest = associationAttestationDigest({ subject: issuer.sa, issuer: issuer.sa, schemaId: SCHEMA_ID, credentialType: ISSUER_KEY_FACET_TYPE, credentialHash: facetDigest, chainId: BigInt(issuer.chainId), verifyingContract: issuer.attestationRegistry });
+  const digest = associationAttestationDigest({ subject: issuer.sa, issuer: issuer.sa, schemaId: SCHEMA_ID, credentialType: ISSUER_KEY_FACET_TYPE, credentialHash: facetDigest, offchainCredentialStatusList: STATUS_LIST, chainId: BigInt(issuer.chainId), verifyingContract: issuer.attestationRegistry });
   const { signature } = await personaSign(ISSUER_HOME, CUSTODIAN, digest);
-  // The SENDER is the row's funded key-service key (anyone may send one; the issuer's signature is what the contract checks).
-  const wallet = createWalletClient({ account: await anchorAccount({ id: issuer.id, anchorKey: issuer.anchorKey }), chain, transport: http(rpc) });
-  const req = { schemaId: SCHEMA_ID, credentialType: ISSUER_KEY_FACET_TYPE, credentialHash: facetDigest, offchainCredentialStatusList: `0x${'00'.repeat(32)}` as Hex, subject: issuer.sa, issuer: issuer.sa, issuerSignature: signature, salt: saltN };
-  await pub.simulateContract({ address: issuer.attestationRegistry, abi: ATTESTATION_ABI, functionName: 'assertAssociation', args: [req], account: wallet.account });
-  const tx = await wallet.writeContract({ address: issuer.attestationRegistry, abi: ATTESTATION_ABI, functionName: 'assertAssociation', args: [req] });
+  // REG-8 (Ring 0 spec 445 / generation 4): the call is SENT BY the subject — the issuer's own Smart Agent, through its Home
+  // (the custodian signs the UserOperation) — and `offchainCredentialStatusList` is inside the digest the issuer signed.
+  const req = { schemaId: SCHEMA_ID, credentialType: ISSUER_KEY_FACET_TYPE, credentialHash: facetDigest, offchainCredentialStatusList: STATUS_LIST, subject: issuer.sa, issuer: issuer.sa, issuerSignature: signature, salt: saltN };
+  await pub.simulateContract({ address: issuer.attestationRegistry, abi: ATTESTATION_ABI, functionName: 'assertAssociation', args: [req], account: issuer.sa });
+  const tx = await sendAsAccount({ home: ISSUER_HOME, sender: issuer.sa, call: { to: issuer.attestationRegistry, data: encodeFunctionData({ abi: ATTESTATION_ABI, functionName: 'assertAssociation', args: [req] }) }, sign: async (d) => (await personaSign(ISSUER_HOME, CUSTODIAN, d)).signature });
   await pub.waitForTransactionReceipt({ hash: tx });
   attestation = computeAttestationUid({ subject: issuer.sa, party2: `0x${'00'.repeat(20)}`, issuer: issuer.sa, credentialType: ISSUER_KEY_FACET_TYPE, credentialHash: facetDigest, refUID: `0x${'00'.repeat(32)}`, salt: saltN });
   salt = saltN.toString();

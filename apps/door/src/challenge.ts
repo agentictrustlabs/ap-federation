@@ -5,6 +5,11 @@
 // forged without the secret fails the MAC. The presentation itself carries the nonce and audience the verifier
 // compares (`verifyAuthorityPresentation`), so the ticket only has to prove the door issued this nonce to this
 // subject for this audience recently.
+//
+// Since Ring 0 spec 445 §3.8 the nonce and audience are also INSIDE what the subject signs (EIP-712
+// `AuthorityPresentation(… bytes nonce, string audience)`): the nonce is 32 random bytes as 0x-hex, which is what the
+// typed data's `bytes nonce` takes as it is, and the audience is this door's origin string, byte for byte. Nothing in
+// the issuance changed; a presentation signed for this challenge is useless at another door or for another nonce.
 const enc = new TextEncoder();
 
 export interface ChallengeV1 { nonce: `0x${string}`; audience: string; subject: `0x${string}`; expiresAt: number; ticket: string }

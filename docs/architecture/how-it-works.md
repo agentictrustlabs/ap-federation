@@ -14,7 +14,7 @@ is the gate's test account; its grant is a real, narrow `harness.read` wire a re
 | 3 | **The projector prunes against the chain.** For every leaf, `DelegationManager.isRevoked(digest)` on the estate's chain. Revoked: dropped. Unreadable chain: dropped. | `apps/projector/src/revocation.ts` |
 | 4 | **It builds the roots** over the kept leaves (live-grant set, membership set) at `anchored + 1`. | `@agenticprimitives/estate-projection` `buildProjection` |
 | 5 | **It anchors**, if the roots changed or the heartbeat is due: `setRoots(estateId, liveGrantRoot, membershipRoot, charterHash, sequence)` signed by the estate's projection signer. The contract refuses a non-increasing sequence. | `apps/projector/src/anchor.ts`, `EstateProjectionRegistry` |
-| 6 | **It cross-checks itself.** It reads `atl:projectionSigner` on the estate agent's own profile and compares with `signerOf(estateId)` on neutral ground. Different: it stops. Undeclared: it says so. | `readDeclaredSigner`, `pnpm projector status` |
+| 6 | **It cross-checks itself.** It reads `atl:projectionSigner` on the estate agent's own profile and uses it as the row to read: `roots(estateId, signer)` (generation 4 keys rows by signer; there is no `signerOf`). Different from the register: it stops. Undeclared: it says so, and no verifier reads a row for it. | `readDeclaredSigner`, `pnpm projector status` |
 
 Gate: `scripts/gate-f1-projection.mts`. Proves anchoring, monotonic sequence, a presentation verifying against the
 root read from the chain; refuses a stale presentation, a wrong subject, a wrong challenge, a replayed sequence.
@@ -24,16 +24,18 @@ root read from the chain; refuses a stale presentation, a wrong subject, a wrong
 | Step | What happens | Where |
 | --- | --- | --- |
 | 7 | **Challenge.** The visitor asks the door for a nonce for its subject — the subject in the POST body, never in a URL (spec 442 §7.6: a query string lands in logs, referers and caches). The door hands back a nonce, an expiry and an HMAC ticket. Stateless: the door recognises its own ticket later. | `POST /federation/challenge { subject }`, `apps/door/src/challenge.ts` |
-| 8 | **Presentation.** The projector builds the leaf's Merkle path at the **anchored** sequence, bound to the nonce and the door's origin. | `pnpm projector present`, `makeAuthorityPresentation` |
+| 8 | **Presentation.** The projector builds the leaf's Merkle path at the **anchored** sequence, for the nonce and the door's origin — the estate's half, unsigned. The leaf commits to its subject (`merkle-membership-v2`). **The subject then signs the challenge** with its own account (EIP-712 `AgenticAuthorityPresentation` v2, on its estate's home chain) and attaches `subjectSignature`: a presentation is proof of possession, not a bearer value (Ring 0 spec 445 §3.8). | `pnpm projector present`, `makeAuthorityPresentation`, `authorityPresentationTypedData` |
 | 9 | **Request proof.** The visitor signs the exact request: method, host, path, body digest, audience, replay id, expiry. | `x-ap-request-proof`, `@agenticprimitives/admission` `requestProofDigest` |
 | 10 | **The door authenticates.** Replay id spent first, then the signature verified through `UniversalSignatureValidator` on chain (an EOA or a Smart Agent alike). A failure answers a generic 401; the precise code is logged, never returned. | `apps/door/src/index.ts` step 1 |
-| 11 | **The door admits.** The admission engine runs the foreign-estate evaluator: it reads `roots(estateId)` from neutral ground **now**, verifies the path against the live-grant root, checks sequence, age, challenge and subject. | `createAdmissionEngine`, `foreignEstateEvaluator`, `verifyAuthorityPresentation` |
-| 12 | **The door cross-checks the signer** (F2.5): `signerOf(estateId)` versus the estate agent's declared `atl:projectionSigner`. Equal: `FOREIGN_ESTATE_SIGNER_DECLARED`. Different: refused. Undeclared: admitted, and said. | `apps/door/src/index.ts` step 3b |
+| 11 | **The door admits.** The admission engine runs the foreign-estate evaluator: it reads `roots(estateId)` from neutral ground **now**, verifies the path against the live-grant root, checks sequence, age, challenge and subject, opens the leaf **with** the subject, and last reads the subject's signature through `UniversalSignatureValidator` on the **presenting estate's home chain** (the register's `homeChainId`, else `chainId` — never this door's by default). A pre-445 (v1) presentation is refused unless the door was deployed with `ACCEPT_BEARER_V1`, and is then graded bearer on the receipt. | `createAdmissionEngine`, `foreignEstateEvaluator`, `verifyAuthorityPresentation`, `apps/door/src/presentation.ts` |
+| 12 | **The door reads only the declared signer's row** (F2.5, closed by construction in generation 4): the estate agent's `atl:projectionSigner` names the signer; the door reads `roots(estateId, thatSigner)` and a stranger's row for the same id is never read. Declared and anchored: `FOREIGN_ESTATE_SIGNER_DECLARED`. Undeclared: refused (`FOREIGN_ESTATE_SIGNER_UNDECLARED`). Retired: refused. | `apps/door/src/index.ts` step 3b |
 | 13 | **A receipt is written**, hash-chained, in the door's Durable Object, and returned by reference. It names the acting account, the boundary and the reason codes, and nothing else about the estate. The id is the capability to read it (128 random bits): the presenter has it from the response, the receiving estate from the forwarded header, nobody else. The PUBLIC face of the ledger is counts, decision codes and a per-door subject digest — no ids, no accounts (443 W0). | `apps/door/src/ledger-do.ts`, `GET /federation/receipts/<id>`, `GET /federation/receipts` |
 
 Gate: `scripts/gate-f2-door.mts`. Proves ADMIT with `FOREIGN_ESTATE_LIVE_GRANT` and the receipt; refuses stale,
-another door's challenge, another subject, a replayed proof, no proof; admits a request with no presentation as
-nobody-foreign with no standing.
+another door's challenge, another subject, a replayed proof, no proof; refuses a presentation a stranger saw and
+re-aimed at itself, one with no subject signature and one signed by anyone but its subject; and refuses a request with
+no presentation (`FOREIGN_ESTATE_NOT_PRESENTED`, `NO_AFFIRMATIVE_OPINION`) — since Ring 0 spec 445 the engine
+admits only when an evaluator affirms, and a visitor who cites nothing gives this door nothing to affirm.
 
 ## Part 3 — the estate decides (F3, across two chains)
 

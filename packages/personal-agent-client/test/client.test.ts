@@ -215,3 +215,14 @@ describe('personal-agent-client — the twin at unit scale', () => {
     expect(() => createPersonalAgentClient({ clientKey: { binding: { canonicalAgentId: PAP_SVC, scope: 'person', clientId: 'https://www.estate.example/agents/alice/client.json', jwkThumbprint: 'x', alg: 'ES256', custodyEpoch: 1, notBefore: 0, notAfter: 1 }, signer: new LocalEs256Signer(), redirectUris: [] }, dpopKeys: { forIssuer: async () => Object.assign(new LocalEs256Signer(), { keyRef: 'k' }) }, vault: {} as never, approval: { park: async () => null }, posture: { naming: 'none', listing: 'none' }, fetch: w.company.fetch })).toThrow(/never|service/);
   });
 });
+
+import { authorityOfIssuer } from '../src/operations.js';
+describe('the authority of an external operation (spec 445 COV-8)', () => {
+  it('is the issuer as a canonical https origin', () => {
+    expect(authorityOfIssuer('https://Bank.Example:443/tenant/one')).toBe('https://bank.example');
+  });
+  it('refuses userinfo that reads as another company, and a non-https issuer', () => {
+    expect(() => authorityOfIssuer('https://bank.example@evil.example')).toThrow(/plain https origin/);
+    expect(() => authorityOfIssuer('http://bank.example')).toThrow(/plain https origin/);
+  });
+});

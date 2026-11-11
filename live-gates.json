@@ -1,18 +1,19 @@
 {
- "$comment": "The live-gates ledger (spec 392 shape): every verify script with the authority twin it carries, run nightly by `ap test --live-gates live-gates.json` through @agenticprimitives/evaluation's runner against HOME_URL. `required` gates fail the run; the rest report; `paced` gates are spaced for a metered model plan. Add a gate = one entry. F1's gate needs no HOME_URL and no key: it reads neutral ground over FEDERATION_RPC_URL and checks refusals by simulation.",
+ "$comment": "The live-gates ledger (spec 392 shape): every verify script with the authority twin it carries, run nightly by `ap test --live-gates live-gates.json` through @agenticprimitives/evaluation's runner against HOME_URL. `required` gates fail the run; the rest report; `paced` gates are spaced for a metered model plan. Add a gate = one entry. F1's gate needs no HOME_URL and no estate key: it reads neutral ground over FEDERATION_RPC_URL and checks refusals by simulation; since Ring 0 spec 445 §3.8 it signs one presentation as the gate's own test account (the subject of its leaf) and reads that signature on the estate's home chain.",
  "home": "https://<shadow-home>",
  "gates": [
   {
    "id": "f1-projection",
    "script": "scripts/gate-f1-projection.mts",
    "spec": "specs/439 F1 (Ring 0)",
-   "proves": "the estate's roots are anchored on neutral ground, the sequence is monotonic, the roots rebuild from the estate's own record, and a presentation verifies against the root READ FROM THE CHAIN.",
-   "twin": "the same verifier refuses the same presentation one sequence behind (stale), about another subject (subject_mismatch), and answering another challenge (challenge_mismatch); and the contract refuses a replayed sequence.",
+   "proves": "the estate's roots are anchored on neutral ground, the sequence is monotonic, the roots rebuild from the estate's own record, and a presentation — the leaf committing to its subject, the subject's signature over the challenge read through the UniversalSignatureValidator on the estate's home chain — verifies against the root READ FROM THE CHAIN (Ring 0 spec 445 §3.8).",
+   "twin": "the same verifier refuses the same presentation one sequence behind (stale), about another subject (subject_mismatch), and answering another challenge (challenge_mismatch); re-aimed at another subject (opening_mismatch) and carrying no subject signature (subject_signature_missing) — the two a bearer value passed; and the contract refuses a replayed sequence.",
    "required": true,
    "timeoutSec": 120,
    "env": {
     "FEDERATION_ESTATE": "impact-agent"
-   }
+   },
+   "needs": "FEDERATION_RPC_URL + the estate's home-chain endpoint when it is another chain (towns[].rpcEnv, e.g. HOPECHAIN_RPC_URL) + .secrets/f2-test-agent.env (the test account the signed presentation is about; scripts/setup-f2-test-grant.mts, once)"
   },
   {
    "id": "federation-site",
@@ -30,8 +31,8 @@
    "id": "f2-door",
    "script": "scripts/gate-f2-door.mts",
    "spec": "specs/439 F2 (Ring 0); Ring 0 spec 410 §4.2",
-   "proves": "the receiving door admits a foreign presentation on a principal-signed request proof and a leaf proved against the root READ FROM NEUTRAL GROUND, writes a hash-chained receipt naming only the acting account and the boundary, and forwards the admitted bytes to the estate's A2A door with the standing in headers.",
-   "twin": "a presentation one sequence behind (stale), one answering another door's challenge, one about another subject, a replayed proof, and no proof are each refused; a request with no presentation is admitted as nobody-foreign with no standing.",
+   "proves": "the receiving door admits a foreign presentation on a principal-signed request proof and a leaf proved against the root READ FROM NEUTRAL GROUND and signed by its subject for the door's challenge (Ring 0 spec 445 §3.8; grade standing), writes a hash-chained receipt naming only the acting account and the boundary, and forwards the admitted bytes to the estate's A2A door with the standing in headers.",
+   "twin": "a presentation one sequence behind (stale), one answering another door's challenge, one about another subject, a replayed proof, and no proof are each refused; so are a presentation a stranger saw and re-aimed at itself (opening_mismatch), one with no subject signature, and one signed by anyone but its subject; a request with no presentation is REFUSED on both paths (FOREIGN_ESTATE_NOT_PRESENTED + NO_AFFIRMATIVE_OPINION — Ring 0 spec 445 ING-2: no evidence, no admission).",
    "required": true,
    "timeoutSec": 180,
    "env": {
@@ -95,7 +96,7 @@
    "script": "scripts/gate-predicate-visitor.mts",
    "spec": "specs/443 W5; Ring 0 spec 305 W2 + zkID alignment Z1–Z4",
    "proves": "a NAMELESS visitor proves \"over 18\" in zero knowledge at another estate's door: she knocks as a pairwise account, the proof hides the issuer key and the device key, the door verifies it beside the Worker (a Node Container holding the 274 MB verifying key) against an issuer facet resolved through the chain (SA signature + live attestation) and the issuer's live-credential row read from neutral ground; ADMIT with CREDENTIAL_PREDICATE_HELD; the receipt names the facet, the predicate digest (the door's own = the wire's), the nullifier grade and the status sequence, and carries no claim value and no address of the person; the holder's own receipt names the mandate; the device key signs only under her standing credential.present wire, judged by the presentation release inside every signature. THE TRUST SET (2026-10-16): the door names the issuers it accepts (`credentialProofs.issuers`), hands the verifier only their facets, and refuses to hold or verify a presentation under any other facet; every receipt names the day its parties leave it (`fullRecordUntil`, `doors[].receipts.fullRecordDays`), after which the ledger keeps kind · effect · codes · decision and the hash chain, not the account.",
-   "twin": "the same nullifier again under a fresh challenge is refused as reused (one visit per audience); a presentation without the nullifier the policy requires is refused; a statement for another venue derives no mandate and nothing leaves the holder; a credential the issuer REVOKED (its status from the sequence where it was live) is refused on neutral ground's current row; a challenge already answered is refused before the verifier is asked; a knock with no credential is admitted as nobody with no predicate. A presentation re-labelled under a facet outside the trust set is refused at /present before any proof is read, with the accepted issuers named.",
+   "twin": "the same nullifier again under a fresh challenge is refused as reused (one visit per audience); a presentation without the nullifier the policy requires is refused; a statement for another venue derives no mandate and nothing leaves the holder; a credential the issuer REVOKED (its status from the sequence where it was live) is refused on neutral ground's current row; a challenge already answered is refused (spent by the proof that verified — Ring 0 spec 445 DATA-17), and a junk bundle under a fresh challenge does not burn it; a knock with no credential and no presentation is REFUSED (NO_AFFIRMATIVE_OPINION — spec 445 ING-2). A presentation re-labelled under a facet outside the trust set is refused at /present before any proof is read, with the accepted issuers named.",
    "required": true,
    "timeoutSec": 600,
    "env": {
