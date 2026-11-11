@@ -238,7 +238,7 @@ credentials:
     # for it (`rowSigner`) under its anchoring wire — the facet stays the organization's, on its own chain.
     - id: imbnet-org
       estate: impact-agent
-      sa: "0x2Ce397435e126e513856D27286248F5497108713"
+      sa: "0xaB0DE29315bF6a11cA484975b10A6d1917f4cf01"
       chainId: 34349
       kind: organization
       custodian: "maya (steward; via www.impact-agent.me)"
@@ -255,12 +255,12 @@ credentials:
       facets:
         - keyId: issuer-key:sd-jwt:imbnet-org-1
           thumbprint: vCB6bQfAt-TFWa4VtDQGSV4wYhgJtNlTO1ldbJ1MdhI
-          attestation: "0x1481a28ed868085a683d09dcc7b2e4cce0e8408c92a3ea9ef1266c265b8bb1b2"
+          attestation: "0xc5481e8a696a839651b14e6db62c226c7a6f362f2dc582c26ef7f6c56259be04"
           revocationRoot: projection
           document:
-            facet: {"type":"IssuerKeyFacetV1","subjectAgent":"0x2ce397435e126e513856d27286248f5497108713","keyId":"issuer-key:sd-jwt:imbnet-org-1","suite":"es256-sd-jwt","publicKeyJwk":{"kty":"EC","crv":"P-256","x":"gUqinqZbBXl9V7FSRy2Wi4lLKBrR3nPQ09QqOUHrvYw","y":"w4pimsOhDf9dBhc-zcfrqdGNsn3kGnLBvWUDe-jOCPY","kid":"vCB6bQfAt-TFWa4VtDQGSV4wYhgJtNlTO1ldbJ1MdhI"},"validFrom":"2026-10-16T16:48:00.293Z"}
-            facetHash: sha256:953755a564dfab3878fe1dec1c1313c1e6d5c1707b19231d72053f67b6f6f6b3
-            signature: "0xdc126b6df299d1e38ba002d651eb176d9e5e28c169b38457c1366d1c138b44206b2988f5b37e0e192f17b198cef823ef3f3e68486ec99005362ecb002c07e4c71b"
+            facet: {"type":"IssuerKeyFacetV1","subjectAgent":"0xab0de29315bf6a11ca484975b10a6d1917f4cf01","keyId":"issuer-key:sd-jwt:imbnet-org-1","suite":"es256-sd-jwt","publicKeyJwk":{"kty":"EC","crv":"P-256","x":"gUqinqZbBXl9V7FSRy2Wi4lLKBrR3nPQ09QqOUHrvYw","y":"w4pimsOhDf9dBhc-zcfrqdGNsn3kGnLBvWUDe-jOCPY","kid":"vCB6bQfAt-TFWa4VtDQGSV4wYhgJtNlTO1ldbJ1MdhI"},"credentialTypes":["https://agenticprimitives.dev/vct/organization-membership/v1"],"validFrom":"2026-11-11T09:06:20.973Z"}
+            facetHash: sha256:934297b8afd07c1e84dfb98ded1e288567e00473daee32fba87cd3b6f82c8c42
+            signature: "0xaba5075c32366c1c66d49a187fb1fb6211a694928a5259c81ebff573ae5174703f08678b84315daf3cc4bff354a3b572d6d2096db6b15c59c894b248b658f7741c"
     # THE STAND-IN (decision 2026-10-16, spec 444 §2.2 item 5, option a): the estate's registry agent issues membership
     # credentials for a visitor from ANOTHER estate (alice, faithnet), which the organization's own issuer (imbnet-org,
     # below) cannot do today — cross-estate membership is not built. It stays in the door's trust set for exactly that
