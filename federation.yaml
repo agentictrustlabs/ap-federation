@@ -87,7 +87,10 @@ estates:
     # a vault credential verifies on the chain the vault validates on, which is the home chain now. ANCHORING DID NOT MOVE:
     # `signerOf` on neutral ground is still the faithchain agent above, under the anchoring wire; the estate id derives from
     # `chainId` 34348 and a rotation of the signer is the owner's ceremony (`rotateSigner`), not a side effect of the move.
-    homeRegistryAgent: "0x4eB7D9e5bE8E10a6FC6d0c5360dB937099a1F39F"
+    # GENERATION 4 (2026-11-11, spec 445): hopechain's contracts were redeployed, so the home-chain registry agent was
+    # re-chartered on the new factory (`0x02F25dD9…`, salt 3, custodian maya; vault key bound) and
+    # `.secrets/vault-secret-impact-agent.json` re-issued under it. The gen-3 agent `0x4eB7D9e5…` is history.
+    homeRegistryAgent: "0x02F25dD9e85f9E81A73b78F0EaEa5Cd5189aDdc5"
 
   - id: faithnet
     chainId: 34348
@@ -190,7 +193,7 @@ doors:
       # (a payment is treasury to treasury on one chain). The door reads the issuer from its own admission receipt.
       byIssuer:
         imbnet-org:
-          payee: "0x57988d43497Aa8e707Aa650127a84373650399f5"
+          payee: "0xCF488e337eFBC6F0Ba7657438fc2c633545961F1"   # gen-4 imbnet-org treasury (salt 5, custodian maya; the gen-3 0x57988d43… is history)
           asset: "0x9e24f6d81e801dFceFA9DC15475A411727DCA5Ca"
           chainId: 34349
           symbol: USDC
