@@ -45,7 +45,13 @@ estates:
     rpcEnv: HOPECHAIN_RPC_URL
     home: https://www.impact-agent.me
     a2a: https://a2a.impact-agent.io
-    governance: "0x4457aadf6ADeB31bA8F166fafcC0d0579ECd1015"
+    # GENERATION 4 ON FAITHCHAIN (2026-11-11, spec 445): faithchain's contracts were redeployed, so imbnet's faithchain-side
+    # agents were re-chartered on the gen-4 factory the way they were first made — imbnet.estate 0x4387E4ef… (salt 2 over the
+    # estate's interactions key; AddEstateName tx 0xd9fbf301…; atl:homepage + atl:projectionSigner declared on the gen-4
+    # resolver) and its registry agent 0x78D46090… (salt 3, custodian maya via www.impact-agent.me, atl:estate imbnet.estate),
+    # the anchoring wire re-issued under it (0x0f5272f8…, gen-4 DelegationManager). The estate id moved with the governance
+    # address (0xe96d2c36… → 0xd726fc0a…); the gen-1 agents 0x4457aadf… / 0x432FE71e… are history.
+    governance: "0x4387E4efF41AC0F1e509B06c06E8acBdbFC1E02C"
     governanceKind: estate-agent
     governanceName: imbnet.estate          # on-chain: AgentNameRegistry owner of `imbnet.estate`
     # The key that anchors this estate's roots. `register` binds it once; `rotateSigner` moves it. The
@@ -53,7 +59,7 @@ estates:
     # THE SIGNER IS THE ESTATE'S REGISTRY AGENT (spec 439 §4, 2026-10-14) — a Smart Agent custodied by a person OF THIS
     # ESTATE (maya, through impact-agent.me), declaring `atl:estate: imbnet.estate`. `signerOf` on neutral ground is
     # this account, so anchoring is an act of the estate's own agent, not of a key somebody holds.
-    signer: "0x432FE71eAB5442220Cb0CBb6974f741093De8Bd7"
+    signer: "0x78D4609024B4aA3b68B0eD6E92a96f1212ffcc69"
     signerKind: registry-agent
     signerCustodian: "maya (a person of this estate, via its Home)"
     # The key that anchors is the KEY SERVICE'S, a DELEGATE under a wire this agent signed: `setRoots` on the registry,
@@ -69,7 +75,7 @@ estates:
     # declares its signer (F2.5).
     delegationManager: "0x80Cb228891D354F466E12a93A1726BFE740f9904"
     # Where the estate agent declares `atl:projectionSigner` (spec 439 F2.5; Ring 0 deployments-faithchain.json#agentProfileResolver).
-    profileResolver: "0xB03F7C06ad3274F584AB72794406D639c02A45e1"
+    profileResolver: "0xc86d67D5ef2ed185e26a5f97f63e506CdA4e45C1"   # generation 4 (gen 1: 0xB03F7C06…)
     # Its chain endpoint. Omitted = neutral ground's, which is only correct while they share a chain. An
     # estate on a second chain names its own here, and that is the only line that changes for it.
     # WHY A VERIFIER MUST CROSS-CHECK THIS. `register(estateId, signer)` is first-come-wins — public ground
@@ -253,7 +259,7 @@ credentials:
       attestationRegistry: "0x79347E0FB5958Adc70C59F46808D32216e90d4e1"
       universalSignatureValidator: "0xC70f4897A92D16a9CF04c1B8646A268cA0fBfE55"
       rpcEnv: HOPECHAIN_RPC_URL
-      rowSigner: "0x432FE71eAB5442220Cb0CBb6974f741093De8Bd7"
+      rowSigner: "0x78D4609024B4aA3b68B0eD6E92a96f1212ffcc69"   # imbnet's gen-4 faithchain registry agent (gen 1: 0x432FE71e…)
       anchorKey: { tenant: imb, keyId: 01a149cb-06e9-7802-ab64-3cd5fdbe0913 }   # projector-imb-1 → 0x0c31ee18c4c3c885cd3605a6c45a95113874a38a (key service; a delegate under the wire)
       anchoringWire: .secrets/anchoring-wire-impact-agent.json
       # Spec 444: the ledger is the ORGANIZATION'S vault (its credential.issue act writes the submission); the scheduled
@@ -275,27 +281,29 @@ credentials:
     # case and the nightly gates that prove it. Retire it when cross-estate membership lands (option c).
     - id: imbnet-membership-issuer
       estate: impact-agent
-      sa: "0x432FE71eAB5442220Cb0CBb6974f741093De8Bd7"
+      sa: "0x78D4609024B4aA3b68B0eD6E92a96f1212ffcc69"   # GENERATION 4 (2026-11-11): the re-chartered registry agent; same issuing key, facet re-signed by the new agent (gen 1: 0x432FE71e…)
       chainId: 34348
       kind: registry-agent
       custodian: "maya (a person of this estate, via www.impact-agent.me)"
-      attestationRegistry: "0x4c94A0355380b8F5023eDd5f8A8131B020de19FA"
-      universalSignatureValidator: "0xeDd56f500325D4701B9985A34e5Fa6EED6716137"
+      attestationRegistry: "0xE135d506b9A9B62e0B5D4F682212c7224aa6566F"   # deployments-faithchain.json, generation 4
+      universalSignatureValidator: "0x0B4B34b21a4E396489344cDFEe1d15F3EDE7AE4E"   # generation 4
       rpcEnv: FEDERATION_RPC_URL
       anchorKey: { tenant: imb, keyId: 01a149cb-06e9-7802-ab64-3cd5fdbe0913 }   # projector-imb-1 → 0x0c31ee18c4c3c885cd3605a6c45a95113874a38a (key service; a delegate under the wire)
       anchoringWire: .secrets/anchoring-wire-impact-agent.json
       since: 2026-10-16
       # Written by scripts/setup-predicate-issuer.mts (2026-10-16, custodian maya through www.impact-agent.me): the facet is PUBLIC; the
-      # attestation (tx 0xfc71fa1a…) on faithchain's AttestationRegistry is what a verifier checks; the issuer row anchored at sequence 2.
+      # attestation on faithchain's AttestationRegistry is what a verifier checks. GENERATION 4 (2026-11-11): re-signed by the
+      # re-chartered agent with its credential type (same issuing key, so the credentials it issued stay good), attested on the
+      # gen-4 AttestationRegistry (tx 0xd169ff33…, the userOp built through www.faithnet.me, signed by maya at her Home).
       facets:
         - keyId: issuer-key:sd-jwt:imbnet-membership-issuer-1
           thumbprint: CNFguV_FDOnRyMJeVtr51AUYvNt0pjlSrEzDKNa6kfg
-          attestation: "0xebaf6600895e5e6e4d4507da4d340b45abec16252c570cbf1b176977e6748a08"
+          attestation: "0x24bea77a65f5931da338fbaaf6bd2c1798bf4adcd86ac5235726b1ee8a6649ac"
           revocationRoot: projection
           document:
-            facet: {"type":"IssuerKeyFacetV1","subjectAgent":"0x432fe71eab5442220cb0cbb6974f741093de8bd7","keyId":"issuer-key:sd-jwt:imbnet-membership-issuer-1","suite":"es256-sd-jwt","publicKeyJwk":{"kty":"EC","crv":"P-256","x":"bRJGs9GPJ6WzrS7bCTy12DI8QDIZzH1pFWwgrYwdH3o","y":"TDyTrcRtsbZ8HwgnkFze7aKhDOzLzkev1cTEGvuPuT8","kid":"CNFguV_FDOnRyMJeVtr51AUYvNt0pjlSrEzDKNa6kfg"},"validFrom":"2026-10-16T00:15:04.594Z"}
-            facetHash: sha256:91591d150dea1ea36ffb3166210d10ca43e103d5f65c42f881a63c8ac154d179
-            signature: "0x4d92b9d4ce9d90d7cbcc797cf2bb54873fcd8046aa7863ef6765a2381cc9d8173618d3fc0626ba2c2e3dd64cca2a9e10cbda913105f98f7f887593fdd21023bf1c"
+            facet: {"type":"IssuerKeyFacetV1","subjectAgent":"0x78d4609024b4aa3b68b0ed6e92a96f1212ffcc69","keyId":"issuer-key:sd-jwt:imbnet-membership-issuer-1","suite":"es256-sd-jwt","publicKeyJwk":{"kty":"EC","crv":"P-256","x":"bRJGs9GPJ6WzrS7bCTy12DI8QDIZzH1pFWwgrYwdH3o","y":"TDyTrcRtsbZ8HwgnkFze7aKhDOzLzkev1cTEGvuPuT8","kid":"CNFguV_FDOnRyMJeVtr51AUYvNt0pjlSrEzDKNa6kfg"},"credentialTypes":["https://agenticprimitives.dev/vct/organization-membership/v1"],"validFrom":"2026-11-11T11:19:23.809Z"}
+            facetHash: sha256:af3bbc6a257d8a41763a868282056e9ec0fa4ff72c63e211042d84950b143953
+            signature: "0x226855dcccc5d5ff0d80a220d5ceb3037186741c8cfd2d42adccdfa6fe7ff0b374ade6e787bc6fa1431de2feb62134d4c1fe19560b561b66f3103baadc4207d21c"
     # THE PRIVATE-SCRIPTURE BUILD (verifiable-content-demo, 2026-10-17): lbsb.svc — the faithnet service agent that licenses
     # the LBSB edition, stewarded by ruth.me, paid into lbsb-treasury.treasury — issues its readers' OpenAC credentials
     # ("licensed reader, valid until day N", bound to a fresh device key) after a payment, so a reader can prove a licence

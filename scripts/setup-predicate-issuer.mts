@@ -45,6 +45,10 @@ const flag = (n: string) => (args.includes(`--${n}`) ? args[args.indexOf(`--${n}
 const ISSUER = flag('issuer') ?? 'faithnet-gate-issuer';
 const CUSTODIAN = flag('custodian-persona') ?? 'demo-admin';
 const ISSUER_HOME = (flag('issuer-home') ?? 'https://www.faithnet.me').replace(/\/$/, '');
+// WHERE THE ISSUER'S USEROP IS BUILT AND SUBMITTED — a Home on the ISSUER'S chain. Defaults to the custodian's Home; a
+// custodian whose Home runs on another chain (maya at impact-agent.me, hopechain) custodies a faithchain issuer, so its
+// userOp goes through a faithchain Home (`--send-home https://www.faithnet.me`) and only the SIGNATURE comes from hers.
+const SEND_HOME = (flag('send-home') ?? ISSUER_HOME).replace(/\/$/, '');
 const HOLDER = flag('holder') ?? 'alice';
 const HOLDER_HOME = (flag('holder-home') ?? 'https://www.faithnet.me').replace(/\/$/, '');
 const DOOR = (flag('door') ?? 'https://door.ap-federation.faithnet.io').replace(/\/$/, '');
@@ -161,7 +165,7 @@ if (!attestation) {
   // (the custodian signs the UserOperation) — and `offchainCredentialStatusList` is inside the digest the issuer signed.
   const req = { schemaId: SCHEMA_ID, credentialType: ISSUER_KEY_FACET_TYPE, credentialHash: facetDigest, offchainCredentialStatusList: STATUS_LIST, subject: issuer.sa, issuer: issuer.sa, issuerSignature: signature, salt: saltN };
   await pub.simulateContract({ address: issuer.attestationRegistry, abi: ATTESTATION_ABI, functionName: 'assertAssociation', args: [req], account: issuer.sa });
-  const tx = await sendAsAccount({ home: ISSUER_HOME, sender: issuer.sa, call: { to: issuer.attestationRegistry, data: encodeFunctionData({ abi: ATTESTATION_ABI, functionName: 'assertAssociation', args: [req] }) }, sign: async (d) => (await personaSign(ISSUER_HOME, CUSTODIAN, d)).signature });
+  const tx = await sendAsAccount({ home: SEND_HOME, sender: issuer.sa, call: { to: issuer.attestationRegistry, data: encodeFunctionData({ abi: ATTESTATION_ABI, functionName: 'assertAssociation', args: [req] }) }, sign: async (d) => (await personaSign(ISSUER_HOME, CUSTODIAN, d)).signature });
   await pub.waitForTransactionReceipt({ hash: tx });
   attestation = computeAttestationUid({ subject: issuer.sa, party2: `0x${'00'.repeat(20)}`, issuer: issuer.sa, credentialType: ISSUER_KEY_FACET_TYPE, credentialHash: facetDigest, refUID: `0x${'00'.repeat(32)}`, salt: saltN });
   salt = saltN.toString();

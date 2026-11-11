@@ -218,8 +218,18 @@ if (existsSync(standingFile)) {
       check('§6 step 4: the identical intent repeated is handled as a DUPLICATE — the chain refuses the reused nonce and no second payment moves', againState === 'TASK_STATE_REJECTED' && /nonce|reverted|reused/i.test(againSaid) && afterAgain === after, `${againState} · "${againSaid.slice(0, 90)}" · payee still ${Number(afterAgain) / 1e6} ${symbol}`);
     }
   }
-  // the twin: the wire names ONE payee; a payment to anyone else is not a subset and derives nothing
-  const other = '0x000000000000000000000000000000000000dEaD';
+  // the twin: the wire names ONE payee; a payment to anyone else is not a subset and derives nothing.
+  // THE OTHER PAYEE IS A REAL TREASURY ON THE RECEIVING CHAIN (2026-11-11). `0x…dEaD` is nobody's account, and the estate's
+  // harness now refuses a counterparty that is not a treasury on its chain BEFORE asking for a signature (ap-home
+  // capability-preconditions `payeePrecondition`) — so a dead address would test the value rail, not the wire's bounds.
+  // impact-agent: imbnet-org's dues treasury (the register's own `membershipPayments.byIssuer`), hopechain; faithnet:
+  // lbsb-treasury.treasury, faithchain gen 4. Both carry atl:agentType treasury. F3_OTHER_TREASURY overrides.
+  const receivingId = (health as { receivingEstate?: string }).receivingEstate ?? '';
+  const OTHER_TREASURY: Record<string, string | undefined> = {
+    'impact-agent': (fed.doors as Array<{ estate: string; membershipPayments?: { byIssuer?: Record<string, { payee?: string }> } }>).find((d) => d.estate === 'impact-agent')?.membershipPayments?.byIssuer?.['imbnet-org']?.payee,
+    faithnet: '0xed3383Cad2d7B95F29586D2037326b029ba82B69',
+  };
+  const other = process.env.F3_OTHER_TREASURY ?? OTHER_TREASURY[receivingId] ?? '0x000000000000000000000000000000000000dEaD';
   const c3c = await challenge();
   const ask2 = await knock({ pres: await present(c3c.nonce, c3c.audience), challengeHeader: c3c.header, path: '/a2a', originAudience, text: `Pay 5 ${symbol} from ${standing.treasuryName ?? 'your treasury'} to ${other}.` });
   const task2 = (ask2.json?.result as { task?: { status?: { state?: string; message?: { parts?: Array<{ data?: Record<string, unknown> }> } } } } | undefined)?.task;
