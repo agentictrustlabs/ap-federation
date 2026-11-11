@@ -113,7 +113,7 @@ the mirror, never the record.
 
 | | |
 | --- | --- |
-| neutral ground | `0xb4E116F5C6915a4f1e649E0877e4a0A7a1c1147b` on faithchain (34348) |
+| neutral ground | `0x489E2b147C7F13fCf1c9e7A827a4D9Fd7bE2FEb9` on faithchain (34348) |
 | impact-agent | estateId `0xe96d2c36…`, governance `imbnet.estate`; people and grants on hopechain (34349), projection on faithchain; anchored, signer declared |
 | faithnet | `faithnet.estate`; anchored, signer declared |
 | issuers | `imbnet-org` (the organization, hopechain; `ledger: vault`; anchored from its vault by the Worker), `imbnet-membership-issuer` and `faithnet-gate-issuer` (registry agents, file ledgers) |

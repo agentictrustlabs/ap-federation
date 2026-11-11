@@ -20,7 +20,7 @@ const subject = privateKeyToAccount('0xac0974bec39a17e36ba4a6b4d238ff944bacb478c
 const thief = privateKeyToAccount('0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d');
 const SUBJECT = subject.address.toLowerCase() as `0x${string}`;
 const THIEF = thief.address.toLowerCase() as `0x${string}`;
-const VALIDATOR = '0xa5855906c0de3813e74bee201973071e0c844115' as Address;
+const VALIDATOR = '0xC70f4897A92D16a9CF04c1B8646A268cA0fBfE55' as Address;
 
 const L1 = { digest: `0x${'11'.repeat(32)}` as Hex, blind: `0x${'a1'.repeat(32)}` as Hex, subject: SUBJECT };
 const projection = buildProjection({ chainId: ANCHOR_CHAIN, governance: GOV, sequence: 4, liveGrants: [L1, { digest: `0x${'22'.repeat(32)}`, blind: `0x${'a2'.repeat(32)}`, subject: THIEF }], memberships: [] });

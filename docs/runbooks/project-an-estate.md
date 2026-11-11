@@ -7,7 +7,7 @@ can prove one leaf against the root it reads itself. It grants nobody anything.
 
 | | |
 | --- | --- |
-| neutral ground | an `EstateProjectionRegistry` on a chain both parties can read. faithchain's is `0xb4E116F5C6915a4f1e649E0877e4a0A7a1c1147b` (deployed 2026-10-13, Ring 0 `script/DeployEstateProjectionRegistry.s.sol`). |
+| neutral ground | an `EstateProjectionRegistry` on a chain both parties can read. faithchain's is `0x489E2b147C7F13fCf1c9e7A827a4D9Fd7bE2FEb9` (deployed 2026-10-13, Ring 0 `script/DeployEstateProjectionRegistry.s.sol`). |
 | **the estate's own agent** | **the one that bites.** `governance` in the register must be an address that will still mean *this estate* in a year, because the estate id is `keccak256("eip155:<chainId>:<governance>")` and is permanent. That is the estate agent's SA (`<estate>.estate`), not a key — keys rotate. |
 | an anchoring key | funded for gas on neutral ground. It is the estate's voice there; `rotateSigner` moves it. |
 | a chain endpoint | `FEDERATION_RPC_URL`. The register names the variable, never the URL: it carries an app token. |

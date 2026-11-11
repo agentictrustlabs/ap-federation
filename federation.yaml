@@ -17,8 +17,8 @@ federation: faithchain-neutral-ground
 registry:
   chainId: 34348
   chain: faithchain
-  address: "0xb4E116F5C6915a4f1e649E0877e4a0A7a1c1147b"
-  deployed: 2026-10-13
+  address: "0x489E2b147C7F13fCf1c9e7A827a4D9Fd7bE2FEb9"
+  deployed: 2026-11-11   # generation 4 (spec 445 estate reset); the 2026-10-13 instance is orphaned history
   deployTx: script/DeployEstateProjectionRegistry.s.sol (Ring 0 packages/contracts)
   # The RPC is read from this environment variable — never written here (it carries an app token).
   rpcEnv: FEDERATION_RPC_URL
@@ -64,10 +64,10 @@ estates:
     # Revocation is read on the ESTATE'S chain, and this is the contract that answers (Ring 0
     # `deployments-faithchain.json#delegationManager`). No address here means nothing can be pruned, and the
     # projector then refuses to vouch for a set it cannot narrow.
-    # The DelegationManager on the HOME chain (deployments-hopechain.json) — the same hex as faithchain's by the deployer's
-    # nonces, and a different contract; the profile resolver is the one on the PROJECTION chain, where the estate agent
+    # The DelegationManager on the HOME chain (deployments-hopechain.json) — a different contract from faithchain's (generation 4 re-deployed it, spec 445);
+    # the profile resolver is the one on the PROJECTION chain, where the estate agent
     # declares its signer (F2.5).
-    delegationManager: "0x710cb1bF08C234Df397e0910331e0A29710EF4F7"
+    delegationManager: "0x80Cb228891D354F466E12a93A1726BFE740f9904"
     # Where the estate agent declares `atl:projectionSigner` (spec 439 F2.5; Ring 0 deployments-faithchain.json#agentProfileResolver).
     profileResolver: "0xB03F7C06ad3274F584AB72794406D639c02A45e1"
     # Its chain endpoint. Omitted = neutral ground's, which is only correct while they share a chain. An
@@ -191,7 +191,7 @@ doors:
       byIssuer:
         imbnet-org:
           payee: "0x57988d43497Aa8e707Aa650127a84373650399f5"
-          asset: "0xBd19d53981677357052EF9768B70929217a6F1F0"
+          asset: "0x9e24f6d81e801dFceFA9DC15475A411727DCA5Ca"
           chainId: 34349
           symbol: USDC
           decimals: 6
@@ -242,8 +242,8 @@ credentials:
       chainId: 34349
       kind: organization
       custodian: "maya (steward; via www.impact-agent.me)"
-      attestationRegistry: "0x2D5EFeeB87f60244530e0a1ed420755090295cC4"
-      universalSignatureValidator: "0xa5855906C0De3813E74BEe201973071e0c844115"
+      attestationRegistry: "0x79347E0FB5958Adc70C59F46808D32216e90d4e1"
+      universalSignatureValidator: "0xC70f4897A92D16a9CF04c1B8646A268cA0fBfE55"
       rpcEnv: HOPECHAIN_RPC_URL
       rowSigner: "0x432FE71eAB5442220Cb0CBb6974f741093De8Bd7"
       anchorKey: { tenant: imb, keyId: 01a149cb-06e9-7802-ab64-3cd5fdbe0913 }   # projector-imb-1 → 0x0c31ee18c4c3c885cd3605a6c45a95113874a38a (key service; a delegate under the wire)
@@ -403,7 +403,7 @@ towns:
     registry: https://discovery-a2a.hopenet.town
     rpc: https://rpc.hopenet.town
     rpcEnv: HOPECHAIN_RPC_URL
-    universalSignatureValidator: "0xa5855906C0De3813E74BEe201973071e0c844115"   # deployments-hopechain.json — NOT faithchain's address
+    universalSignatureValidator: "0xC70f4897A92D16a9CF04c1B8646A268cA0fBfE55"   # deployments-hopechain.json — NOT faithchain's address
   - id: base-sepolia
     chainId: 84532
     status: retired

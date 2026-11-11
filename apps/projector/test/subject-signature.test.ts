@@ -5,7 +5,7 @@ import { declaredSubjectChain, subjectSignatureCheckFor, type TownRow } from '..
 
 const TOWNS: TownRow[] = [
   { id: 'faithchain', chainId: 34348, rpcEnv: 'FEDERATION_RPC_URL', universalSignatureValidator: '0xeDd56f500325D4701B9985A34e5Fa6EED6716137' },
-  { id: 'hopenet', chainId: 34349, rpcEnv: 'HOPECHAIN_RPC_URL', universalSignatureValidator: '0xa5855906C0De3813E74BEe201973071e0c844115' },
+  { id: 'hopenet', chainId: 34349, rpcEnv: 'HOPECHAIN_RPC_URL', universalSignatureValidator: '0xC70f4897A92D16a9CF04c1B8646A268cA0fBfE55' },
   { id: 'no-validator', chainId: 7, rpcEnv: 'SEVEN_RPC_URL' },
 ];
 
