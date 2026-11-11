@@ -45,17 +45,25 @@ set -a; . .secrets/projector-akcs.env; set +a   # AKCS_TOKEN_<TENANT>: the calle
 # .secrets/anchoring-wire-<estate>.json. Nothing here holds a key; `project` without a wire refuses.
 
 pnpm projector status                                        # register vs chain, for every estate
-pnpm projector register --estate impact-agent                      # binds the estate id to its signer — ONCE
+# (no `register` since generation 4: the row opens at the signer's first `project`; the estate DECLARES its signer)
 pnpm projector submit  --estate impact-agent --set live-grant \
   --digest 0x… --subject 0x… --by "maya, under her own session" --source "…"
 pnpm projector retire  --estate impact-agent --digest 0x… --reason "the holder asked for it back"
 pnpm projector project --estate impact-agent [--dry-run]           # prune, build, anchor (or say why not)
 pnpm projector present --estate impact-agent --digest 0x… --audience https://edge.faithnet.io
-pnpm projector verify  --file .submissions/presentation-….json
+pnpm projector verify  --file .submissions/presentation-….json --chain 34349   # the SUBJECT's chain, declared
 ```
 
 `verify` runs the same `verifyAuthorityPresentation` the receiving edge runs in F2, against the roots read
 from the chain. It is the only command that needs no key at all — **a verifier holds nothing.**
+
+**A presentation is proof of possession** (Ring 0 spec 445 §3.8). An estate leaf commits to its subject
+(`keccak256(digest ‖ blind ‖ subject32)`, `merkle-membership-v2`); `present` writes the estate's half, and the
+**subject** signs the challenge with its own account — `authorityPresentationTypedData(pres, { chainId })`, the chain
+its account lives on — and attaches `subjectSignature`. The projector never signs as a subject. `verify --chain <id>`
+reads that signature through the town's `UniversalSignatureValidator` (`src/subject-signature.ts`); the chain is
+declared, never defaulted. An estate anchored before the bump re-anchors once
+(`docs/runbooks/project-an-estate.md` §4a).
 
 ## Issuer mode (`--issuer <id>`, Ring 0 zkID Z3 / spec 444)
 
@@ -67,7 +75,6 @@ the registry does not (imbnet-org on hopechain: the estate's faithchain registry
 
 ```bash
 pnpm projector status         --issuer imbnet-org
-pnpm projector register       --issuer imbnet-org                       # once; the row → its signer
 pnpm projector submit         --issuer imbnet-org --digest 0x… [--by …] # the issuer vouches (file-ledger issuers)
 pnpm projector retire         --issuer imbnet-org --digest 0x… --reason "…"
 pnpm projector project        --issuer imbnet-org [--dry-run]
@@ -106,7 +113,7 @@ the mirror, never the record.
 
 | | |
 | --- | --- |
-| neutral ground | `0xb4E116F5C6915a4f1e649E0877e4a0A7a1c1147b` on faithchain (34348) |
+| neutral ground | `0x489E2b147C7F13fCf1c9e7A827a4D9Fd7bE2FEb9` on faithchain (34348) |
 | impact-agent | estateId `0xe96d2c36…`, governance `imbnet.estate`; people and grants on hopechain (34349), projection on faithchain; anchored, signer declared |
 | faithnet | `faithnet.estate`; anchored, signer declared |
 | issuers | `imbnet-org` (the organization, hopechain; `ledger: vault`; anchored from its vault by the Worker), `imbnet-membership-issuer` and `faithnet-gate-issuer` (registry agents, file ledgers) |

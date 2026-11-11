@@ -1,18 +1,18 @@
 {
   "binding": {
     "binding": {
-      "canonicalAgentId": "eip155:34348:0xf29038602367e1645fe09f180fc326f7cd2634b0",
+      "canonicalAgentId": "eip155:34348:0xb88420134b1b22485646430399abbeabd496e4b2",
       "scope": "service",
       "clientId": "https://pap.faithnet.io/client.json",
       "jwkThumbprint": "pcqBOdG0AaHF4pBicNLxjdAT54v7FJO3j74nuE4jFvg",
       "alg": "ES256",
       "custodyEpoch": 0,
-      "notBefore": 1792109235,
-      "notAfter": 1799885295
+      "notBefore": 1794397068,
+      "notAfter": 1802173128
     },
     "chainId": 34348,
-    "verifyingContract": "0xf29038602367e1645fe09f180fc326f7cd2634b0",
-    "signature": "0x0de9cce5fdddda95beb491dbf3ae669f4942a7b86cb270db3ac5fb3803b4000f538a2ebd59e1a8b44bf8eb464374d2986995528c9a5efdea90873a6da920aa0f1c"
+    "verifyingContract": "0xb88420134b1b22485646430399abbeabd496e4b2",
+    "signature": "0x2f5c23b59b672ece52fe7c587951d1f5d6c57dfb457cc3a87486fc4fb937b6b834d15c45186b0192f8eb516f8752c930eee95e51e55cff0fd9c6113ae1d8e7051c"
   },
   "publicJwk": {
     "kty": "EC",
@@ -30,10 +30,10 @@
         "scope": "service",
         "clientId": "https://pap.faithnet.io/client.json",
         "custodyEpoch": 0,
-        "notAfter": 1799885295
+        "notAfter": 1802173128
       }
     ]
   },
-  "tx": "0xc6bdb8151b19ac45e08cadf167f40957c730d789e292597316336616518133f2",
-  "at": "2026-10-16T00:08:21.655Z"
+  "tx": "0xbcf1a6ab3c5eb3070c0c320c8d12eec4bc62d7aa9cd9bc741969227e2972781f",
+  "at": "2026-11-11T11:38:54.100Z"
 }

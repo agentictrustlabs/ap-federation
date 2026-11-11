@@ -19,7 +19,7 @@
 // that is safe in exactly one direction, since every presentation against it fails inclusion.
 import type { AnchorAuthority, DeclaredSigner } from './anchor.js';
 import { buildProjection, type EstateProjectionV1 } from '@agenticprimitives/estate-projection';
-import type { Hex } from 'viem';
+import type { Address, Hex } from 'viem';
 import { anchorDecision, type AnchorDecision, type AnchoredState, type RegistryClient } from './anchor.js';
 import type { ProjectableEstate } from './config.js';
 import { leafOf, type SubmissionLedger, type SubmissionV1 } from './ledger.js';
@@ -79,37 +79,43 @@ export async function buildForSequence(estate: ProjectableEstate, input: {
   };
 }
 
+/**
+ * The row an estate's roots are anchored under. The DECLARATION wins when there is one; the register's `signer` is a
+ * claim that must agree with it. With neither, there is no row to name — refuse, never guess (ADR-0013).
+ */
+export function rowSignerOf(estate: ProjectableEstate, declared?: DeclaredSigner): Address {
+  const claimed = estate.signer?.toLowerCase() as Address | undefined;
+  if (declared?.declared) {
+    if (claimed && declared.signer.toLowerCase() !== claimed) {
+      throw new Error(`estate ${estate.id}: the estate agent declares ${declared.signer} as its projection signer but the register says ${claimed} — the register is stale or the declaration is not the one meant; nothing anchored`);
+    }
+    return declared.signer.toLowerCase() as Address;
+  }
+  if (!claimed) throw new Error(`estate ${estate.id} has no projection signer: nothing is declared on its chain and the register names none`);
+  return claimed;
+}
+
 export async function projectEstate(estate: ProjectableEstate, deps: ProjectDeps): Promise<ProjectionRun> {
   const now = deps.now ?? (() => new Date());
   const warnings: string[] = [];
 
-  const onChainSigner = await deps.registry.signerOf(estate.estateId);
-  if (onChainSigner && estate.signer && onChainSigner.toLowerCase() !== estate.signer.toLowerCase()) {
-    throw new Error(
-      `estate ${estate.id}: the registry's signer for ${estate.estateId} is ${onChainSigner}, the register claims ${estate.signer}.\n` +
-      '  `register` is first-come-wins, so this is either a stale register or an id someone else bound first. Resolve it before anchoring.',
-    );
-  }
-  if (!onChainSigner) throw new Error(`estate ${estate.id} is not registered on neutral ground yet — run \`projector register --estate ${estate.id}\` first`);
-  // F2.5 — THE CROSS-CHECK, read from the estate's own chain when the run can reach it. The register's
-  // `declaredOnChain` is a claim; `atl:projectionSigner` on the estate agent is the fact, and `signerOf` on neutral
-  // ground is what it must agree with. Three outcomes, each said: declared and equal; declared and DIFFERENT (the
-  // registration is somebody else's — stop); undeclared (reviewable here, not chain-verifiable).
-  if (deps.declaredSigner) {
-    const registered = await deps.registry.signerOf(estate.estateId);
-    if (deps.declaredSigner.declared && registered && deps.declaredSigner.signer.toLowerCase() !== registered.toLowerCase()) {
-      throw new Error(`the estate agent declares ${deps.declaredSigner.signer} as its projection signer but neutral ground has ${registered} registered for ${estate.estateId}: this registration is not the estate's — nothing anchored`);
-    }
-    if (deps.declaredSigner.declared) warnings.length = 0; // nothing to warn about: chain-verifiable both ways
-    else warnings.push('the estate agent has not declared `atl:projectionSigner` on its own chain — reviewable in this register and ap-town, not yet chain-verifiable (spec 439 F2.5; ap-home scripts/set-projection-signer.mts writes it)');
+  // REG-2 (generation 4): the row is `(estateId, signer)` and the registry no longer names the estate's. The signer is the
+  // estate's own declaration (`atl:projectionSigner`, read on its chain); the register's `signer` is a claim that must
+  // agree. Declared and different ⇒ stop. Undeclared ⇒ the register's claim, said: reviewable, not chain-verifiable.
+  const signer = rowSignerOf(estate, deps.declaredSigner);
+  if (deps.declaredSigner?.declared) { /* declared and equal to the register's claim: nothing to warn about */ }
+  else if (deps.declaredSigner) {
+    warnings.push('the estate agent has not declared `atl:projectionSigner` on its own chain — a verifier reads NO row for it (it reads only the declared signer\'s), so this anchor is not yet presentable at any door (spec 445 B2; ap-home scripts/set-projection-signer.mts writes the declaration)');
   } else if (!estate.declaredOnChain) {
     warnings.push(
-      'the signer is not declared on the estate\'s own chain, so a verifier can only cross-check it against this repository and ap-town — ' +
-      'until `atl:projectionSigner` exists (spec 439 F2), a first-come-wins registration is reviewable but not chain-verifiable.',
+      'the signer is not declared on the estate\'s own chain, so no verifier reads this row yet — `atl:projectionSigner` must exist (spec 439 F2.5; since generation 4 a verifier reads only the declared signer\'s row).',
     );
   }
+  if (await deps.registry.isRetired(estate.estateId, signer)) {
+    throw new Error(`estate ${estate.id}: the signer ${signer} is retired on neutral ground (it rotated away) — the estate's declaration and the register's signer are stale; nothing anchored`);
+  }
 
-  const anchoredBefore = await deps.registry.roots(estate.estateId);
+  const anchoredBefore = await deps.registry.roots(estate.estateId, signer);
   const built = await buildForSequence(estate, { ledger: deps.ledger, liveness: deps.liveness, sequence: anchoredBefore.sequence + 1, now });
   const { projection, dropped } = built;
 
@@ -129,7 +135,7 @@ export async function projectEstate(estate: ProjectableEstate, deps: ProjectDeps
   if (!decision.anchor || !deps.anchor) return run;
 
   run.txHash = await deps.registry.setRoots({
-    estateId: estate.estateId,
+    signer, estateId: estate.estateId,
     liveGrantRoot: projection.liveGrantRoot,
     membershipRoot: projection.membershipRoot,
     sequence: decision.sequence,

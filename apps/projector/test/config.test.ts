@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { anchorAccount, estateById, loadFederation, registryRpc, requireProjectable } from '../src/config.js';
 
 const write = (yaml: string) => { const p = join(mkdtempSync(join(tmpdir(), 'ap-fed-cfg-')), 'federation.yaml'); writeFileSync(p, yaml); return p; };
-const REGISTRY = `federation: t\nregistry:\n  chainId: 34348\n  chain: faithchain\n  address: "0xb4E116F5C6915a4f1e649E0877e4a0A7a1c1147b"\n  rpcEnv: TEST_RPC\n`;
+const REGISTRY = `federation: t\nregistry:\n  chainId: 34348\n  chain: faithchain\n  address: "0x489E2b147C7F13fCf1c9e7A827a4D9Fd7bE2FEb9"\n  rpcEnv: TEST_RPC\n`;
 
 describe('loadFederation', () => {
   it('refuses a register that omits governance rather than defaulting it', () => {

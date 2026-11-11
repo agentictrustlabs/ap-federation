@@ -1,9 +1,10 @@
 // NEUTRAL GROUND, READ AND WRITTEN — `EstateProjectionRegistry` (spec 410 §4, spec 439 F1).
 //
-// Four calls, and that is the whole surface: `register`, `rotateSigner`, `setRoots`, `roots`. The ABI is
-// written out here rather than imported because the registry HAS NO UPGRADE PATH — no admin, no pause, no
-// proxy — so the deployed surface is final and cannot drift under this file. The same property is why the
-// contract can be common ground at all.
+// Generation 4 (spec 445 / REG-2): rows are keyed by `(estateId, signer)`. There is NO `register` and NO `signerOf`:
+// `setRoots(estateId, …)` writes the CALLER's row, so the registry no longer says which row is the estate's — the
+// estate's own declaration does (`atl:projectionSigner`, read below). The ABI is the package's
+// (`estateProjectionRegistryAbi`), pinned to the contract's shape by Ring 0's own test; the registry HAS NO UPGRADE
+// PATH, so the deployed surface is final.
 //
 // THE SEQUENCE IS THE WHOLE FRESHNESS STORY, and it has a consequence worth stating before anyone is
 // surprised by it. A verifier accepts a presentation only when its sequence IS the anchored one and the
@@ -14,20 +15,10 @@
 //   · a set that never changes must STILL be re-anchored, or every presentation against it ages out;
 //   · therefore the heartbeat interval must sit below the shortest `maxAge` any counterparty uses, and a
 //     presentation is deliberately short-lived. That is the cost of "a stale root is a refusal".
+import { estateProjectionRegistryAbi } from '@agenticprimitives/estate-projection';
 import { createPublicClient, createWalletClient, encodeFunctionData, http, keccak256, toHex, type Address, type Hex, type LocalAccount } from 'viem';
 
-export const ESTATE_PROJECTION_REGISTRY_ABI = [
-  { type: 'function', name: 'signerOf', stateMutability: 'view', inputs: [{ name: 'estateId', type: 'bytes32' }], outputs: [{ type: 'address' }] },
-  { type: 'function', name: 'estateIdOf', stateMutability: 'pure', inputs: [{ name: 'chainId', type: 'uint256' }, { name: 'governance', type: 'address' }], outputs: [{ type: 'bytes32' }] },
-  { type: 'function', name: 'roots', stateMutability: 'view', inputs: [{ name: 'estateId', type: 'bytes32' }], outputs: [
-    { name: 'liveGrantRoot', type: 'bytes32' }, { name: 'membershipRoot', type: 'bytes32' }, { name: 'charterHash', type: 'bytes32' },
-    { name: 'sequence', type: 'uint64' }, { name: 'anchoredAt', type: 'uint64' }] },
-  { type: 'function', name: 'register', stateMutability: 'nonpayable', inputs: [{ name: 'estateId', type: 'bytes32' }, { name: 'signer', type: 'address' }], outputs: [] },
-  { type: 'function', name: 'rotateSigner', stateMutability: 'nonpayable', inputs: [{ name: 'estateId', type: 'bytes32' }, { name: 'to', type: 'address' }], outputs: [] },
-  { type: 'function', name: 'setRoots', stateMutability: 'nonpayable', inputs: [
-    { name: 'estateId', type: 'bytes32' }, { name: 'liveGrantRoot', type: 'bytes32' }, { name: 'membershipRoot', type: 'bytes32' },
-    { name: 'charterHash', type: 'bytes32' }, { name: 'sequence', type: 'uint64' }], outputs: [] },
-] as const;
+export const ESTATE_PROJECTION_REGISTRY_ABI = estateProjectionRegistryAbi;
 
 /** `DelegationManager.redeemDelegation` — hand-authored (the SDK publishes no ABI for it), so the projector can
  *  anchor THROUGH the estate's registry agent instead of as a key of its own. */
@@ -57,6 +48,8 @@ export interface AnchoringWireV1 {
 export const ZERO_32 = `0x${'00'.repeat(32)}` as Hex;
 
 export interface AnchoredState {
+  /** The row this was read from: `roots(estateId, signer)` — the estate's DECLARED signer's, nobody else's. */
+  signer: Address;
   liveGrantRoot: Hex; membershipRoot: Hex; charterHash: Hex; sequence: number; anchoredAt: number;
   /** Nothing has ever been anchored for this estate. `sequence === 0` is the registry's own "never". */
   never: boolean;
@@ -84,11 +77,12 @@ export async function readDeclaredSigner(opts: { rpcUrl: string; chainId: number
 export interface RegistryClient {
   address: Address;
   chainId: number;
-  signerOf(estateId: Hex): Promise<Address | null>;
-  roots(estateId: Hex): Promise<AnchoredState>;
+  /** `roots(estateId, signer)` — one signer's row. A row nobody wrote reads as `sequence 0` (`never`). */
+  roots(estateId: Hex, signer: Address): Promise<AnchoredState>;
+  /** `isRetired(estateId, signer)` — the signer rotated away; its row is refused by every verifier. */
+  isRetired(estateId: Hex, signer: Address): Promise<boolean>;
   estateIdOf(chainId: number, governance: Address): Promise<Hex>;
-  register(estateId: Hex, signer: Address, account: LocalAccount): Promise<Hex>;
-  setRoots(input: { estateId: Hex; liveGrantRoot: Hex; membershipRoot: Hex; charterHash?: Hex; sequence: number }, account: LocalAccount, wire: AnchoringWireV1): Promise<Hex>;
+  setRoots(input: { signer: Address; estateId: Hex; liveGrantRoot: Hex; membershipRoot: Hex; charterHash?: Hex; sequence: number }, account: LocalAccount, wire: AnchoringWireV1): Promise<Hex>;
 }
 
 export function registryClient(opts: { rpcUrl: string; chainId: number; address: Address }): RegistryClient {
@@ -99,26 +93,23 @@ export function registryClient(opts: { rpcUrl: string; chainId: number; address:
   return {
     address: opts.address,
     chainId: opts.chainId,
-    async signerOf(estateId) {
-      const s = (await pub.readContract({ ...base, functionName: 'signerOf', args: [estateId] })) as Address;
-      return /^0x0{40}$/i.test(s) ? null : s;
-    },
-    async roots(estateId) {
-      const r = (await pub.readContract({ ...base, functionName: 'roots', args: [estateId] })) as readonly [Hex, Hex, Hex, bigint, bigint];
+    async roots(estateId, signer) {
+      const r = (await pub.readContract({ ...base, functionName: 'roots', args: [estateId, signer] })) as readonly [Hex, Hex, Hex, bigint, bigint];
       const sequence = Number(r[3]);
-      return { liveGrantRoot: r[0], membershipRoot: r[1], charterHash: r[2], sequence, anchoredAt: Number(r[4]), never: sequence === 0 };
+      return { signer: signer.toLowerCase() as Address, liveGrantRoot: r[0], membershipRoot: r[1], charterHash: r[2], sequence, anchoredAt: Number(r[4]), never: sequence === 0 };
+    },
+    async isRetired(estateId, signer) {
+      return (await pub.readContract({ ...base, functionName: 'isRetired', args: [estateId, signer] })) as boolean;
     },
     async estateIdOf(chainId, governance) {
       return (await pub.readContract({ ...base, functionName: 'estateIdOf', args: [BigInt(chainId), governance] })) as Hex;
     },
-    async register(estateId, signer, account) {
-      const hash = await wallet(account).writeContract({ ...base, functionName: 'register', args: [estateId, signer] });
-      await pub.waitForTransactionReceipt({ hash });
-      return hash;
-    },
     async setRoots(input, account, wire) {
+      // The row written is the CALLER's — here the wire's delegator (the registry agent). It must be the row the caller
+      // means to refresh: a wire from some other account would open a row nobody reads and leave the estate's row to age out.
+      if (wire.wire.delegator.toLowerCase() !== input.signer.toLowerCase()) throw new Error(`the anchoring wire's delegator ${wire.wire.delegator} would write ${wire.wire.delegator}'s row, not ${input.signer}'s — nothing was sent`);
       const args = [input.estateId, input.liveGrantRoot, input.membershipRoot, input.charterHash ?? ZERO_32, BigInt(input.sequence)] as const;
-      // ONE WAY TO BE THE SIGNER (spec 439 §4): the registry agent IS `signerOf(estateId)`, and this key — the key
+      // ONE WAY TO BE THE SIGNER (spec 439 §4): the registry agent IS the row's signer (`msg.sender` of `setRoots`), and this key — the key
       // service's, a delegate — merely holds a revocable permission to call `setRoots` on its behalf. The manager executes
       // through the agent's account, so the registry sees `msg.sender == the agent`. Revoking the wire stops this key
       // anchoring, at once, without touching the agent. The F1 shape, where the key itself was the registered signer, is

@@ -11,13 +11,21 @@
 // Twins: the same presentation one sequence behind → FOREIGN_ESTATE_STALE; a presentation for another audience →
 // FOREIGN_ESTATE_CHALLENGE_MISMATCH; a replayed proof → 401; no proof → 401; a presentation about another subject →
 // FOREIGN_ESTATE_SUBJECT_MISMATCH. Needs FEDERATION_RPC_URL (reads the anchor the way the door does) and the test key.
+//
+// Ring 0 spec 445 §3.8 (audit H-14): a presentation is PROOF OF POSSESSION. The projector hands out the estate's half
+// (leaf, opening, proof — unsigned); the presenter, who IS the leaf's subject, signs the door's challenge with its own
+// account (EIP-712 `AgenticAuthorityPresentation` v2, chainId = the chain its account lives on) and attaches
+// `subjectSignature`. Three more twins: a presentation a stranger saw and re-aimed at itself →
+// FOREIGN_ESTATE_OPENING_MISMATCH; one with no signature → FOREIGN_ESTATE_SUBJECT_SIGNATURE_MISSING; one signed by
+// anyone but its subject → FOREIGN_ESTATE_SUBJECT_SIGNATURE_INVALID.
 import { readFileSync, existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { createPublicClient, http, type Address, type Hex } from 'viem';
-import { privateKeyToAccount } from 'viem/accounts';
+import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
 import { requestProofDigest, sha256Of, type AgenticRequestProofClaims } from '@agenticprimitives/admission';
 import { callerAssertionDigest, requestBodyHash, sessionAuthorizationHeader } from '@agenticprimitives/a2a/standard';
 import { deriveFromStanding, parkedNeedOf, type StandingWireV1 } from '@agenticprimitives/delegation';
+import { authorityPresentationTypedData, type AuthorityPresentationV1 } from '@agenticprimitives/estate-projection';
 import { parse } from 'yaml';
 
 const DOOR = (process.env.FEDERATION_DOOR_URL ?? 'https://door.ap-federation.faithnet.io').replace(/\/$/, '');
@@ -31,17 +39,19 @@ if (!existsSync('.secrets/f2-test-agent.env') || !existsSync(wireFile)) throw ne
 const key = /F2_TEST_AGENT_KEY=(0x[0-9a-fA-F]{64})/.exec(readFileSync('.secrets/f2-test-agent.env', 'utf8'))![1] as Hex;
 const me = privateKeyToAccount(key);
 const wire = JSON.parse(readFileSync(wireFile, 'utf8')) as { digest: Hex; chainId: number };
-const fed = parse(readFileSync('federation.yaml', 'utf8')) as { towns?: { id: string; chainId: number; rpcEnv?: string }[]; registry: { address: string; chainId: number }; estates: { id: string; chainId?: number; homeChainId?: number; governance: string | null }[] };
+const fed = parse(readFileSync('federation.yaml', 'utf8')) as { towns?: { id: string; chainId: number; rpcEnv?: string }[]; registry: { address: string; chainId: number }; estates: { id: string; chainId?: number; homeChainId?: number; governance: string | null; signer?: string }[] };
 const rpc = process.env.FEDERATION_RPC_URL ?? (() => { throw new Error('FEDERATION_RPC_URL is not set'); })();
 const pub = createPublicClient({ chain: { id: fed.registry.chainId, name: 'x', nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 }, rpcUrls: { default: { http: [rpc] } } }, transport: http(rpc) });
 const REGISTRY_ABI = [{ type: 'function', name: 'estateIdOf', stateMutability: 'pure', inputs: [{ name: 'chainId', type: 'uint256' }, { name: 'governance', type: 'address' }], outputs: [{ type: 'bytes32' }] },
-  { type: 'function', name: 'roots', stateMutability: 'view', inputs: [{ name: 'estateId', type: 'bytes32' }], outputs: [{ name: 'liveGrantRoot', type: 'bytes32' }, { name: 'membershipRoot', type: 'bytes32' }, { name: 'charterHash', type: 'bytes32' }, { name: 'sequence', type: 'uint64' }, { name: 'anchoredAt', type: 'uint64' }] }] as const;
+  { type: 'function', name: 'roots', stateMutability: 'view', inputs: [{ name: 'estateId', type: 'bytes32' }, { name: 'signer', type: 'address' }], outputs: [{ name: 'liveGrantRoot', type: 'bytes32' }, { name: 'membershipRoot', type: 'bytes32' }, { name: 'charterHash', type: 'bytes32' }, { name: 'sequence', type: 'uint64' }, { name: 'anchoredAt', type: 'uint64' }] }] as const;
 const estate = fed.estates.find((e) => e.id === estateId)!;
 // W4: the presenter signs as the account on its estate's HOME chain (where its people live), which the door verifies on THAT
 // chain's validator; the roots it is proved against stay on the registry's chain. One chain today for faithnet, two for impact-agent.
 const presenterChain = estate.homeChainId ?? wire.chainId;
 const estateKey = (await pub.readContract({ address: fed.registry.address as Address, abi: REGISTRY_ABI, functionName: 'estateIdOf', args: [BigInt(estate.chainId ?? fed.registry.chainId), estate.governance as Address] })) as Hex;
-const anchored = (await pub.readContract({ address: fed.registry.address as Address, abi: REGISTRY_ABI, functionName: 'roots', args: [estateKey] })) as readonly [Hex, Hex, Hex, bigint, bigint];
+// Generation 4: the row is the estate's signer's. The register's claim is used for this display; the DOOR reads the
+// estate's own DECLARATION (`atl:projectionSigner`) and refuses a row that is not that signer's.
+const anchored = (await pub.readContract({ address: fed.registry.address as Address, abi: REGISTRY_ABI, functionName: 'roots', args: [estateKey, (estate.signer ?? `0x${'00'.repeat(20)}`) as Address] })) as readonly [Hex, Hex, Hex, bigint, bigint];
 console.log(`presenter eip155:${presenterChain}:${me.address} · estate ${estateId} ${estateKey.slice(0, 10)}… anchored at sequence ${anchored[3]} · door ${DOOR}`);
 
 const health = await (await fetch(`${DOOR}/health`)).json() as { configured?: boolean; boundaryId?: string; origin?: string };
@@ -51,31 +61,40 @@ async function challenge(subject = me.address) {
   // The subject goes in the body, never in a URL (spec 442 §7.6; 443 W0).
   return (await (await fetch(`${DOOR}/federation/challenge`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ subject }) })).json()) as { nonce: Hex; audience: string; header: string };
 }
-function present(nonce: Hex, audience: string): unknown {
+/** THE ESTATE'S HALF: the leaf, its opening and its proof for one challenge — unsigned, and so not yet presentable. */
+function presentUnsigned(nonce: Hex, audience: string): AuthorityPresentationV1 {
   const file = `.submissions/presentation-f2-${Date.now()}.json`;
   execFileSync('pnpm', ['-s', 'projector', 'present', '--estate', estateId, '--digest', wire.digest, '--audience', audience, '--nonce', nonce, '--out', file], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'] });
-  return JSON.parse(readFileSync(file, 'utf8'));
+  return JSON.parse(readFileSync(file, 'utf8')) as AuthorityPresentationV1;
 }
-async function knock(opts: { pres?: unknown; challengeHeader?: string; path?: string; body?: string; sign?: boolean; replayId?: string; audience?: string; proofOverride?: string; originAudience?: string; text?: string; taskId?: string; metadata?: Record<string, unknown> }) {
+/** THE SUBJECT'S HALF (spec 445 §3.8): the account the leaf is about signs THIS challenge, on the chain it lives on —
+ *  the same chain its request proof names, which is the presenting estate's home chain. */
+async function signPresentation(pres: AuthorityPresentationV1, by: Signer = me): Promise<AuthorityPresentationV1> {
+  return { ...pres, subjectSignature: await by.signTypedData(authorityPresentationTypedData(pres, { chainId: presenterChain })) };
+}
+const present = async (nonce: Hex, audience: string): Promise<AuthorityPresentationV1> => signPresentation(presentUnsigned(nonce, audience));
+type Signer = ReturnType<typeof privateKeyToAccount>;
+async function knock(opts: { as?: Signer; pres?: unknown; challengeHeader?: string; path?: string; body?: string; sign?: boolean; replayId?: string; audience?: string; proofOverride?: string; originAudience?: string; text?: string; taskId?: string; metadata?: Record<string, unknown> }) {
+  const who = opts.as ?? me;
   const path = opts.path ?? '/federation/knock';
   const body = opts.body ?? JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'SendMessage', params: { message: { messageId: crypto.randomUUID(), role: 'ROLE_USER', parts: [{ text: opts.text ?? 'A visiting agent from another estate says hello. In one sentence, what may a visitor ask you about?' }], ...(opts.taskId ? { taskId: opts.taskId } : {}), ...(opts.metadata ? { metadata: opts.metadata } : {}) } } });
   const now = Math.floor(Date.now() / 1000);
   const presRef = opts.pres ? `estate:${String((opts.pres as { estateId: string }).estateId).toLowerCase()}:presentation:${(await sha256Of(JSON.stringify(opts.pres))).slice(7, 39)}` : null;
   const claims: AgenticRequestProofClaims = {
-    schemaVersion: '1', principalAgentId: `eip155:${presenterChain}:${me.address.toLowerCase()}`, actingAgentId: `eip155:${presenterChain}:${me.address.toLowerCase()}`, runtimeId: 'urn:ap:runtime:ap-federation:f2-presenter',
-    sessionKeyId: me.address.toLowerCase(), delegationRefs: presRef ? [presRef] : [], audience: opts.audience ?? DOOR, issuedAt: now, expiresAt: now + 120, replayId: opts.replayId ?? crypto.randomUUID(),
+    schemaVersion: '1', principalAgentId: `eip155:${presenterChain}:${who.address.toLowerCase()}`, actingAgentId: `eip155:${presenterChain}:${who.address.toLowerCase()}`, runtimeId: 'urn:ap:runtime:ap-federation:f2-presenter',
+    sessionKeyId: who.address.toLowerCase(), delegationRefs: presRef ? [presRef] : [], audience: opts.audience ?? DOOR, issuedAt: now, expiresAt: now + 120, replayId: opts.replayId ?? crypto.randomUUID(),
     http: { method: 'POST', authority: new URL(DOOR).host, pathAndQuery: path, bodySha256: await sha256Of(body) },
     a2a: { protocolVersion: '1.0', protocolBinding: 'HTTP+JSON', operation: 'SendMessage', requestedCapabilityId: 'harness.read' },
   };
-  const signature = await me.signMessage({ message: await requestProofDigest(claims) });
+  const signature = await who.signMessage({ message: await requestProofDigest(claims) });
   const headers: Record<string, string> = { 'content-type': 'application/json' };
   // THE ESTATE'S OWN DOOR ASKS WHO IS CALLING, separately from the federation door (spec 372 S3c): an `A2A-Session`
   // caller assertion bound to the method, the body, the ORIGIN's host and the moment, signed DIRECTLY by the agent
   // (the universal validator answers for an EOA as for a Smart Agent). The door forwards it untouched. Without it
   // the origin answers 401 — correct, and uninformative.
   if (opts.originAudience) {
-    const base = { agent: me.address.toLowerCase(), method: 'SendMessage', bodyHash: requestBodyHash(body), issuedAt: now, audience: opts.originAudience };
-    const sig = await me.sign({ hash: callerAssertionDigest(base) });
+    const base = { agent: who.address.toLowerCase(), method: 'SendMessage', bodyHash: requestBodyHash(body), issuedAt: now, audience: opts.originAudience };
+    const sig = await who.sign({ hash: callerAssertionDigest(base) });
     headers.authorization = sessionAuthorizationHeader({ ...base, signature: sig });
   }
   if (opts.sign !== false) headers['x-ap-request-proof'] = opts.proofOverride ?? b64url({ claims, signature });
@@ -88,9 +107,9 @@ async function knock(opts: { pres?: unknown; challengeHeader?: string; path?: st
 
 // ── the real path ──
 const c1 = await challenge();
-const pres = present(c1.nonce, c1.audience);
+const pres = await present(c1.nonce, c1.audience);
 const ok = await knock({ pres, challengeHeader: c1.header });
-check('ADMIT on a live leaf proved against the root read from neutral ground', ok.status === 200 && ok.json?.effect === 'ADMIT' && ok.json?.reasonCodes?.includes('FOREIGN_ESTATE_LIVE_GRANT'), `${ok.status} ${ok.json?.effect} ${JSON.stringify(ok.json?.reasonCodes)} standing=${JSON.stringify(ok.json?.standing)}`);
+check('ADMIT on a live leaf proved against the root read from neutral ground, signed by its subject (grade standing, never bearer)', ok.status === 200 && ok.json?.effect === 'ADMIT' && ok.json?.reasonCodes?.includes('FOREIGN_ESTATE_LIVE_GRANT') && !ok.json?.reasonCodes?.includes('FOREIGN_ESTATE_BEARER_GRADE') && ok.json?.standing?.grade === 'standing', `${ok.status} ${ok.json?.effect} ${JSON.stringify(ok.json?.reasonCodes)} standing=${JSON.stringify(ok.json?.standing)}`);
 const rc = ok.receipt ? await (await fetch(`${DOOR}/federation/receipts/${ok.receipt}`)).json() as any : null;
 check('F2.5: the estate agent\'s declared signer agrees with neutral ground (first-come-wins closed)', ok.json?.reasonCodes?.includes('FOREIGN_ESTATE_SIGNER_DECLARED') === true, JSON.stringify(ok.json?.reasonCodes));
 check('the receipt is readable by reference and hash-chained', !!rc && rc.receiptId === ok.receipt && /^sha256:/.test(rc.recordHash) && /^sha256:/.test(rc.prevHash) && rc.record?.effect === 'ADMIT', ok.receipt ?? '');
@@ -99,7 +118,7 @@ check('the receipt names the acting account and the boundary, nothing else of th
 // ── forward: the same, through the A2A path, lands at the estate's door with the standing in headers ──
 const c2 = await challenge();
 const originAudience = new URL(String((health as { origin?: string }).origin ?? '')).origin;
-const fwd = await knock({ pres: present(c2.nonce, c2.audience), challengeHeader: c2.header, path: '/a2a', originAudience });
+const fwd = await knock({ pres: await present(c2.nonce, c2.audience), challengeHeader: c2.header, path: '/a2a', originAudience });
 // A2A 1.0 SendMessage answers `{ task }` or `{ message }`; an agent asking as itself gets a task.
 const res = fwd.json?.result as { task?: Record<string, unknown>; message?: Record<string, unknown> } | undefined;
 const task = (res?.task ?? (res && 'id' in res ? res : undefined)) as { id?: string; status?: { state?: string }; metadata?: { foreignStanding?: { verified?: boolean; standing?: { estateId?: string; sequence?: number }; boundaryId?: string } } } | undefined;
@@ -113,7 +132,7 @@ check('F3: the task carries the door\'s receipt as VERIFIED evidence of standing
 // between those two sentences is the whole architecture.
 const c2b = await challenge();
 const actBody = JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'SendMessage', params: { message: { messageId: crypto.randomUUID(), role: 'ROLE_USER', parts: [{ text: `Send a message to the agent at ${me.address} that says: hello from the federation. Then tell me it was sent.` }] } } });
-const act = await knock({ pres: present(c2b.nonce, c2b.audience), challengeHeader: c2b.header, path: '/a2a', originAudience, body: actBody });
+const act = await knock({ pres: await present(c2b.nonce, c2b.audience), challengeHeader: c2b.header, path: '/a2a', originAudience, body: actBody });
 const actRes = act.json?.result as { task?: { id?: string; status?: { state?: string; message?: { parts?: Array<{ text?: string; data?: Record<string, unknown> }> } }; metadata?: { foreignStanding?: { verified?: boolean } } } } | undefined;
 const actTask = actRes?.task;
 const need = actTask?.status?.message?.parts?.find((pt) => pt.data)?.data as { requirement?: unknown; openToStewards?: boolean; runRef?: string } | undefined;
@@ -161,7 +180,7 @@ if (existsSync(standingFile)) {
   const reference = `federation-gate ${new Date().toISOString().slice(0, 16)} ${Math.random().toString(36).slice(2, 6)}`;
   // The payee address stays LAST in the sentence: the planner has twice glued the words after it into the payee.
   const askText = `Memo ${reference}: pay 5 ${symbol} from ${standing.treasuryName ?? 'your treasury'} to ${payee}`;
-  const ask = await knock({ pres: present(c3a.nonce, c3a.audience), challengeHeader: c3a.header, path: '/a2a', originAudience, text: askText });
+  const ask = await knock({ pres: await present(c3a.nonce, c3a.audience), challengeHeader: c3a.header, path: '/a2a', originAudience, text: askText });
   const askTask = (ask.json?.result as { task?: { id?: string; status?: { state?: string; message?: { parts?: Array<{ text?: string; data?: Record<string, unknown> }> } }; metadata?: { runRef?: string } } } | undefined)?.task;
   const parkedData = askTask?.status?.message?.parts?.find((pt) => pt.data)?.data;
   const need = parkedNeedOf(parkedData);
@@ -172,7 +191,7 @@ if (existsSync(standingFile)) {
     if (!derived.ok) console.log('  need:     ' + JSON.stringify(need.requirement) + '\n  standing: ' + JSON.stringify(standing.requirement));
     if (derived.ok) {
       const c3b = await challenge();
-      const cont = await knock({ pres: present(c3b.nonce, c3b.audience), challengeHeader: c3b.header, path: '/a2a', originAudience, text: 'Here is the mandate for that payment.', taskId: askTask.id, metadata: { presented: derived.presented } });
+      const cont = await knock({ pres: await present(c3b.nonce, c3b.audience), challengeHeader: c3b.header, path: '/a2a', originAudience, text: 'Here is the mandate for that payment.', taskId: askTask.id, metadata: { presented: derived.presented } });
       const doneTask = (cont.json?.result as { task?: { id?: string; status?: { state?: string; message?: { parts?: Array<{ text?: string }> } }; metadata?: { foreignStanding?: { verified?: boolean }; runRef?: string } } } | undefined)?.task;
       const said = doneTask?.status?.message?.parts?.find((pt) => pt.text)?.text ?? '';
       const after = (await money.readContract({ address: SHQ, abi: ERC20, functionName: 'balanceOf', args: [payee] })) as bigint;
@@ -182,7 +201,7 @@ if (existsSync(standingFile)) {
       // §6 step 4 — THE SAME INTENT AGAIN. Same words, same reference ⇒ the same intent digest ⇒ the same nonce. The
       // run parks and the child derives like before; the chain refuses the redemption as a reuse. One intent, one payment.
       const c3d = await challenge();
-      const again = await knock({ pres: present(c3d.nonce, c3d.audience), challengeHeader: c3d.header, path: '/a2a', originAudience, text: askText });
+      const again = await knock({ pres: await present(c3d.nonce, c3d.audience), challengeHeader: c3d.header, path: '/a2a', originAudience, text: askText });
       const againTask = (again.json?.result as { task?: { id?: string; status?: { state?: string; message?: { parts?: Array<{ data?: Record<string, unknown> }> } } } } | undefined)?.task;
       const needAgain = parkedNeedOf(againTask?.status?.message?.parts?.find((pt) => pt.data)?.data);
       let againState = againTask?.status?.state ?? String(again.status); let againSaid = '';
@@ -190,7 +209,7 @@ if (existsSync(standingFile)) {
         const d2 = await deriveFromStanding(standing, needAgain, (digest) => me.signMessage({ message: { raw: digest } }));
         if (d2.ok) {
           const c3e = await challenge();
-          const cont2 = await knock({ pres: present(c3e.nonce, c3e.audience), challengeHeader: c3e.header, path: '/a2a', originAudience, text: 'Here is the mandate for that payment.', taskId: againTask.id, metadata: { presented: d2.presented } });
+          const cont2 = await knock({ pres: await present(c3e.nonce, c3e.audience), challengeHeader: c3e.header, path: '/a2a', originAudience, text: 'Here is the mandate for that payment.', taskId: againTask.id, metadata: { presented: d2.presented } });
           const t2 = (cont2.json?.result as { task?: { status?: { state?: string; message?: { parts?: Array<{ text?: string }> } } } } | undefined)?.task;
           againState = t2?.status?.state ?? String(cont2.status); againSaid = t2?.status?.message?.parts?.find((pt) => pt.text)?.text ?? '';
         }
@@ -199,10 +218,20 @@ if (existsSync(standingFile)) {
       check('§6 step 4: the identical intent repeated is handled as a DUPLICATE — the chain refuses the reused nonce and no second payment moves', againState === 'TASK_STATE_REJECTED' && /nonce|reverted|reused/i.test(againSaid) && afterAgain === after, `${againState} · "${againSaid.slice(0, 90)}" · payee still ${Number(afterAgain) / 1e6} ${symbol}`);
     }
   }
-  // the twin: the wire names ONE payee; a payment to anyone else is not a subset and derives nothing
-  const other = '0x000000000000000000000000000000000000dEaD';
+  // the twin: the wire names ONE payee; a payment to anyone else is not a subset and derives nothing.
+  // THE OTHER PAYEE IS A REAL TREASURY ON THE RECEIVING CHAIN (2026-11-11). `0x…dEaD` is nobody's account, and the estate's
+  // harness now refuses a counterparty that is not a treasury on its chain BEFORE asking for a signature (ap-home
+  // capability-preconditions `payeePrecondition`) — so a dead address would test the value rail, not the wire's bounds.
+  // impact-agent: imbnet-org's dues treasury (the register's own `membershipPayments.byIssuer`), hopechain; faithnet:
+  // lbsb-treasury.treasury, faithchain gen 4. Both carry atl:agentType treasury. F3_OTHER_TREASURY overrides.
+  const receivingId = (health as { receivingEstate?: string }).receivingEstate ?? '';
+  const OTHER_TREASURY: Record<string, string | undefined> = {
+    'impact-agent': (fed.doors as Array<{ estate: string; membershipPayments?: { byIssuer?: Record<string, { payee?: string }> } }>).find((d) => d.estate === 'impact-agent')?.membershipPayments?.byIssuer?.['imbnet-org']?.payee,
+    faithnet: '0xed3383Cad2d7B95F29586D2037326b029ba82B69',
+  };
+  const other = process.env.F3_OTHER_TREASURY ?? OTHER_TREASURY[receivingId] ?? '0x000000000000000000000000000000000000dEaD';
   const c3c = await challenge();
-  const ask2 = await knock({ pres: present(c3c.nonce, c3c.audience), challengeHeader: c3c.header, path: '/a2a', originAudience, text: `Pay 5 ${symbol} from ${standing.treasuryName ?? 'your treasury'} to ${other}.` });
+  const ask2 = await knock({ pres: await present(c3c.nonce, c3c.audience), challengeHeader: c3c.header, path: '/a2a', originAudience, text: `Pay 5 ${symbol} from ${standing.treasuryName ?? 'your treasury'} to ${other}.` });
   const task2 = (ask2.json?.result as { task?: { status?: { state?: string; message?: { parts?: Array<{ data?: Record<string, unknown> }> } } } } | undefined)?.task;
   const need2 = parkedNeedOf(task2?.status?.message?.parts?.find((pt) => pt.data)?.data);
   const derived2 = need2 ? await deriveFromStanding(standing, need2, (digest) => me.signMessage({ message: { raw: digest } })) : null;
@@ -211,27 +240,54 @@ if (existsSync(standingFile)) {
 
 // ── twins ──
 const c3 = await challenge();
-const stale = { ...(present(c3.nonce, c3.audience) as Record<string, unknown>), sequence: Number(anchored[3]) - 1 };
+const stale = { ...(await present(c3.nonce, c3.audience)), sequence: Number(anchored[3]) - 1 };
 const t1 = await knock({ pres: stale, challengeHeader: c3.header });
 check('twin: a presentation one sequence behind is refused as stale', t1.status === 403 && t1.json?.reasonCodes?.includes('FOREIGN_ESTATE_STALE'), JSON.stringify(t1.json?.reasonCodes));
 const c4 = await challenge();
-const t2 = await knock({ pres: present(c4.nonce, 'https://another.door.example'), challengeHeader: c4.header });
+const t2 = await knock({ pres: await present(c4.nonce, 'https://another.door.example'), challengeHeader: c4.header });
 check('twin: a presentation answering another door\'s challenge is refused', t2.status === 403 && t2.json?.reasonCodes?.includes('FOREIGN_ESTATE_CHALLENGE_MISMATCH'), JSON.stringify(t2.json?.reasonCodes));
 const c5 = await challenge();
-const other = { ...(present(c5.nonce, c5.audience) as Record<string, unknown>), subject: '0x000000000000000000000000000000000000dead' };
+const other = { ...(await present(c5.nonce, c5.audience)), subject: '0x000000000000000000000000000000000000dead' };
 const t3 = await knock({ pres: other, challengeHeader: c5.header });
 check('twin: a presentation about someone else is refused', t3.status === 403 && (t3.json?.reasonCodes?.includes('FOREIGN_ESTATE_SUBJECT_MISMATCH') || t3.json?.reasonCodes?.includes('FOREIGN_ESTATE_NOT_IN_ROOT')), JSON.stringify(t3.json?.reasonCodes));
+
+// ── Ring 0 spec 445 §3.8 — the three a BEARER value would have passed ──
+// (a) RE-AIMED. A stranger (a fresh account with no grant anywhere) has SEEN this presenter's presentation. It asks
+//     the door for its own challenge, rewrites subject · nonce · audience to its own, signs the challenge with its own
+//     key and knocks as itself with a valid request proof. Under v1 that was admitted. The leaf commits to the real
+//     subject, so the opening does not open it for the stranger.
+const stranger = privateKeyToAccount(generatePrivateKey());
+const seen = await present((await challenge()).nonce, DOOR);
+const cs = await challenge(stranger.address);
+const reaimed = await signPresentation({ ...seen, subject: stranger.address.toLowerCase() as `0x${string}`, nonce: cs.nonce, audience: cs.audience, subjectSignature: undefined }, stranger);
+const t7 = await knock({ as: stranger, pres: reaimed, challengeHeader: cs.header });
+check('twin (445 §3.8): a presentation a stranger saw and re-aimed at itself is refused — the leaf commits to its subject', t7.status === 403 && t7.json?.reasonCodes?.includes('FOREIGN_ESTATE_OPENING_MISMATCH') && t7.json?.standing == null, `${t7.status} ${JSON.stringify(t7.json?.reasonCodes)}`);
+// (b) UNSIGNED. The estate's half alone — what the projector hands out — is not presentable.
+const c8 = await challenge();
+const t8 = await knock({ pres: presentUnsigned(c8.nonce, c8.audience), challengeHeader: c8.header });
+check('twin (445 §3.8): a presentation with no subject signature is refused — it is not a bearer value', t8.status === 403 && t8.json?.reasonCodes?.includes('FOREIGN_ESTATE_SUBJECT_SIGNATURE_MISSING'), `${t8.status} ${JSON.stringify(t8.json?.reasonCodes)}`);
+// (c) SIGNED BY SOMEONE ELSE. The right leaf, the right challenge, the wrong signer.
+const c9 = await challenge();
+const t9 = await knock({ pres: await signPresentation(presentUnsigned(c9.nonce, c9.audience), stranger), challengeHeader: c9.header });
+check('twin (445 §3.8): a presentation signed by anyone but its subject is refused', t9.status === 403 && t9.json?.reasonCodes?.includes('FOREIGN_ESTATE_SUBJECT_SIGNATURE_INVALID'), `${t9.status} ${JSON.stringify(t9.json?.reasonCodes)}`);
+check('the door says which presentations it takes: v2, subject-signed, bearer v1 refused', (health as { presentations?: { subjectSignature?: string; acceptsBearerV1?: boolean } }).presentations?.subjectSignature === 'required' && (health as { presentations?: { acceptsBearerV1?: boolean } }).presentations?.acceptsBearerV1 === false, JSON.stringify((health as { presentations?: unknown }).presentations ?? null));
+
 const rid = crypto.randomUUID();
 const c6 = await challenge();
-const p6 = present(c6.nonce, c6.audience);
+const p6 = await present(c6.nonce, c6.audience);
 const first = await knock({ pres: p6, challengeHeader: c6.header, replayId: rid });
 const replay = await knock({ pres: p6, challengeHeader: c6.header, replayId: rid });
 check('twin: a replayed proof is refused generically after the first was spent', first.status === 200 && replay.status === 401 && replay.json?.error === 'authentication_failed', `${first.status} then ${replay.status}`);
 const t5 = await knock({ sign: false });
 check('twin: no proof, no admission — a TLS connection authenticates no principal', t5.status === 401, String(t5.status));
 const t6 = await knock({});
-check('a request with no presentation is admitted as nobody-foreign and claims no standing', t6.status === 200 && t6.json?.effect === 'ADMIT' && t6.json?.standing === null && t6.json?.reasonCodes?.includes('FOREIGN_ESTATE_NOT_PRESENTED'), JSON.stringify(t6.json?.reasonCodes));
+// Ring 0 spec 445 / ING-2: an evaluator with nothing to judge ABSTAINS, and the engine admits only on an affirmative
+// ALLOW. A visitor who authenticates and cites nothing was admitted "as nobody-foreign" and forwarded; it is refused.
+check('twin (445 ING-2): a request with no presentation is REFUSED — authenticated, nothing cited, no affirmative opinion; no standing claimed', t6.status === 403 && t6.json?.effect === 'DENY' && t6.json?.standing === null && t6.json?.reasonCodes?.includes('FOREIGN_ESTATE_NOT_PRESENTED') && t6.json?.reasonCodes?.includes('NO_AFFIRMATIVE_OPINION'), `${t6.status} ${JSON.stringify(t6.json?.reasonCodes)}`);
+// …and on the forwarding path the same visitor reaches nothing: the estate's door never sees the bytes.
+const t6f = await knock({ path: '/a2a' });
+check('twin (445 ING-2): the same visitor on the forwarding path is refused before the estate\'s door is asked', t6f.status === 403 && t6f.json?.error === 'admission denied' && t6f.json?.reasonCodes?.includes('NO_AFFIRMATIVE_OPINION'), `${t6f.status} ${JSON.stringify(t6f.json?.reasonCodes ?? t6f.json?.error)}`);
 
 const failed = checks.filter((c) => !c.ok);
-console.log(failed.length ? `\nF2 DOOR GATE RED · ${failed.length} of ${checks.length} failed` : `\nF2 DOOR GATE GREEN · ${checks.length} checks incl. 5 refusals`);
+console.log(failed.length ? `\nF2 DOOR GATE RED · ${failed.length} of ${checks.length} failed` : `\nF2 DOOR GATE GREEN · ${checks.length} checks incl. 10 refusals`);
 process.exit(failed.length ? 1 : 0);

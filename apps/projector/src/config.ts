@@ -16,6 +16,7 @@ import { parse } from 'yaml';
 import { estateIdOf } from '@agenticprimitives/estate-projection';
 import type { Address, Hex, LocalAccount } from 'viem';
 import { keyServiceAccount, tokenFor, type KeyServiceRef } from '@ap-federation/key-service-account';
+import type { TownRow } from './subject-signature.js';
 
 export interface RegistryRow {
   chainId: number;
@@ -95,6 +96,9 @@ export interface Federation {
   credentials?: FederationCredentials;
   registry: RegistryRow;
   estates: EstateRow[];
+  /** The chains the federation's own tools can read: endpoint (by env name) and signature validator per chain. A
+   *  presentation's subject signs on the chain its account lives on, which is not always the registry's (spec 445 §3.8). */
+  towns?: TownRow[];
 }
 
 export function loadFederation(path = 'federation.yaml'): Federation {

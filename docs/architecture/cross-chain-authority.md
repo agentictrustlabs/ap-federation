@@ -86,7 +86,7 @@ says `declaredOnChain: false`.
 
 | Piece | Where | What a reader can check |
 | --- | --- | --- |
-| Neutral ground | faithchain (34348) `0xb4E116F5C6915a4f1e649E0877e4a0A7a1c1147b` | no admin, no pause, no upgrade |
+| Neutral ground | faithchain (34348) `0x489E2b147C7F13fCf1c9e7A827a4D9Fd7bE2FEb9` | no admin, no pause, no upgrade |
 | impact-agent's roots | estate id derived from `imbnet.estate`; its people and grants on hopechain (34349), its projection on faithchain | `pnpm gate:freshness`, `pnpm gate:vault-record` |
 | faithnet's roots | estate id derived from `faithnet.estate`; faithchain | the same gates |
 | The scheduled projector | https://projector.ap-federation.faithnet.io — every six hours, from each estate's registry-agent vault and each vault-ledger issuer's own vault | `GET /status`; `pnpm gate:freshness` |

@@ -45,29 +45,26 @@
     "setup:predicate-vault": "tsx scripts/setup-predicate-holder-vault.mts"
   },
   "devDependencies": {
-    "@agenticprimitives/a2a": "0.0.0-alpha.42",
-    "@agenticprimitives/admission": "0.0.0-alpha.18",
-    "@agenticprimitives/attestations": "0.0.0-alpha.37",
-    "@agenticprimitives/delegation": "1.0.0-alpha.41",
-    "@agenticprimitives/devkit": "0.0.0-alpha.29",
-    "@agenticprimitives/estate-projection": "0.0.0-alpha.16",
-    "@agenticprimitives/evaluation": "0.0.0-alpha.11",
-    "@agenticprimitives/key-custody": "1.0.0-alpha.41",
-    "@agenticprimitives/mcp-protocol": "0.0.0-alpha.4",
-    "@agenticprimitives/privacy-credentials": "0.0.0-alpha.18",
-    "@agenticprimitives/privacy-credentials-openac": "0.0.0-alpha.6",
-    "@agenticprimitives/verification-receipts": "0.0.0-alpha.18",
+    "@agenticprimitives/a2a": "0.0.0-alpha.50",
+    "@agenticprimitives/admission": "0.0.0-alpha.22",
+    "@agenticprimitives/agent-account": "1.0.0-alpha.48",
+    "@agenticprimitives/attestations": "0.0.0-alpha.44",
+    "@agenticprimitives/delegation": "1.0.0-alpha.48",
+    "@agenticprimitives/devkit": "0.0.0-alpha.36",
+    "@agenticprimitives/estate-projection": "0.0.0-alpha.23",
+    "@agenticprimitives/evaluation": "0.0.0-alpha.12",
+    "@agenticprimitives/intent-engagement": "0.0.0-alpha.27",
+    "@agenticprimitives/key-custody": "1.0.0-alpha.48",
+    "@agenticprimitives/mcp-protocol": "0.0.0-alpha.5",
+    "@agenticprimitives/privacy-credentials": "0.0.0-alpha.22",
+    "@agenticprimitives/privacy-credentials-openac": "0.0.0-alpha.11",
+    "@agenticprimitives/verification-receipts": "0.0.0-alpha.22",
     "openac-sdk": "5.0.0",
     "tsx": "^4.19.2",
     "typescript": "^5.7.3",
     "viem": "2.52.2",
     "vitest": "^4.1.8",
     "yaml": "2.8.1"
-  },
-  "pnpm": {
-    "patchedDependencies": {
-      "openac-sdk@5.0.0": "patches/openac-sdk@5.0.0.patch"
-    }
   },
   "packageManager": "pnpm@10.30.3"
 }

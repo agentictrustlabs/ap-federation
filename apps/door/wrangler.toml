@@ -25,12 +25,17 @@ RECEIVING_ESTATE = "impact-agent"
 ORIGIN_A2A = "https://edge.impact-agent.io/api/a2a/maya-fernandes.me"
 # W4 (2026-10-15): the receiving agent is maya-fernandes.me, whose account lives on hopechain (her canonical id); the
 # faithchain address this said before is her satellite there, which holds her root name and receives nothing.
-TARGET_AGENT_ID = "eip155:34349:0x3f96a0b26c59260b4fe74b40726b000b12ef33d3"
+TARGET_AGENT_ID = "eip155:34349:0xa191daf9c752a5888ca8eed865ae3c056e1f0dad"
 TARGET_RUNTIME_ID = "urn:ap:runtime:impact-agent:prod"
 CHAIN_ID = "34348"
-REGISTRY_ADDRESS = "0xb4E116F5C6915a4f1e649E0877e4a0A7a1c1147b"
+REGISTRY_ADDRESS = "0x489E2b147C7F13fCf1c9e7A827a4D9Fd7bE2FEb9"
 UNIVERSAL_SIGNATURE_VALIDATOR = "0xeDd56f500325D4701B9985A34e5Fa6EED6716137"
 MAX_AGE_SECONDS = "86400"
+# Ring 0 spec 445 §3.8 — a presentation is proof of possession. ACCEPT_BEARER_V1 is deliberately NOT set: a
+# merkle-membership-v1 (pre-445, bearer) presentation is refused. Setting it to exactly "true" on ONE env is a changeover
+# allowance while a presenting estate has not yet re-anchored a v2 projection; such an admission is graded bearer on the
+# receipt and forwards no standing header. If it is ever set, it is listed in docs/runbooks/before-real-users.md.
+# ACCEPT_BEARER_V1 = "true"
 # receipt retention (federation.yaml doors[].receipts.fullRecordDays): parties leave the record after this many days
 RECEIPT_FULL_RECORD_DAYS = "30"
 PROFILE_RESOLVER = "0xB03F7C06ad3274F584AB72794406D639c02A45e1"
@@ -73,15 +78,15 @@ RECEIVING_ESTATE = "impact-agent"
 ORIGIN_A2A = "https://edge.impact-agent.io/api/a2a/maya-fernandes.me"
 # W4 (2026-10-15): the receiving agent is maya-fernandes.me, whose account lives on hopechain (her canonical id); the
 # faithchain address this said before is her satellite there, which holds her root name and receives nothing.
-TARGET_AGENT_ID = "eip155:34349:0x3f96a0b26c59260b4fe74b40726b000b12ef33d3"
+TARGET_AGENT_ID = "eip155:34349:0xa191daf9c752a5888ca8eed865ae3c056e1f0dad"
 TARGET_RUNTIME_ID = "urn:ap:runtime:impact-agent:prod"
 CHAIN_ID = "34348"
-REGISTRY_ADDRESS = "0xb4E116F5C6915a4f1e649E0877e4a0A7a1c1147b"
-UNIVERSAL_SIGNATURE_VALIDATOR = "0xeDd56f500325D4701B9985A34e5Fa6EED6716137"
+REGISTRY_ADDRESS = "0x489E2b147C7F13fCf1c9e7A827a4D9Fd7bE2FEb9"
+UNIVERSAL_SIGNATURE_VALIDATOR = "0x0B4B34b21a4E396489344cDFEe1d15F3EDE7AE4E"   # deployments-faithchain.json, generation 4 (gen 1: 0xeDd56f50…)
 MAX_AGE_SECONDS = "86400"
 # receipt retention (federation.yaml doors[].receipts.fullRecordDays): parties leave the record after this many days
 RECEIPT_FULL_RECORD_DAYS = "30"
-PROFILE_RESOLVER = "0xB03F7C06ad3274F584AB72794406D639c02A45e1"
+PROFILE_RESOLVER = "0xc86d67D5ef2ed185e26a5f97f63e506CdA4e45C1"   # generation 4 — both faithchain estate agents declare atl:projectionSigner here (gen 1: 0xB03F7C06…)
 
 # ── The door in front of FAITHNET (2026-10-14): the twin's other direction. Receiving agent alice.me through the
 # estate's edge-addressed door. Its own Worker, its own DO, its own DOOR_SECRET. ──
@@ -99,12 +104,12 @@ PUBLIC_ORIGIN = "https://door-faithnet.ap-federation.faithnet.io"
 BOUNDARY_ID = "ap-federation-door:faithnet"
 RECEIVING_ESTATE = "faithnet"
 ORIGIN_A2A = "https://edge.faithnet.io/api/a2a/alice.me"
-TARGET_AGENT_ID = "eip155:34348:0xb0d11ce19b756a682e78b4904cd8d832303b3d11"
+TARGET_AGENT_ID = "eip155:34348:0x3d5d90c8f34cdb2af7fbf056b9a131e201421bd3"   # alice, generation 4 (2026-11-11; gen 1 was 0xb0d11ce1…)
 TARGET_RUNTIME_ID = "urn:ap:runtime:faithnet:prod"
 CHAIN_ID = "34348"
-REGISTRY_ADDRESS = "0xb4E116F5C6915a4f1e649E0877e4a0A7a1c1147b"
-UNIVERSAL_SIGNATURE_VALIDATOR = "0xeDd56f500325D4701B9985A34e5Fa6EED6716137"
+REGISTRY_ADDRESS = "0x489E2b147C7F13fCf1c9e7A827a4D9Fd7bE2FEb9"
+UNIVERSAL_SIGNATURE_VALIDATOR = "0x0B4B34b21a4E396489344cDFEe1d15F3EDE7AE4E"   # deployments-faithchain.json, generation 4
 MAX_AGE_SECONDS = "86400"
 # receipt retention (federation.yaml doors[].receipts.fullRecordDays): parties leave the record after this many days
 RECEIPT_FULL_RECORD_DAYS = "30"
-PROFILE_RESOLVER = "0xB03F7C06ad3274F584AB72794406D639c02A45e1"
+PROFILE_RESOLVER = "0xc86d67D5ef2ed185e26a5f97f63e506CdA4e45C1"   # generation 4 — where faithnet.estate declares atl:projectionSigner

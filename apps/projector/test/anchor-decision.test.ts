@@ -5,7 +5,7 @@ import { anchorDecision, ZERO_32, type AnchoredState } from '../src/anchor.js';
 const A = '0xaaaa000000000000000000000000000000000000000000000000000000000001' as const;
 const B = '0xbbbb000000000000000000000000000000000000000000000000000000000002' as const;
 const anchored = (over: Partial<AnchoredState> = {}): AnchoredState => ({
-  liveGrantRoot: A, membershipRoot: B, charterHash: ZERO_32, sequence: 7, anchoredAt: 1_000_000, never: false, ...over,
+  signer: '0x5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e', liveGrantRoot: A, membershipRoot: B, charterHash: ZERO_32, sequence: 7, anchoredAt: 1_000_000, never: false, ...over,
 });
 
 describe('anchorDecision', () => {

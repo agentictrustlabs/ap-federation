@@ -103,7 +103,7 @@ export interface FederationNaming {
   note?: string;
 }
 
-export interface DoorCredentialPolicy { predicates: Array<{ claim: string; op: string; value: unknown }>; claimSchema: string[]; vcSize: string; acceptedVersions?: string[]; nullifier?: { require: boolean; grade: string; windowSeconds?: number }; status?: string; maxAgeSeconds?: number; /** the trust set: ids from credentials.issuers; required when a door asks a credential */ issuers?: string[] }
+export interface DoorCredentialPolicy { predicates: Array<{ claim: string; op: string; value: unknown }>; claimSchema: string[]; vcSize: string; acceptedVersions?: string[]; nullifier?: { require: boolean; grade: string; windowSeconds?: number }; status?: string; maxAgeSeconds?: number; /** the trust set: ids from credentials.issuers; required when a door asks a credential */ issuers?: string[]; /** the credential type(s) the door asks for (Ring 0 spec 445 / DATA-7); a door that states none refuses every credential presentation */ credentialTypes?: string[] }
 export interface FederationDoor { estate: string; url: string; target?: string; since?: string; credentialProofs?: DoorCredentialPolicy; /** receipt retention: parties leave the record after this many days */ receipts?: { fullRecordDays?: number } }
 
 /** Spec 443 §2 `credentials:` (Ring 0 zkID Z4): the verifier side the doors run, and the issuers whose facets the

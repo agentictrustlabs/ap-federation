@@ -51,7 +51,8 @@ const digest = hashDelegation(d, CHAIN_ID, C.delegationManager);
 d.signature = await sign(digest);
 const wire = delegationToWire(d);
 // The same shape check the company agent's gate runs on every knock — refused here, before anything is written.
-const refused = checkSessionWireShape(wire, { timestamp: C.timestampEnforcer, allowedMethods: C.allowedMethodsEnforcer }, Math.floor(Date.now() / 1000), { skill: STANDARD_SURFACE_SKILL });
+// a2a RUN-9 (Ring 0 spec 445): the shape check is told WHICH host the wire is for and reads its allowedTargets caveat.
+const refused = checkSessionWireShape(wire, { timestamp: C.timestampEnforcer, allowedMethods: C.allowedMethodsEnforcer, allowedTargets: C.allowedTargetsEnforcer }, Math.floor(Date.now() / 1000), { target, skill: STANDARD_SURFACE_SKILL });
 if (refused) { console.error(`the wire's shape is refused: ${refused}`); process.exit(1); }
 const pc = createPublicClient({ transport: http(RPC) });
 const valid = await pc.readContract({ address: C.universalSignatureValidator, abi: [{ type: 'function', name: 'isValidSig', stateMutability: 'nonpayable', inputs: [{ type: 'address' }, { type: 'bytes32' }, { type: 'bytes' }], outputs: [{ type: 'bool' }] }], functionName: 'isValidSig', args: [door, digest, d.signature] });

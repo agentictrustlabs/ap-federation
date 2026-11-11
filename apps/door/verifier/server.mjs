@@ -41,7 +41,9 @@ const ATTESTATION_ABI = [
     { name: 'bilateralConsentRef', type: 'bytes32' }, { name: 'offchainCredentialStatusList', type: 'bytes32' }, { name: 'epochBucket', type: 'uint64' }, { name: 'revocationEpochBucket', type: 'uint64' },
     { name: 'subject', type: 'address' }, { name: 'party2', type: 'address' }, { name: 'issuer', type: 'address' }] }] },
 ];
-const REGISTRY_ABI = [{ type: 'function', name: 'roots', stateMutability: 'view', inputs: [{ name: 'estateId', type: 'bytes32' }], outputs: [
+// Generation 4 (spec 445 REG-2): a row is `(estateId, signer)`; `register` / `signerOf` are gone. An issuer's row is its ROW
+// SIGNER's (the register's `rowSigner`, default the issuer SA) — a stranger's row for the same id is never read.
+const REGISTRY_ABI = [{ type: 'function', name: 'isRetired', stateMutability: 'view', inputs: [{ name: 'estateId', type: 'bytes32' }, { name: 'signer', type: 'address' }], outputs: [{ type: 'bool' }] }, { type: 'function', name: 'roots', stateMutability: 'view', inputs: [{ name: 'estateId', type: 'bytes32' }, { name: 'signer', type: 'address' }], outputs: [
   { name: 'liveGrantRoot', type: 'bytes32' }, { name: 'membershipRoot', type: 'bytes32' }, { name: 'charterHash', type: 'bytes32' }, { name: 'sequence', type: 'uint64' }, { name: 'anchoredAt', type: 'uint64' }] }];
 
 /** `sha256:<hex>` → the 32-byte digest the SA signed (EIP-191 by a persona custodian or raw; the account's ERC-1271 answers either). */
@@ -101,7 +103,10 @@ async function verify(body) {
       },
     },
   );
-  const opts = { resolveIssuerKey, openacBackend: backend };
+  // WHAT THE DOOR TRUSTS rides in the request it built (Ring 0 spec 445 / DATA-7): `credentialTypes` and `acceptedIssuers`.
+  // This service adds no trust of its own — a request without them is refused by the suite (`credential_type_unstated` /
+  // `issuer_trust_unstated`), never widened here.
+  const opts = { resolveIssuerKey, openacBackend: backend, now: () => now };
   if (policy.nullifier?.require) {
     // Required ⇒ privacy-credentials refuses a presentation without one and below the grade; the STORE is the door's.
     opts.consumeNullifier = async () => true;
@@ -122,13 +127,23 @@ async function verify(body) {
       if (!facetIssuer) return { ok: false, code: 'issuer_row_unbound', reason: 'no trusted facet names the presentation\'s key, so no row can be its issuer\'s' };
       const expected = estateIdOf(Number(facetIssuer.chainId), facetIssuer.document.facet.subjectAgent);
       if (expected.toLowerCase() !== issuerId.toLowerCase()) return { ok: false, code: 'issuer_row_mismatch', reason: `the status names row ${issuerId.slice(0, 12)}…, but the facet's issuer row is ${expected.slice(0, 12)}…` };
-      const r = await pub.readContract({ address: registry.address, abi: REGISTRY_ABI, functionName: 'roots', args: [issuerId] });
-      const anchored = issuerRootsOf({ estateId: issuerId, liveGrantRoot: r[0], membershipRoot: r[1], charterHash: r[2], sequence: Number(r[3]), anchoredAt: Number(r[4]) });
+      const rowSigner = facetIssuer.rowSigner ?? facetIssuer.document.facet.subjectAgent;
+      if (typeof rowSigner !== 'string' || !/^0x[0-9a-fA-F]{40}$/.test(rowSigner)) return { ok: false, code: 'issuer_row_signer_unstated', reason: 'the door named no signer for the issuer\'s row' };
+      if (await pub.readContract({ address: registry.address, abi: REGISTRY_ABI, functionName: 'isRetired', args: [issuerId, rowSigner] })) return { ok: false, code: 'issuer_row_signer_retired', reason: 'the issuer\'s row signer rotated away; its row is refused' };
+      const r = await pub.readContract({ address: registry.address, abi: REGISTRY_ABI, functionName: 'roots', args: [issuerId, rowSigner] });
+      const anchored = issuerRootsOf({ estateId: issuerId, signer: rowSigner, liveGrantRoot: r[0], membershipRoot: r[1], charterHash: r[2], sequence: Number(r[3]), anchoredAt: Number(r[4]) });
       if (!anchored) return { ok: false, code: 'not_an_issuer_row', reason: 'neutral ground holds no issuer row under that id' };
       const v = verifyCredentialStatusPresentation(status, anchored, { ...challenge, now, maxAgeSeconds: Number(policy.maxAgeSeconds ?? 86400) });
       return v.ok ? { ok: true, sequence: v.sequence ?? anchored.sequence } : { ok: false, code: v.code, reason: v.reason };
     };
   }
+  // STATUS IS STATED, NEVER ASSUMED (spec 445 / DATA-18). `required` → the real check above, against the issuer's row on
+  // neutral ground. `none` → the door's register says, in words, that this door checks no issuer status; that declaration
+  // is passed on as `acceptUncheckedStatus` and the verdict says `statusChecked: false`. Anything else — a policy that
+  // does not state it — sets neither, and the suite refuses the presentation (`status_check_unstated`).
+  else if (policy.status === 'none') opts.acceptUncheckedStatus = true;
+  // The challenge is NOT consumed here: this service holds no state. The door's ledger DO spends it after this verdict
+  // (apps/door/src/credential.ts `credentialVerify` — verify, then consume, then the nullifier).
   const result = await verifyPresentation(presentation, request, opts);
   // Never the claims: this suite reveals none, and a verdict that carried any would be a disclosure by the verifier.
   const { claims: _dropped, ...verdict } = result;
