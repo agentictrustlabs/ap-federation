@@ -10,7 +10,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@agenticprimitives/key-custody": "1.0.0-alpha.47",
+    "@agenticprimitives/key-custody": "1.0.0-alpha.48",
     "viem": "2.52.2"
   },
   "devDependencies": {
