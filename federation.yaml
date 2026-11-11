@@ -523,6 +523,9 @@ kms:
         - { subject: demo-bible-mcp-faithnet, worker: demo-bible-mcp-faithnet, operations: [key-public-key, key-sign], protectionLevels: [CVM_WRAPPED] }
         - { subject: scripture-validator, operations: [key-public-key, key-sign], protectionLevels: [CVM_WRAPPED] }
         - { subject: coach-a2a-faithnet, worker: coach-a2a-faithnet, operations: [key-public-key, key-sign], protectionLevels: [CVM_WRAPPED] }
+        # 2026-11-11 — the ISL workspace agent's A2A endpoint (isl-discovery-harness). Key isl-a2a-delegate; delegate until the
+        # custodian's service-agent-wire names it.
+        - { subject: isl-agent-runtime-production, worker: isl-agent-runtime-production, operations: [key-public-key, key-sign], purposes: [service-agent-delegate], signingPurposes: [RAW_32_BYTE_DIGEST], protectionLevels: [CVM_WRAPPED], since: 2026-11-11 }
         # 2026-10-17 — ap-federation's Workers hold no key: each signs as a DELEGATE with a key of this tenant, under a wire
         # its owner signed. Purposes pinned to the Worker's own keys; signing purposes to what its code names per act.
         - { subject: projector-faithnet, worker: ap-federation-projector, operations: [key-public-key, key-sign], purposes: ["projector:faithnet"], signingPurposes: [EIP155_TRANSACTION, PERSONAL_SIGN_DIGEST, RAW_32_BYTE_DIGEST], protectionLevels: [CVM_WRAPPED, CVM_DERIVED], since: 2026-10-17 }
