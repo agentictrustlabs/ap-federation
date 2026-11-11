@@ -44,7 +44,7 @@ COMPANY_HOMEPAGE = "https://ligonier-svc.faithnet.ai"
 DOOR_AGENT = "0xa8faCe68E4177EF9E16CFf80E8356FaA88287407"
 LISTING = "public"
 CHAIN_ID = "34348"
-UNIVERSAL_SIGNATURE_VALIDATOR = "0xeDd56f500325D4701B9985A34e5Fa6EED6716137"
+UNIVERSAL_SIGNATURE_VALIDATOR = "0x0B4B34b21a4E396489344cDFEe1d15F3EDE7AE4E"   # deployments-faithchain.json, generation 4
 # The door's signer: key-service key pap-door-ligonier-1 (faithnet tenant) → 0x2eee98d91c520e24b0b1f9bce40014078f03c205, the
 # delegate alice's wire names (she custodies the door agent since 2026-10-17, tx 0xf99bf3c9…).
 AKCS_BASE_URL = "https://kms.faithnet.io"

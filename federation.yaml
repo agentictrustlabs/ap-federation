@@ -104,19 +104,24 @@ estates:
     # (tx 0xd81334ac…). It is NOT `faith-estate.workspace` — that stays the Pulse's context agent (spec 436 §5.5),
     # one agent per estate typed .estate, one per context typed .workspace. (Proposed, not decided: the Pulse's
     # context agents become the .estate agents — spec 440 §A/ap-town 436.)
-    governance: "0x3273f419FDfc7eA1Bf14372C4A9CA5fC43818F64"
+    # GENERATION 4 (2026-11-11, spec 445 estate reset): faithchain's contracts were redeployed, so the estate agent and the
+    # registry agent were re-chartered on the new factory — faithnet.estate 0x1ee25401… (salt 2 over demo-admin; AddEstateName
+    # tx 0x66f5327d…; atl:homepage + atl:projectionSigner declared), registry agent 0xB3a7038e… (salt 3 over demo-admin,
+    # atl:estate faithnet.estate, vault key bound), the anchoring wire re-issued under it (0x00791091…). The estate id moved
+    # with the governance address (0x342b7442…); the gen-1 agents 0x3273f419… / 0xdfdAE0a3… are history.
+    governance: "0x1ee254011bab5e1Fcf3cdb015c9D55212f562b0C"
     governanceKind: estate-agent
     governanceName: faithnet.estate         # on-chain: AgentNameRegistry owner of `faithnet.estate`
     governanceCustody: "demo-admin persona (demo/personas.local.json), the owner's choice 2026-10-14"
     # As impact-agent: the signer is this estate's registry agent, custodied by demo-admin (a person of this estate),
     # declaring `atl:estate: faithnet.estate`. The projector's key is a revocable delegate under its wire.
-    signer: "0xdfdAE0a37D35b72D8E2a4E3464087d43d0eB0b5b"
+    signer: "0xB3a7038efc6c4ED12cF9C633a59A215Ca0F82A2e"
     signerKind: registry-agent
     signerCustodian: "demo-admin (a person of this estate)"
     anchorKey: { tenant: faithnet, keyId: 01a149cb-0410-70a2-9049-d601396ecafc }   # projector-faithnet-1 → 0xe5344d08b4e5ee037833a194a1cc9f05865ed608 (key service; a delegate under the wire)
     anchoringWire: .secrets/anchoring-wire-faithnet.json
-    delegationManager: "0x710cb1bF08C234Df397e0910331e0A29710EF4F7"
-    profileResolver: "0xB03F7C06ad3274F584AB72794406D639c02A45e1"
+    delegationManager: "0x3BBeCcC7a52E1CE04a3BF7E7404D3BCBF566C490"
+    profileResolver: "0xc86d67D5ef2ed185e26a5f97f63e506CdA4e45C1"
     declaredOnChain: true
 
 # ── THE DOORS (spec 439 F2) ───────────────────────────────────────────────────────────────────────────
@@ -306,7 +311,7 @@ credentials:
       attestationRegistry: "0x4c94A0355380b8F5023eDd5f8A8131B020de19FA"
       universalSignatureValidator: "0xeDd56f500325D4701B9985A34e5Fa6EED6716137"
       rpcEnv: FEDERATION_RPC_URL
-      rowSigner: "0xdfdAE0a37D35b72D8E2a4E3464087d43d0eB0b5b"
+      rowSigner: "0xB3a7038efc6c4ED12cF9C633a59A215Ca0F82A2e"   # GENERATION 4 (2026-11-11): the re-chartered faithnet registry agent anchors this row; lbsb.svc itself (sa, facet, attestation above/below) is still the gen-1 agent until it is re-chartered and its facet re-published
       anchorKey: { tenant: faithnet, keyId: 01a149cb-0410-70a2-9049-d601396ecafc }   # projector-faithnet-1 → 0xe5344d08b4e5ee037833a194a1cc9f05865ed608 (key service; a delegate under the wire)
       anchoringWire: .secrets/anchoring-wire-faithnet.json
       ledger: vault
@@ -325,6 +330,7 @@ credentials:
     - id: faithnet-gate-issuer
       estate: faithnet
       sa: "0xdfdAE0a37D35b72D8E2a4E3464087d43d0eB0b5b"
+      rowSigner: "0xB3a7038efc6c4ED12cF9C633a59A215Ca0F82A2e"   # GENERATION 4 (2026-11-11): the re-chartered registry agent anchors the row under the re-issued wire. The ISSUER (sa, facet, attestation) is still the gen-1 registry agent — no door trusts this issuer today (impact-agent's door: imbnet only), so its facet was not re-published; setup-predicate-issuer.mts re-runs it on the new agent when a door needs it
       chainId: 34348
       kind: registry-agent
       attestationRegistry: "0x4c94A0355380b8F5023eDd5f8A8131B020de19FA"      # Ring 0 deployments-faithchain.json#attestationRegistry
@@ -375,7 +381,7 @@ towns:
     # How the federation's own Workers read this chain (a secret naming the gateway URL with an app token), and the one
     # contract a door needs there: the validator that answers for an EOA, a Smart Agent (ERC-1271) or a counterfactual one.
     rpcEnv: FEDERATION_RPC_URL
-    universalSignatureValidator: "0xeDd56f500325D4701B9985A34e5Fa6EED6716137"   # deployments-faithchain.json
+    universalSignatureValidator: "0x0B4B34b21a4E396489344cDFEe1d15F3EDE7AE4E"   # deployments-faithchain.json (generation 4, 2026-11-11)
   - id: hopenet
     chainId: 34349
     # The chain's LOCAL name table, read (ap-town hopenet naming, 2026-10-15). hopenet roots its names on faithchain and sells none,
@@ -629,8 +635,8 @@ kms:
 # it amends docs/architecture/federated-agent-naming.md N7.
 naming:
   rootChain: 34348
-  rootRegistry: "0x60E949D52660A9D4143ecB0fdA56c0457f20aED9"      # AgentNameRegistry on faithchain (Ring 0 deployments-faithchain.json)
-  universalResolver: "0xF343054e046A4145ccae499ECB28197394eE0798" # AgentNameUniversalResolver (the one-chain round trip, spec 222)
+  rootRegistry: "0x9BE6c96F198a7EDaE0Bb80c98A68EB76Cb85a4bC"      # AgentNameRegistry on faithchain (Ring 0 deployments-faithchain.json, generation 4 — 2026-11-11; gen 1 0x60E949D5… is history)
+  universalResolver: "0x56B6FBe849356a1D89d024DcA8abf74BF828bF4f" # AgentNameUniversalResolver (generation 4) (the one-chain round trip, spec 222)
   roots: [me, org, team, svc, workspace, treasury, registry, church, circle, household, estate]
   resolver: https://ap-federation.faithnet.io/api/names           # wave 1: over every live town's naming read API; later waves read the root chain and its proofs
   note: "the priced roots' governor is naming.svc under the town clerk persona (ap-town spec 431) — the one trust position a shared root creates; spec 440 C7 names it, Ring 0 decides its council shape"
