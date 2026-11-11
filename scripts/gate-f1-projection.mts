@@ -52,7 +52,12 @@ contractId.toLowerCase() === estate.estateId.toLowerCase()
 // 2 — THE ESTATE'S ROW (generation 4, spec 445 REG-2). Rows are keyed by (estateId, signer) and the registry no longer says which
 //     is the estate's: the estate's own declaration does (`atl:projectionSigner` on its chain). The gate reads the declaration,
 //     requires it to be the signer the register claims, and then reads ONLY that signer's row — as a door does.
-const declared = await readDeclaredSigner({ rpcUrl: process.env[estate.rpcEnv ?? ''] ?? rpc, chainId: estate.chainId, governance: estate.governance, profileResolver: (estate.profileResolver ?? '0xB03F7C06ad3274F584AB72794406D639c02A45e1') as `0x${string}` }).catch((e) => { bad(`the estate's declaration could not be read: ${e instanceof Error ? e.message : String(e)}`); return null; });
+//     The declaration lives where the estate agent (`governance`) lives — `chainId`, the chain the estate id derives from —
+//     NOT on its home chain (`rpcEnv` names the HOME chain's endpoint: impact-agent's governance is on faithchain, its
+//     residents on hopechain). Reading it on the wrong chain answers "not a contract", which is no declaration at all.
+const declarationRpc = estate.chainId === f.registry.chainId ? rpc : (process.env[estate.rpcEnv ?? ''] ?? '');
+if (!declarationRpc) bad(`no endpoint for the estate's chain eip155:${estate.chainId}`);
+const declared = await readDeclaredSigner({ rpcUrl: declarationRpc, chainId: estate.chainId, governance: estate.governance, profileResolver: (estate.profileResolver ?? '0xB03F7C06ad3274F584AB72794406D639c02A45e1') as `0x${string}` }).catch((e) => { bad(`the estate's declaration could not be read: ${e instanceof Error ? e.message : String(e)}`); return null; });
 let signer: `0x${string}` | null = null;
 if (declared && !declared.declared) bad('the estate agent has declared no atl:projectionSigner — a door reads no row for it (ap-home scripts/set-projection-signer.mts)');
 else if (declared?.declared) {
