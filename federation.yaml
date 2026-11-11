@@ -312,29 +312,29 @@ credentials:
     # the registry agent anchors it instead (`rowSigner`), the shape imbnet-org has, under faithnet's existing wire.
     - id: lbsb
       estate: faithnet
-      sa: "0x00ff8ccc7c7145289c8a42fe8870ec5d8cd68774"
+      sa: "0xcab776281f18151d7fcaec035d9b871769e2d6db"
       chainId: 34348
       kind: service
       custodian: "ruth (steward; via www.faithnet.me)"
-      attestationRegistry: "0x4c94A0355380b8F5023eDd5f8A8131B020de19FA"
-      universalSignatureValidator: "0xeDd56f500325D4701B9985A34e5Fa6EED6716137"
+      attestationRegistry: "0xE135d506b9A9B62e0B5D4F682212c7224aa6566F"
+      universalSignatureValidator: "0x0B4B34b21a4E396489344cDFEe1d15F3EDE7AE4E"
       rpcEnv: FEDERATION_RPC_URL
       rowSigner: "0xB3a7038efc6c4ED12cF9C633a59A215Ca0F82A2e"   # GENERATION 4 (2026-11-11): the re-chartered faithnet registry agent anchors this row; lbsb.svc itself (sa, facet, attestation above/below) is still the gen-1 agent until it is re-chartered and its facet re-published
       anchorKey: { tenant: faithnet, keyId: 01a149cb-0410-70a2-9049-d601396ecafc }   # projector-faithnet-1 → 0xe5344d08b4e5ee037833a194a1cc9f05865ed608 (key service; a delegate under the wire)
       anchoringWire: .secrets/anchoring-wire-faithnet.json
       ledger: vault
       since: 2026-10-17
-      # Written by scripts/publish-issuer-facet.mts (2026-10-17, custodian ruth through www.faithnet.me): the attestation
-      # (tx 0xdb023cb4…) on faithchain's AttestationRegistry is what a verifier checks.
+      # Re-published at GENERATION 4 by scripts/publish-issuer-facet.mts (2026-11-11, custodian ruth through www.faithnet.me,
+      # credential type lbsb-reader): the attestation (tx 0x9d487ac1…) on faithchain's gen-4 AttestationRegistry is what a verifier checks.
       facets:
         - keyId: issuer-key:sd-jwt:lbsb-1
           thumbprint: e8eyp_pvaSb0lnonmFQzKYQ1zjg_qx0Afk31gDKsYVw
-          attestation: "0xa14b1c3ce7803a70d3dd4dfa6b9a4c39c22d42f05d36a6317cf634a622f7cbc1"
+          attestation: "0xec99ecd5898298afd69bf5e05dc0765ee1fa0b2fd03c4459b3d356aaf2e0d109"
           revocationRoot: projection
           document:
-            facet: {"type":"IssuerKeyFacetV1","subjectAgent":"0x00ff8ccc7c7145289c8a42fe8870ec5d8cd68774","keyId":"issuer-key:sd-jwt:lbsb-1","suite":"es256-sd-jwt","publicKeyJwk":{"kty":"EC","crv":"P-256","x":"5wwjY3HGs_056-TG65CUW_IEKN6F8g3_4UL06pYbTD4","y":"9KRIxcQt3hDdrmyhzScUBCwLvbpUUrVtS25OSt11fws","kid":"e8eyp_pvaSb0lnonmFQzKYQ1zjg_qx0Afk31gDKsYVw"},"validFrom":"2026-10-17T00:11:55.643Z"}
-            facetHash: sha256:bb2f3602463df58ad162d4e4e2d62253b7220903f2366d0ebb5623beff9d5b6b
-            signature: "0x38bfb113ee3295edaee1dca07c7dc11c91f4e79aefabe8ef025ce1361479a430189d73605ecb8460e9ccfeef25186d2a2d594699427a52dd7c497e87353839471c"
+            facet: {"type":"IssuerKeyFacetV1","subjectAgent":"0xcab776281f18151d7fcaec035d9b871769e2d6db","keyId":"issuer-key:sd-jwt:lbsb-1","suite":"es256-sd-jwt","publicKeyJwk":{"kty":"EC","crv":"P-256","x":"5wwjY3HGs_056-TG65CUW_IEKN6F8g3_4UL06pYbTD4","y":"9KRIxcQt3hDdrmyhzScUBCwLvbpUUrVtS25OSt11fws","kid":"e8eyp_pvaSb0lnonmFQzKYQ1zjg_qx0Afk31gDKsYVw"},"credentialTypes":["lbsb-reader"],"validFrom":"2026-11-11T11:15:17.288Z"}
+            facetHash: sha256:83327571784c11b5e4dd411a1fccaef49ee5d725993202b9874079b3f612f3ef
+            signature: "0x8793010ec12bb88c48ad0f643e2b31548e881a5edf8d89e07dfbce72eb3f71c91bb3666b2720c6a0d475bdf9ebdd33d5fc06516fa7e8063dae3ca50fc9bb11541c"
     - id: faithnet-gate-issuer
       estate: faithnet
       sa: "0xdfdAE0a37D35b72D8E2a4E3464087d43d0eB0b5b"
