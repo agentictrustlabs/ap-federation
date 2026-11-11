@@ -32,6 +32,9 @@ importers:
       '@agenticprimitives/evaluation':
         specifier: 0.0.0-alpha.12
         version: 0.0.0-alpha.12
+      '@agenticprimitives/intent-engagement':
+        specifier: 0.0.0-alpha.26
+        version: 0.0.0-alpha.26(typescript@5.9.3)
       '@agenticprimitives/key-custody':
         specifier: 1.0.0-alpha.47
         version: 1.0.0-alpha.47(@agenticprimitives/audit@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.47))(@agenticprimitives/connect-auth@1.0.0-alpha.34(@agenticprimitives/types@1.0.0-alpha.47)(viem@2.52.2(typescript@5.9.3)))(@agenticprimitives/types@1.0.0-alpha.47)(viem@2.52.2(typescript@5.9.3))
